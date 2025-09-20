@@ -14,6 +14,56 @@ if (window.r1Create) {
 const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
 const reconnectBtn = document.getElementById('reconnectBtn');
+const debugLogEl = document.getElementById('debugLog');
+
+// Debug logging system
+let originalConsole = {
+    log: console.log,
+    warn: console.warn,
+    error: console.error,
+    info: console.info
+};
+
+function addDebugEntry(level, ...args) {
+    const entry = document.createElement('div');
+    entry.className = `debug-entry debug-${level}`;
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+    
+    entry.textContent = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+    
+    debugLogEl.appendChild(entry);
+    debugLogEl.scrollTop = debugLogEl.scrollHeight;
+    
+    // Keep only last 50 entries
+    while (debugLogEl.children.length > 50) {
+        debugLogEl.removeChild(debugLogEl.firstChild);
+    }
+}
+
+// Override console methods
+console.log = function(...args) {
+    originalConsole.log.apply(console, args);
+    addDebugEntry('log', ...args);
+};
+
+console.warn = function(...args) {
+    originalConsole.warn.apply(console, args);
+    addDebugEntry('warn', ...args);
+};
+
+console.error = function(...args) {
+    originalConsole.error.apply(console, args);
+    addDebugEntry('error', ...args);
+};
+
+console.info = function(...args) {
+    originalConsole.info.apply(console, args);
+    addDebugEntry('info', ...args);
+};
 
 function setStatus(connected, msg = '') {
     isConnected = connected;
@@ -29,12 +79,22 @@ function log(msg) {
 function connect() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     
-    // Auto-detect WebSocket protocol based on current page protocol
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${wsProtocol}//${window.location.host}/ws`;
+function connect() {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     
-    log('Connecting...');
-    ws = new WebSocket(url);
+    // For Cloudflare tunnel: if page is HTTPS but server is HTTP, show helpful error
+    if (window.location.protocol === 'https:') {
+        log('HTTPS detected - ensure Cloudflare tunnel supports WebSocket');
+        // Try wss:// first (Cloudflare should handle protocol conversion)
+        const url = `wss://${window.location.host}/ws`;
+        log('Connecting via WSS...');
+        ws = new WebSocket(url);
+    } else {
+        // Direct HTTP connection
+        const url = `ws://${window.location.host}/ws`;
+        log('Connecting via WS...');
+        ws = new WebSocket(url);
+    }
 
     ws.onopen = () => {
         setStatus(true);
@@ -84,7 +144,7 @@ function connect() {
 
     ws.onerror = (e) => {
         setStatus(false);
-        log('WebSocket error');
+        log('WebSocket error - check Cloudflare tunnel WebSocket support');
         scheduleReconnect();
     };
 }
