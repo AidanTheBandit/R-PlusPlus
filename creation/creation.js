@@ -28,7 +28,11 @@ function log(msg) {
 
 function connect() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
-    const url = `ws://${window.location.host}/ws`;
+    
+    // Auto-detect WebSocket protocol based on current page protocol
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${wsProtocol}//${window.location.host}/ws`;
+    
     log('Connecting...');
     ws = new WebSocket(url);
 
