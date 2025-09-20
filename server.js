@@ -27,6 +27,11 @@ app.use('/creation', express.static(path.join(__dirname, 'creation'), {
   }
 }));
 
+// Serve the laptop control panel at root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Serve the R1 creation at /creation
 app.get('/creation', (req, res) => {
   res.sendFile(path.join(__dirname, 'creation', 'index.html'));
