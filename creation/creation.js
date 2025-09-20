@@ -79,9 +79,6 @@ function log(msg) {
 function connect() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     
-function connect() {
-    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
-    
     // For Cloudflare tunnel: if page is HTTPS but server is HTTP, show helpful error
     if (window.location.protocol === 'https:') {
         log('HTTPS detected - ensure Cloudflare tunnel supports WebSocket');
@@ -97,6 +94,7 @@ function connect() {
     }
 
     ws.onopen = () => {
+        console.log('WebSocket connection opened successfully');
         setStatus(true);
         log('Connected');
         if (reconnectTimeout) {
@@ -106,14 +104,20 @@ function connect() {
     };
 
     ws.onmessage = (event) => {
+        console.log('WebSocket message received:', event.data);
         try {
             const msg = JSON.parse(event.data);
+            console.info('Parsed message type:', msg.type);
+            
             if (msg.type === 'connected') {
                 deviceId = msg.deviceId;
+                console.log('Device ID assigned:', deviceId);
                 setStatus(true, `ID: ${deviceId}`);
             } else if (msg.type === 'chat_completion' && r1Create) {
+                console.log('Processing chat completion request:', msg.data.message);
                 // Use onboard AI via r1-create
                 r1Create.process(msg.data.message).then(response => {
+                    console.log('AI response generated:', response);
                     ws.send(JSON.stringify({
                         type: 'response',
                         data: {
@@ -125,6 +129,7 @@ function connect() {
                         }
                     }));
                 }).catch(err => {
+                    console.error('AI processing error:', err);
                     ws.send(JSON.stringify({
                         type: 'error',
                         data: { error: err.message, deviceId }
@@ -132,17 +137,20 @@ function connect() {
                 });
             }
         } catch (e) {
+            console.error('Message parsing error:', e.message);
             log('Error: ' + e.message);
         }
     };
 
     ws.onclose = () => {
+        console.warn('WebSocket connection closed');
         setStatus(false);
         log('Connection closed');
         scheduleReconnect();
     };
 
     ws.onerror = (e) => {
+        console.error('WebSocket error occurred');
         setStatus(false);
         log('WebSocket error - check Cloudflare tunnel WebSocket support');
         scheduleReconnect();
@@ -165,7 +173,14 @@ function reconnect() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('R1 Creation UI loaded');
+    console.info('Debug logging system initialized');
+    console.log('Page protocol:', window.location.protocol);
+    console.log('Host:', window.location.host);
+    
     connect();
     setStatus(false);
     log('Ready');
+    
+    console.log('WebSocket connection attempt initiated');
 });
