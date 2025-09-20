@@ -1,0 +1,20 @@
+{
+  "name": "r-api",
+  "version": "1.0.0",
+  "description": "Interface with your R1 remotely via wss and a rest api",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["r1", "api", "websocket", "openai", "creation"],
+  "author": "AidanTheBandit",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "r1-create": "^1.0.1",
+    "ws": "^8.18.3"
+  }
+}
