@@ -1,0 +1,23 @@
+{
+  "name": "R1 Remote API",
+  "description": "Connect your R1 to a remote API server via WebSocket for command processing",
+  "version": "1.0.0",
+  "author": "R-API",
+  "main": "index.html",
+  "permissions": [
+    "network",
+    "websocket"
+  ],
+  "capabilities": [
+    "chat_completion",
+    "command_processing",
+    "status_reporting"
+  ],
+  "endpoints": {
+    "websocket": "/ws",
+    "api": "/v1/chat/completions"
+  },
+  "compatible_models": [
+    "r1-command"
+  ]
+}
