@@ -1,5 +1,5 @@
 const express = require('express');
-const { WebSocketServer } = require('ws');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
@@ -7,8 +7,14 @@ const http = require('http');
 const app = express();
 const server = http.createServer(app);
 
-// WebSocket server for R1 communication
-const wss = new WebSocketServer({ server, path: '/ws' });
+// Socket.IO server for R1 communication
+const io = new Server(server, {
+  path: '/ws',
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 // Store connected R1 devices
 const connectedR1s = new Map();
@@ -59,13 +65,11 @@ app.post('/v1/chat/completions', async (req, res) => {
     
     console.log('Sending command to R1 devices:', command);
     
-    // Broadcast to all connected R1s
+    // Broadcast to all connected R1s via Socket.IO
     let responsesSent = 0;
-    connectedR1s.forEach((ws, deviceId) => {
-      if (ws.readyState === ws.OPEN) {
-        ws.send(JSON.stringify(command));
-        responsesSent++;
-      }
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('chat_completion', command.data);
+      responsesSent++;
     });
     
     // Send OpenAI-compatible response
@@ -116,24 +120,23 @@ app.get('/v1/models', (req, res) => {
   });
 });
 
-// WebSocket connection handling
-wss.on('connection', (ws, req) => {
+// Socket.IO connection handling
+io.on('connection', (socket) => {
   const deviceId = `r1-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  connectedR1s.set(deviceId, ws);
+  connectedR1s.set(deviceId, socket);
   
   console.log(`R1 device connected: ${deviceId}`);
   console.log(`Total connected devices: ${connectedR1s.size}`);
   
   // Send welcome message
-  ws.send(JSON.stringify({
-    type: 'connected',
+  socket.emit('connected', {
     deviceId: deviceId,
     message: 'Connected to R-API server'
-  }));
+  });
   
-  ws.on('message', (data) => {
+  socket.on('message', (data) => {
     try {
-      const message = JSON.parse(data.toString());
+      const message = JSON.parse(data);
       console.log(`Message from ${deviceId}:`, message);
       
       // Handle different message types from R1
@@ -155,15 +158,10 @@ wss.on('connection', (ws, req) => {
     }
   });
   
-  ws.on('close', () => {
+  socket.on('disconnect', () => {
     connectedR1s.delete(deviceId);
     console.log(`R1 device disconnected: ${deviceId}`);
     console.log(`Total connected devices: ${connectedR1s.size}`);
-  });
-  
-  ws.on('error', (error) => {
-    console.error(`WebSocket error for ${deviceId}:`, error);
-    connectedR1s.delete(deviceId);
   });
 });
 
@@ -180,7 +178,7 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 5482;
 server.listen(PORT, () => {
   console.log(`R-API server running on http://localhost:${PORT}`);
-  console.log(`WebSocket server available at ws://localhost:${PORT}/ws`);
+  console.log(`Socket.IO server available at ws://localhost:${PORT}/ws`);
   console.log(`R1 Creation available at http://localhost:${PORT}/creation`);
   console.log(`OpenAI-compatible API at http://localhost:${PORT}/v1/chat/completions`);
 });
