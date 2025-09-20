@@ -1,9 +1,9 @@
 
-// Minimal R1 Creation UI with robust WebSocket and r1-create
-let ws = null;
+// Minimal R1 Creation UI with robust Socket.IO and r1-create
+console.log('Script loaded, initializing...');
+let socket = null;
 let deviceId = null;
 let isConnected = false;
-let reconnectTimeout = null;
 
 // Use r1-create for AI (assume it exposes window.r1Create)
 let r1Create = null;
@@ -81,8 +81,6 @@ function initializeDebugSystem() {
         originalConsole.info.apply(console, args);
         addDebugEntry('info', ...args);
     };
-    
-    console.log('Console override initialized');
 }
 
 function setStatus(connected, msg = '') {
@@ -97,129 +95,96 @@ function log(msg) {
 }
 
 function connect() {
-    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        console.log('Connection already in progress or established');
+    addDebugEntry('info', 'Starting Socket.IO connection attempt');
+    
+    if (socket && socket.connected) {
+        addDebugEntry('info', 'Socket.IO already connected, skipping');
         return;
     }
     
-    console.log('Starting WebSocket connection process...');
+    // Socket.IO automatically handles WebSocket vs polling fallback
+    addDebugEntry('info', 'Initializing Socket.IO connection');
+    socket = io('/', {
+        path: '/ws',
+        timeout: 5000,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+    });
     
-    // For Cloudflare tunnel: if page is HTTPS but server is HTTP, show helpful error
-    let url;
-    if (window.location.protocol === 'https:') {
-        console.log('Page is HTTPS - using WSS protocol');
-        url = `wss://${window.location.host}/ws`;
-        console.log('Attempting connection to:', url);
-    } else {
-        console.log('Page is HTTP - using WS protocol');
-        url = `ws://${window.location.host}/ws`;
-        console.log('Attempting connection to:', url);
-    }
+    // Connection events
+    socket.on('connect', () => {
+        addDebugEntry('info', 'Socket.IO connected successfully');
+        console.log('Socket.IO connected');
+        setStatus(true);
+        log('Connected');
+    });
     
-    try {
-        console.log('Creating WebSocket instance...');
-        ws = new WebSocket(url);
-        console.log('WebSocket instance created successfully');
-        
-        // Set up event handlers immediately
-        ws.onopen = () => {
-            console.log('WebSocket connection opened successfully');
-            setStatus(true);
-            log('Connected');
-            if (reconnectTimeout) {
-                clearTimeout(reconnectTimeout);
-                reconnectTimeout = null;
-            }
-        };
-
-        ws.onmessage = (event) => {
-            console.log('WebSocket message received:', event.data);
-            try {
-                const msg = JSON.parse(event.data);
-                console.info('Parsed message type:', msg.type);
-                
-                if (msg.type === 'connected') {
-                    deviceId = msg.deviceId;
-                    console.log('Device ID assigned:', deviceId);
-                    setStatus(true, `ID: ${deviceId}`);
-                } else if (msg.type === 'chat_completion' && r1Create) {
-                    console.log('Processing chat completion request:', msg.data.message);
-                    // Use onboard AI via r1-create
-                    r1Create.process(msg.data.message).then(response => {
-                        console.log('AI response generated:', response);
-                        ws.send(JSON.stringify({
-                            type: 'response',
-                            data: {
-                                originalMessage: msg.data.message,
-                                response,
-                                model: msg.data.model,
-                                timestamp: new Date().toISOString(),
-                                deviceId
-                            }
-                        }));
-                    }).catch(err => {
-                        console.error('AI processing error:', err);
-                        ws.send(JSON.stringify({
-                            type: 'error',
-                            data: { error: err.message, deviceId }
-                        }));
-                    });
-                }
-            } catch (e) {
-                console.error('Message parsing error:', e.message);
-                log('Error: ' + e.message);
-            }
-        };
-
-        ws.onclose = (event) => {
-            console.warn('WebSocket connection closed', {
-                code: event.code,
-                reason: event.reason,
-                wasClean: event.wasClean
-            });
-            setStatus(false);
-            log(`Connection closed (code: ${event.code})`);
-            scheduleReconnect();
-        };
-
-        ws.onerror = (error) => {
-            console.error('WebSocket error event fired:', error);
-            setStatus(false);
-            log('WebSocket error - check Cloudflare tunnel WebSocket support');
-            scheduleReconnect();
-        };
-        
-        console.log('WebSocket event handlers set up');
-        
-    } catch (error) {
-        console.error('Failed to create WebSocket connection:', error);
-        console.error('Error details:', {
-            message: error.message,
-            name: error.name,
-            stack: error.stack
-        });
+    socket.on('disconnect', () => {
+        addDebugEntry('warn', 'Socket.IO disconnected');
+        console.log('Socket.IO disconnected');
         setStatus(false);
-        log(`WebSocket creation failed: ${error.message}`);
-        scheduleReconnect();
-    }
-}
-
-function scheduleReconnect() {
-    if (reconnectTimeout) return;
-    reconnectTimeout = setTimeout(() => {
-        connect();
-    }, 3000);
+        log('Disconnected');
+    });
+    
+    socket.on('connect_error', (error) => {
+        addDebugEntry('error', `Socket.IO connection error: ${error.message}`);
+        console.error('Socket.IO connection error:', error);
+        setStatus(false);
+        log(`Connection error: ${error.message}`);
+    });
+    
+    socket.on('reconnect', (attemptNumber) => {
+        addDebugEntry('info', `Socket.IO reconnected after ${attemptNumber} attempts`);
+        console.log('Socket.IO reconnected');
+    });
+    
+    socket.on('reconnect_error', (error) => {
+        addDebugEntry('error', `Socket.IO reconnection failed: ${error.message}`);
+        console.error('Socket.IO reconnection failed:', error);
+    });
+    
+    // Application-specific events
+    socket.on('connected', (data) => {
+        deviceId = data.deviceId;
+        setStatus(true, `ID: ${deviceId}`);
+        addDebugEntry('info', `Connected with device ID: ${deviceId}`);
+    });
+    
+    socket.on('chat_completion', (data) => {
+        addDebugEntry('info', `Received chat completion: ${JSON.stringify(data).substring(0, 100)}...`);
+        console.log('Chat completion:', data);
+        
+        if (r1Create) {
+            r1Create.process(data.message).then(response => {
+                socket.emit('response', {
+                    originalMessage: data.message,
+                    response,
+                    model: data.model,
+                    timestamp: new Date().toISOString(),
+                    deviceId
+                });
+            }).catch(err => {
+                socket.emit('error', { 
+                    error: err.message, 
+                    deviceId 
+                });
+            });
+        }
+    });
 }
 
 function reconnect() {
-    if (ws) {
-        ws.close();
-        ws = null;
+    if (socket) {
+        socket.disconnect();
+        socket = null;
     }
+    deviceId = null;
     connect();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded fired');
     // Initialize DOM elements
     debugLogEl = document.getElementById('debugLog');
     const debugStatusEl = document.getElementById('debugStatus');
@@ -233,7 +198,23 @@ document.addEventListener('DOMContentLoaded', () => {
         debugStatusEl.style.color = '#4ecdc4';
     }
     
+    // Reset connection state
+    deviceId = null;
+    
     connect();
     setStatus(false);
     log('Ready');
 });
+
+// Fallback check in case DOMContentLoaded doesn't fire
+setTimeout(() => {
+    const debugStatusEl = document.getElementById('debugStatus');
+    if (debugStatusEl && debugStatusEl.textContent === 'Initializing...') {
+        console.error('DOMContentLoaded did not fire - JavaScript may be disabled or script failed to load');
+        debugStatusEl.textContent = 'Error: JS Disabled';
+        debugStatusEl.style.color = '#ff4444';
+        addDebugEntry('error', 'Page initialization failed. Check if JavaScript is enabled and server is running.');
+        setStatus(false);
+        log('Initialization failed - check server and JavaScript');
+    }
+}, 5000);
