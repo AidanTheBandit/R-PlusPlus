@@ -10,7 +10,6 @@ function App() {
   const [debugLogs, setDebugLogs] = useState([])
   const socketRef = useRef(null)
   const r1CreateRef = useRef(null)
-  const messageRequestMap = useRef(new Map()) // Map to store message -> requestId
 
   // Initialize R1 SDK
   useEffect(() => {
@@ -24,48 +23,20 @@ function App() {
         r1.messaging.onMessage((response) => {
           addDebugLog(`R1 SDK message received: ${JSON.stringify(response).substring(0, 100)}...`)
           
-          // Try to find the requestId for this response
-          // The response might contain the original message or we need to match it
-          let requestId = null
-          let originalMessage = null
+          // The R1 responds with {"message":"text"}, so extract the response text
+          const responseText = response.message || response.content || response
           
-          // Check if response contains the original message
-          if (response.originalMessage) {
-            originalMessage = response.originalMessage
-            requestId = messageRequestMap.current.get(originalMessage)
-          } else if (response.message) {
-            // Sometimes the response might be the echoed message
-            originalMessage = response.message
-            requestId = messageRequestMap.current.get(originalMessage)
-          }
-          
-          // If we found a requestId, send HTTP response to server
-          if (requestId) {
-            messageRequestMap.current.delete(originalMessage)
-            
-            // Send response via HTTP POST instead of socket
-            fetch('/response', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                requestId: requestId,
-                originalMessage: originalMessage,
-                response: response.content || response.message || response,
-                model: 'r1-llm',
-                deviceId: deviceId,
-                timestamp: new Date().toISOString()
-              })
-            }).then(httpResponse => {
-              if (httpResponse.ok) {
-                addDebugLog(`Sent R1 SDK response via HTTP (requestId: ${requestId})`)
-              } else {
-                addDebugLog(`Failed to send HTTP response: ${httpResponse.status}`, 'error')
-              }
-            }).catch(error => {
-              addDebugLog(`HTTP response send error: ${error.message}`, 'error')
+          // Send response via socket (server will handle requestId matching)
+          if (socketRef.current && socketRef.current.connected) {
+            socketRef.current.emit('response', {
+              response: responseText,
+              model: 'r1-llm',
+              timestamp: new Date().toISOString(),
+              deviceId
             })
+            addDebugLog(`Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..."`)
           } else {
-            addDebugLog('No requestId found for R1 response', 'warn')
+            addDebugLog('Socket not connected, cannot send response', 'error')
           }
         })
       } else {
@@ -172,9 +143,6 @@ function App() {
 
       if (r1CreateRef.current && r1CreateRef.current.messaging) {
         try {
-          // Store the requestId for this message
-          messageRequestMap.current.set(data.message, data.requestId)
-          
           // Use R1 SDK messaging API to send message to LLM
           r1CreateRef.current.messaging.sendMessage(data.message, { 
             useLLM: true
