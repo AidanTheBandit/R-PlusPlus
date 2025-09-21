@@ -18,6 +18,9 @@ const io = new Server(server, {
 // Store connected R1 devices
 const connectedR1s = new Map();
 
+// Store conversation history (simple in-memory storage)
+const conversationHistory = new Map(); // deviceId -> array of messages
+
 // Store pending chat completion requests
 const pendingRequests = new Map();
 
@@ -134,6 +137,38 @@ app.post('/v1/chat/completions', async (req, res) => {
     // Generate unique request ID
     const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
+    // Get conversation history for this "session" (using a simple approach)
+    // In a real implementation, you'd use proper session management
+    const sessionId = 'default'; // For now, use a single conversation per device
+    const history = conversationHistory.get(sessionId) || [];
+    
+    // Add current user message to history
+    history.push({
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Keep only last 10 messages to avoid context getting too long
+    if (history.length > 10) {
+      history.splice(0, history.length - 10);
+    }
+    
+    // Update stored history
+    conversationHistory.set(sessionId, history);
+    
+    // Create message with conversation context
+    let messageWithContext = userMessage;
+    if (history.length > 1) {
+      // Include recent conversation context
+      const contextMessages = history.slice(-4); // Last 4 messages for context
+      const contextText = contextMessages.map(msg => 
+        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+      ).join('\n');
+      
+      messageWithContext = `Conversation context:\n${contextText}\n\nCurrent user message: ${userMessage}`;
+    }
+    
     // Store the response callback with timeout
     const timeout = setTimeout(() => {
       pendingRequests.delete(requestId);
@@ -153,7 +188,8 @@ app.post('/v1/chat/completions', async (req, res) => {
     const command = {
       type: 'chat_completion',
       data: {
-        message: userMessage,
+        message: messageWithContext, // Use message with conversation context
+        originalMessage: userMessage, // Keep original for response
         model,
         temperature,
         max_tokens,
@@ -306,8 +342,24 @@ io.on('connection', (socket) => {
       }
     };
     
-    console.log(`📤 Sending OpenAI response to client:`, openaiResponse.choices[0].message.content.substring(0, 100));
-    clientRes.json(openaiResponse);
+      console.log(`📤 Sending OpenAI response to client:`, openaiResponse.choices[0].message.content.substring(0, 100));
+      
+      // Add assistant response to conversation history
+      const sessionId = 'default';
+      const history = conversationHistory.get(sessionId) || [];
+      history.push({
+        role: 'assistant',
+        content: openaiResponse.choices[0].message.content,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Keep only last 10 messages
+      if (history.length > 10) {
+        history.splice(0, history.length - 10);
+      }
+      conversationHistory.set(sessionId, history);
+      
+      clientRes.json(openaiResponse);
   }
   
   // Handle error events from R1 devices
