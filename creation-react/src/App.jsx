@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
 import { r1 } from 'r1-create'
+import DebugTool from './components/DebugTool'
 import './App.css'
+import './components/DebugComponents.css'
 
 function App() {
   const [isConnected, setIsConnected] = useState(false)
@@ -348,7 +350,7 @@ function App() {
   return (
     <div className="app">
       <div className="container">
-        <h2>R1 Creation - React</h2>
+        <h2>R1 Debug Tool</h2>
 
         <div className={`status ${isConnected ? 'connected' : 'disconnected'}`}>
           {statusMessage}
@@ -362,48 +364,12 @@ function App() {
           {isConnected ? 'Connected' : 'Reconnect'}
         </button>
 
-        {/* Camera Controls */}
-        <div className="camera-controls">
-          <h3>Magic Cam Control</h3>
-          <div className="camera-buttons">
-            <button
-              className={`camera-btn ${cameraActive ? 'active' : ''}`}
-              onClick={cameraActive ? stopCamera : startCamera}
-            >
-              {cameraActive ? 'Stop Camera' : 'Start Camera'}
-            </button>
-            <button
-              className="camera-btn"
-              onClick={switchCamera}
-              disabled={!cameraActive}
-            >
-              Switch ({cameraFacing === 'user' ? 'Front' : 'Back'})
-            </button>
-            <button
-              className="camera-btn"
-              onClick={capturePhoto}
-              disabled={!cameraActive}
-            >
-              Capture Photo
-            </button>
-          </div>
-          <div className="camera-status">
-            Status: {cameraActive ? `Active (${cameraFacing})` : 'Inactive'}
-          </div>
-        </div>
-
-        <div className="debug-panel">
-          <div className="debug-header">
-            Debug Log: <span className="debug-status">Active</span>
-          </div>
-          <div className="debug-log">
-            {debugLogs.map((log, index) => (
-              <div key={index} className={`debug-entry debug-${log.level}`}>
-                [{log.timestamp}] {log.level.toUpperCase()}: {log.message}
-              </div>
-            ))}
-          </div>
-        </div>
+        <DebugTool
+          r1Sdk={r1CreateRef.current}
+          socket={socketRef.current}
+          deviceId={deviceId}
+          isConnected={isConnected}
+        />
       </div>
     </div>
   )
