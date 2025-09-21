@@ -179,13 +179,22 @@ io.on('connection', (socket) => {
   });
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    connectedDevices: connectedR1s.size,
-    timestamp: new Date().toISOString()
-  });
+// Error logging endpoint for R1 browser debugging
+app.post('/errors', (req, res) => {
+  try {
+    const { level, message, stack, url, userAgent, timestamp, deviceId } = req.body;
+    
+    console.log(`[R1 ERROR ${level.toUpperCase()}] ${deviceId || 'unknown'}: ${message}`);
+    if (stack) {
+      console.log(`Stack trace: ${stack}`);
+    }
+    console.log(`URL: ${url}, User-Agent: ${userAgent}, Time: ${timestamp}`);
+    
+    res.json({ status: 'logged' });
+  } catch (error) {
+    console.error('Error logging failed:', error);
+    res.status(500).json({ error: 'Failed to log error' });
+  }
 });
 
 // Start server
