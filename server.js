@@ -249,14 +249,16 @@ io.on('connection', (socket) => {
   
   // Handle response events from R1 devices
   socket.on('response', (data) => {
-    console.log(`Response from ${deviceId}:`, data);
+    console.log(`🔄 Socket Response from ${deviceId}:`, data);
     
     const { requestId, response, originalMessage, model, timestamp } = data;
     
-    // Check if this device was assigned to handle this request
-    const assignedDevice = requestDeviceMap.get(requestId);
+    console.log(`Looking for pending request: ${requestId}`);
+    console.log(`Pending requests:`, Array.from(pendingRequests.keys()));
     
-    if (requestId && pendingRequests.has(requestId) && (!assignedDevice || assignedDevice === deviceId)) {
+    // If we have a requestId and it matches, use it
+    if (requestId && pendingRequests.has(requestId)) {
+      console.log(`✅ Found matching request ${requestId}, sending response to client`);
       const { res, timeout } = pendingRequests.get(requestId);
       
       // Clear timeout and remove from pending requests
@@ -264,35 +266,49 @@ io.on('connection', (socket) => {
       pendingRequests.delete(requestId);
       requestDeviceMap.delete(requestId);
       
-      // Send OpenAI-compatible response
-      const openaiResponse = {
-        id: `chatcmpl-${Date.now()}`,
-        object: 'chat.completion',
-        created: Math.floor(Date.now() / 1000),
-        model: model || 'r1-llm',
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: response || 'No response from R1'
-          },
-          finish_reason: 'stop'
-        }],
-        usage: {
-          prompt_tokens: originalMessage ? originalMessage.length : 0,
-          completion_tokens: response ? response.length : 0,
-          total_tokens: (originalMessage ? originalMessage.length : 0) + (response ? response.length : 0)
-        }
-      };
+      sendOpenAIResponse(res, response, originalMessage, model);
+    } 
+    // If no requestId or it doesn't match, but we have pending requests, use the first one
+    else if (pendingRequests.size > 0) {
+      console.log(`⚠️ No matching requestId, using first pending request`);
+      const [firstRequestId, { res, timeout }] = pendingRequests.entries().next().value;
       
-      console.log(`Sending response for request ${requestId} to client`);
-      res.json(openaiResponse);
-    } else if (requestId && assignedDevice && assignedDevice !== deviceId) {
-      console.log(`Ignoring response from ${deviceId} for request ${requestId} (assigned to ${assignedDevice})`);
+      // Clear timeout and remove from pending requests
+      clearTimeout(timeout);
+      pendingRequests.delete(firstRequestId);
+      requestDeviceMap.delete(firstRequestId);
+      
+      sendOpenAIResponse(res, response, originalMessage, model);
     } else {
-      console.log(`No pending request found for response from ${deviceId} with requestId: ${requestId}`);
+      console.log(`❌ No pending requests found for response from ${deviceId}`);
     }
   });
+  
+  // Helper function to send OpenAI-compatible response
+  function sendOpenAIResponse(clientRes, response, originalMessage, model) {
+    const openaiResponse = {
+      id: `chatcmpl-${Date.now()}`,
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: model || 'r1-llm',
+      choices: [{
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: response || 'No response from R1'
+        },
+        finish_reason: 'stop'
+      }],
+      usage: {
+        prompt_tokens: originalMessage ? originalMessage.length : 0,
+        completion_tokens: response ? response.length : 0,
+        total_tokens: (originalMessage ? originalMessage.length : 0) + (response ? response.length : 0)
+      }
+    };
+    
+    console.log(`📤 Sending OpenAI response to client:`, openaiResponse.choices[0].message.content.substring(0, 100));
+    clientRes.json(openaiResponse);
+  }
   
   // Handle error events from R1 devices
   socket.on('error', (data) => {
