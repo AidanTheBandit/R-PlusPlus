@@ -17,7 +17,62 @@ const logEl = document.getElementById('log');
 const reconnectBtn = document.getElementById('reconnectBtn');
 let debugLogEl = null; // Will be set when DOM is ready
 
-// Debug logging system
+// Error logging system for R1 debugging
+function sendErrorToServer(level, message, stack = null) {
+    try {
+        fetch('/errors', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                level,
+                message: String(message),
+                stack: stack ? String(stack) : null,
+                url: window.location.href,
+                userAgent: navigator.userAgent,
+                timestamp: new Date().toISOString(),
+                deviceId
+            })
+        }).catch(err => {
+            // Silently fail if error logging fails to avoid infinite loops
+            console.warn('Failed to send error to server:', err);
+        });
+    } catch (err) {
+        // Last resort - don't throw
+        console.warn('Error logging system failed:', err);
+    }
+}
+
+// Override console methods to capture errors
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+console.error = function(...args) {
+    // Send to server
+    const message = args.join(' ');
+    const stack = new Error().stack;
+    sendErrorToServer('error', message, stack);
+    
+    // Call original
+    originalConsoleError.apply(console, args);
+};
+
+console.warn = function(...args) {
+    // Send warnings too for debugging
+    const message = args.join(' ');
+    sendErrorToServer('warn', message);
+    
+    // Call original
+    originalConsoleWarn.apply(console, args);
+};
+
+// Global error handler for uncaught errors
+window.addEventListener('error', function(event) {
+    sendErrorToServer('error', event.message, event.error ? event.error.stack : null);
+});
+
+// Debug logging system (now integrated with server error logging)
 let originalConsole = {
     log: console.log,
     warn: console.warn,
@@ -229,3 +284,12 @@ setTimeout(() => {
         log('Initialization failed - check server and JavaScript');
     }
 }, 5000);
+
+// Global error handlers for R1 debugging (added after debug system setup)
+window.addEventListener('error', function(event) {
+    sendErrorToServer('error', event.message, event.error ? event.error.stack : null);
+});
+
+window.addEventListener('unhandledrejection', function(event) {
+    sendErrorToServer('error', `Unhandled promise rejection: ${event.reason}`, event.reason ? event.reason.stack : null);
+});
