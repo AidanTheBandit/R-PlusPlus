@@ -10,6 +10,7 @@ function App() {
   const [debugLogs, setDebugLogs] = useState([])
   const socketRef = useRef(null)
   const r1CreateRef = useRef(null)
+  const messageRequestMap = useRef(new Map()) // Map to store message -> requestId
 
   // Initialize R1 SDK
   useEffect(() => {
@@ -23,17 +24,37 @@ function App() {
         r1.messaging.onMessage((response) => {
           addDebugLog(`R1 SDK message received: ${JSON.stringify(response).substring(0, 100)}...`)
           
+          // Try to find the requestId for this response
+          // The response might contain the original message or we need to match it
+          let requestId = null
+          let originalMessage = null
+          
+          // Check if response contains the original message
+          if (response.originalMessage) {
+            originalMessage = response.originalMessage
+            requestId = messageRequestMap.current.get(originalMessage)
+          } else if (response.message) {
+            // Sometimes the response might be the echoed message
+            originalMessage = response.message
+            requestId = messageRequestMap.current.get(originalMessage)
+          }
+          
+          // If we found a requestId, clean up the map
+          if (requestId) {
+            messageRequestMap.current.delete(originalMessage)
+          }
+          
           // Send response back to server
           if (socketRef.current && socketRef.current.connected) {
             socketRef.current.emit('response', {
-              requestId: response.requestId, // Include the request ID
-              originalMessage: response.originalMessage || response.message || 'unknown',
+              requestId: requestId, // Use the found request ID
+              originalMessage: originalMessage || response.message || 'unknown',
               response: response.content || response.message || response,
               model: 'r1-llm',
               timestamp: new Date().toISOString(),
               deviceId
             })
-            addDebugLog('Sent R1 SDK response to server')
+            addDebugLog(`Sent R1 SDK response to server (requestId: ${requestId})`)
           }
         })
       } else {
@@ -140,10 +161,12 @@ function App() {
 
       if (r1CreateRef.current && r1CreateRef.current.messaging) {
         try {
+          // Store the requestId for this message
+          messageRequestMap.current.set(data.message, data.requestId)
+          
           // Use R1 SDK messaging API to send message to LLM
           r1CreateRef.current.messaging.sendMessage(data.message, { 
-            useLLM: true,
-            requestId: data.requestId // Pass through the request ID
+            useLLM: true
           })
           addDebugLog('Sent message to R1 LLM via messaging API')
         } catch (error) {

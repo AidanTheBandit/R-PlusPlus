@@ -21,6 +21,9 @@ const connectedR1s = new Map();
 // Store pending chat completion requests
 const pendingRequests = new Map();
 
+// Store which device is handling which request
+const requestDeviceMap = new Map();
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -85,6 +88,7 @@ app.post('/v1/chat/completions', async (req, res) => {
     // Store the response callback with timeout
     const timeout = setTimeout(() => {
       pendingRequests.delete(requestId);
+      requestDeviceMap.delete(requestId);
       console.log(`Request ${requestId} timed out`);
       res.status(504).json({
         error: {
@@ -115,6 +119,7 @@ app.post('/v1/chat/completions', async (req, res) => {
     let responsesSent = 0;
     connectedR1s.forEach((socket, deviceId) => {
       socket.emit('chat_completion', command.data);
+      requestDeviceMap.set(requestId, deviceId); // Track which device gets this request
       responsesSent++;
     });
     
@@ -199,12 +204,16 @@ io.on('connection', (socket) => {
     
     const { requestId, response, originalMessage, model, timestamp } = data;
     
-    if (requestId && pendingRequests.has(requestId)) {
+    // Check if this device was assigned to handle this request
+    const assignedDevice = requestDeviceMap.get(requestId);
+    
+    if (requestId && pendingRequests.has(requestId) && (!assignedDevice || assignedDevice === deviceId)) {
       const { res, timeout } = pendingRequests.get(requestId);
       
       // Clear timeout and remove from pending requests
       clearTimeout(timeout);
       pendingRequests.delete(requestId);
+      requestDeviceMap.delete(requestId);
       
       // Send OpenAI-compatible response
       const openaiResponse = {
@@ -229,6 +238,8 @@ io.on('connection', (socket) => {
       
       console.log(`Sending response for request ${requestId} to client`);
       res.json(openaiResponse);
+    } else if (requestId && assignedDevice && assignedDevice !== deviceId) {
+      console.log(`Ignoring response from ${deviceId} for request ${requestId} (assigned to ${assignedDevice})`);
     } else {
       console.log(`No pending request found for response from ${deviceId} with requestId: ${requestId}`);
     }
@@ -246,6 +257,7 @@ io.on('connection', (socket) => {
       // Clear timeout and remove from pending requests
       clearTimeout(timeout);
       pendingRequests.delete(requestId);
+      requestDeviceMap.delete(requestId);
       
       // Send error response
       res.status(500).json({
