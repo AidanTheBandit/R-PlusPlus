@@ -160,13 +160,18 @@ app.post('/v1/chat/completions', async (req, res) => {
     // Create message with conversation context
     let messageWithContext = userMessage;
     if (history.length > 1) {
-      // Include recent conversation context
-      const contextMessages = history.slice(-4); // Last 4 messages for context
-      const contextText = contextMessages.map(msg => 
-        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
-      ).join('\n');
+      // Get the last few exchanges
+      const recentHistory = history.slice(-4);
+      const contextParts = [];
       
-      messageWithContext = `Conversation context:\n${contextText}\n\nCurrent user message: ${userMessage}`;
+      for (let i = 0; i < recentHistory.length - 1; i++) { // Exclude the current message
+        const msg = recentHistory[i];
+        contextParts.push(`${msg.role === 'user' ? 'Human' : 'Assistant'}: ${msg.content}`);
+      }
+      
+      if (contextParts.length > 0) {
+        messageWithContext = `Context from previous messages:\n${contextParts.join('\n')}\n\nCurrent question: ${userMessage}`;
+      }
     }
     
     // Store the response callback with timeout
