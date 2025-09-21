@@ -103,22 +103,32 @@ function connect() {
         return;
     }
     
-    // Socket.IO configuration - standard setup that works with Cloudflare
-    addDebugEntry('info', 'Initializing Socket.IO connection');
+    // Socket.IO configuration FORCED to polling for ancient Android WebView compatibility
+    addDebugEntry('info', 'Initializing Socket.IO connection with polling-only mode for R1 WebView');
     socket = io('/', {
-        path: '/server',
-        timeout: 5000,
+        path: '/socketio-polling-only',
+        transports: ['polling'], // FORCE polling only for ancient WebView
+        timeout: 15000, // Longer timeout for slow connections
         reconnection: true,
         reconnectionAttempts: 5,
-        reconnectionDelay: 2000
+        reconnectionDelay: 2000,
+        forceNew: true,
+        upgrade: false, // DISABLE WebSocket upgrade - critical for ancient WebView
+        rememberUpgrade: false,
+        // Ancient WebView compatibility options
+        agent: false,
+        rejectUnauthorized: false,
+        withCredentials: false,
+        // Disable features that might not work in ancient WebView
+        multiplex: false
     });
     
     // Connection events
     socket.on('connect', () => {
-        addDebugEntry('info', `Socket.IO connected successfully`);
-        console.log('Socket.IO connected');
+        addDebugEntry('info', `Socket.IO connected successfully via polling (R1 WebView compatible)`);
+        console.log('Socket.IO connected via polling');
         setStatus(true);
-        log('Connected');
+        log('Connected (polling)');
     });
     
     socket.on('disconnect', () => {
