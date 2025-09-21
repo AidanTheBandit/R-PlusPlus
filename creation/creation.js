@@ -1,6 +1,7 @@
 
-// Minimal R1 Creation UI with robust Socket.IO and r1-create
-console.log('Script loaded, initializing...');
+// TEST MARKER: This file now uses Socket.IO, not WebSocket
+console.log('=== SOCKET.IO POLLING-ONLY VERSION LOADED ===');
+console.log('If you see this, the new code is running!');
 let socket = null;
 let deviceId = null;
 let isConnected = false;
@@ -102,19 +103,19 @@ function connect() {
         return;
     }
     
-    // Socket.IO automatically handles WebSocket vs polling fallback
+    // Socket.IO configuration - standard setup that works with Cloudflare
     addDebugEntry('info', 'Initializing Socket.IO connection');
     socket = io('/', {
-        path: '/ws',
+        path: '/server',
         timeout: 5000,
         reconnection: true,
         reconnectionAttempts: 5,
-        reconnectionDelay: 1000
+        reconnectionDelay: 2000
     });
     
     // Connection events
     socket.on('connect', () => {
-        addDebugEntry('info', 'Socket.IO connected successfully');
+        addDebugEntry('info', `Socket.IO connected successfully`);
         console.log('Socket.IO connected');
         setStatus(true);
         log('Connected');
