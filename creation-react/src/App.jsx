@@ -8,44 +8,12 @@ function App() {
   const [deviceId, setDeviceId] = useState(null)
   const [statusMessage, setStatusMessage] = useState('Initializing...')
   const [debugLogs, setDebugLogs] = useState([])
+  const [cameraActive, setCameraActive] = useState(false)
+  const [cameraFacing, setCameraFacing] = useState('user') // 'user' or 'environment'
+  const [cameraStream, setCameraStream] = useState(null)
   const socketRef = useRef(null)
   const r1CreateRef = useRef(null)
-
-  // Initialize R1 SDK
-  useEffect(() => {
-    try {
-      // Check if R1 SDK is available
-      if (r1 && r1.messaging) {
-        r1CreateRef.current = r1
-        addDebugLog('R1 SDK available')
-        
-        // Set up message handler for LLM responses
-        r1.messaging.onMessage((response) => {
-          addDebugLog(`R1 SDK message received: ${JSON.stringify(response).substring(0, 100)}...`)
-          
-          // The R1 responds with {"message":"text"}, so extract the response text
-          const responseText = response.message || response.content || response
-          
-          // Send response via socket (server will handle requestId matching)
-          if (socketRef.current && socketRef.current.connected) {
-            socketRef.current.emit('response', {
-              response: responseText,
-              model: 'r1-llm',
-              timestamp: new Date().toISOString(),
-              deviceId
-            })
-            addDebugLog(`Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..."`)
-          } else {
-            addDebugLog('Socket not connected, cannot send response', 'error')
-          }
-        })
-      } else {
-        addDebugLog('R1 SDK messaging not available - this app must run on R1 device', 'error')
-      }
-    } catch (error) {
-      addDebugLog(`R1 SDK initialization error: ${error.message}`, 'error')
-    }
-  }, [])
+  const videoRef = useRef(null)
 
   // Debug logging function
   const addDebugLog = (message, level = 'info') => {
@@ -138,6 +106,31 @@ function App() {
       addDebugLog(`Connected with device ID: ${data.deviceId}`)
     })
 
+    // Camera control events
+    socketRef.current.on('magic_cam_start', (data) => {
+      addDebugLog(`Magic cam start command received: ${JSON.stringify(data)}`)
+      console.log('Magic cam start event received:', data)
+      startCamera()
+    })
+
+    socketRef.current.on('magic_cam_stop', (data) => {
+      addDebugLog('Magic cam stop command received')
+      console.log('Magic cam stop event received:', data)
+      stopCamera()
+    })
+
+    socketRef.current.on('magic_cam_capture', (data) => {
+      addDebugLog(`Magic cam capture command received: ${JSON.stringify(data)}`)
+      console.log('Magic cam capture event received:', data)
+      capturePhoto()
+    })
+
+    socketRef.current.on('magic_cam_switch', (data) => {
+      addDebugLog('Magic cam switch command received')
+      console.log('Magic cam switch event received:', data)
+      switchCamera()
+    })
+
     socketRef.current.on('chat_completion', (data) => {
       addDebugLog(`Received chat completion: ${JSON.stringify(data).substring(0, 100)}...`)
 
@@ -168,6 +161,59 @@ function App() {
     })
   }
 
+  // Initialize R1 SDK
+  useEffect(() => {
+    try {
+      // Check if R1 SDK is available
+      if (r1 && r1.messaging) {
+        r1CreateRef.current = r1
+        addDebugLog('R1 SDK available')
+        
+        // Check what APIs are available
+        const availableAPIs = []
+        if (r1.messaging) availableAPIs.push('messaging')
+        if (r1.llm) availableAPIs.push('llm')
+        if (r1.camera) availableAPIs.push('camera')
+        if (r1.hardware) availableAPIs.push('hardware')
+        if (r1.storage) availableAPIs.push('storage')
+        if (r1.microphone) availableAPIs.push('microphone')
+        if (r1.speaker) availableAPIs.push('speaker')
+        
+        addDebugLog(`Available R1 APIs: ${availableAPIs.join(', ')}`)
+        
+        // Set up message handler for LLM responses
+        r1.messaging.onMessage((response) => {
+          addDebugLog(`R1 SDK message received: ${JSON.stringify(response).substring(0, 100)}...`)
+          
+          // The R1 responds with {"message":"text"}, so extract the response text
+          const responseText = response.message || response.content || response
+          
+          // Send response via socket (server will handle requestId matching)
+          if (socketRef.current && socketRef.current.connected) {
+            socketRef.current.emit('response', {
+              response: responseText,
+              model: 'r1-llm',
+              timestamp: new Date().toISOString(),
+              deviceId
+            })
+            addDebugLog(`Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..."`)
+          } else {
+            addDebugLog('Socket not connected, cannot send response', 'error')
+          }
+        })
+      } else {
+        addDebugLog('R1 SDK messaging not available - this app must run on R1 device', 'error')
+        console.error('r1 object:', r1)
+      }
+    } catch (error) {
+      addDebugLog(`R1 SDK initialization error: ${error.message}`, 'error')
+      console.error('R1 SDK initialization error details:', error)
+    }
+
+    // Connect socket after R1 SDK initialization
+    connectSocket()
+  }, [])
+
   const handleReconnect = () => {
     if (socketRef.current) {
       socketRef.current.disconnect()
@@ -175,6 +221,90 @@ function App() {
     }
     setDeviceId(null)
     connectSocket()
+  }
+
+  // Camera control functions
+  const startCamera = async () => {
+    addDebugLog('Attempting to start camera...')
+    console.log('r1CreateRef.current:', r1CreateRef.current)
+    console.log('r1 object:', r1)
+    
+    if (r1CreateRef.current && r1CreateRef.current.camera) {
+      try {
+        addDebugLog(`R1 camera API found, starting with facing mode: ${cameraFacing}`)
+        console.log('Calling r1.camera.start with:', { facingMode: cameraFacing })
+        const stream = await r1CreateRef.current.camera.start({ facingMode: cameraFacing })
+        setCameraActive(true)
+        addDebugLog(`Camera started successfully with ${cameraFacing} facing mode`)
+        console.log('Camera start result:', stream)
+      } catch (error) {
+        addDebugLog(`Camera start error: ${error.message}`, 'error')
+        console.error('Camera start error details:', error)
+      }
+    } else {
+      addDebugLog('R1 camera API not available - this app must run on R1 device', 'error')
+      console.error('r1CreateRef.current:', r1CreateRef.current)
+      console.error('r1 object:', r1)
+      if (r1CreateRef.current) {
+        console.error('Available properties on r1CreateRef.current:', Object.keys(r1CreateRef.current))
+      }
+    }
+  }
+
+  const stopCamera = async () => {
+    addDebugLog('Attempting to stop camera...')
+    if (r1CreateRef.current && r1CreateRef.current.camera) {
+      try {
+        await r1CreateRef.current.camera.stop()
+        setCameraActive(false)
+        addDebugLog('Camera stopped successfully')
+      } catch (error) {
+        addDebugLog(`Camera stop error: ${error.message}`, 'error')
+        console.error('Camera stop error details:', error)
+      }
+    } else {
+      addDebugLog('R1 camera API not available for stop', 'error')
+    }
+  }
+
+  const capturePhoto = async () => {
+    addDebugLog('Attempting to capture photo...')
+    if (r1CreateRef.current && r1CreateRef.current.camera) {
+      try {
+        const photo = await r1CreateRef.current.camera.capturePhoto(240, 282)
+        addDebugLog(`Photo captured: ${photo ? 'success' : 'failed'}`)
+        console.log('Photo capture result:', photo)
+        if (photo && socketRef.current && socketRef.current.connected) {
+          socketRef.current.emit('photo_captured', {
+            photo: photo,
+            deviceId
+          })
+          addDebugLog('Photo sent via socket')
+        }
+      } catch (error) {
+        addDebugLog(`Photo capture error: ${error.message}`, 'error')
+        console.error('Photo capture error details:', error)
+      }
+    } else {
+      addDebugLog('R1 camera API not available for capture', 'error')
+    }
+  }
+
+  const switchCamera = () => {
+    addDebugLog('Attempting to switch camera...')
+    const newFacing = cameraFacing === 'user' ? 'environment' : 'user'
+    setCameraFacing(newFacing)
+    if (cameraActive) {
+      addDebugLog(`Switching camera while active, stopping first...`)
+      stopCamera().then(() => {
+        addDebugLog(`Restarting camera with new facing mode: ${newFacing}`)
+        startCamera()
+      }).catch(error => {
+        addDebugLog(`Error during camera switch: ${error.message}`, 'error')
+      })
+    } else {
+      addDebugLog(`Camera facing mode switched to ${newFacing} (camera not active)`)
+    }
   }
 
   // Initialize on mount
@@ -207,9 +337,6 @@ function App() {
       sendErrorToServer('error', `Unhandled promise rejection: ${event.reason}`, event.reason?.stack)
     })
 
-    // Connect socket
-    connectSocket()
-
     // Cleanup
     return () => {
       if (socketRef.current) {
@@ -234,6 +361,36 @@ function App() {
         >
           {isConnected ? 'Connected' : 'Reconnect'}
         </button>
+
+        {/* Camera Controls */}
+        <div className="camera-controls">
+          <h3>Magic Cam Control</h3>
+          <div className="camera-buttons">
+            <button
+              className={`camera-btn ${cameraActive ? 'active' : ''}`}
+              onClick={cameraActive ? stopCamera : startCamera}
+            >
+              {cameraActive ? 'Stop Camera' : 'Start Camera'}
+            </button>
+            <button
+              className="camera-btn"
+              onClick={switchCamera}
+              disabled={!cameraActive}
+            >
+              Switch ({cameraFacing === 'user' ? 'Front' : 'Back'})
+            </button>
+            <button
+              className="camera-btn"
+              onClick={capturePhoto}
+              disabled={!cameraActive}
+            >
+              Capture Photo
+            </button>
+          </div>
+          <div className="camera-status">
+            Status: {cameraActive ? `Active (${cameraFacing})` : 'Inactive'}
+          </div>
+        </div>
 
         <div className="debug-panel">
           <div className="debug-header">
