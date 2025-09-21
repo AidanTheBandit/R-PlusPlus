@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "build-creation": "cd creation-react && npm run build",
+    "dev-creation": "cd creation-react && npm run dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -18,11 +20,15 @@
   "author": "AidanTheBandit",
   "license": "GPL-3.0",
   "dependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "r1-create": "^1.0.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "vite": "^6.3.6",
     "ws": "^8.18.3"
   }
 }

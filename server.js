@@ -9,22 +9,10 @@ const server = http.createServer(app);
 
 // Socket.IO server for R1 communication - compatible with ancient Android WebView
 const io = new Server(server, {
-  path: '/socket.io',
   cors: {
     origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  // Allow both WebSocket and polling for maximum compatibility
-  transports: ['websocket', 'polling'],
-  allowEIO3: true,
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  upgradeTimeout: 10000,
-  maxHttpBufferSize: 1e8,
-  connectTimeout: 15000,
-  // Allow upgrades for better performance when WebSocket works
-  allowUpgrades: true
+    methods: ["GET", "POST"]
+  }
 });
 
 // Store connected R1 devices
@@ -39,7 +27,7 @@ app.use(express.static('public'));
 app.set('trust proxy', 1);
 
 // Serve creation assets with proper MIME types
-app.use('/creation', express.static(path.join(__dirname, 'creation'), {
+app.use('/creation', express.static(path.join(__dirname, 'creation-react', 'dist'), {
   setHeaders: (res, path) => {
     if (path.endsWith('.js')) {
       res.setHeader('Content-Type', 'application/javascript');
@@ -54,7 +42,7 @@ app.get('/', (req, res) => {
 
 // Serve the R1 creation at /creation
 app.get('/creation', (req, res) => {
-  res.sendFile(path.join(__dirname, 'creation', 'index.html'));
+  res.sendFile(path.join(__dirname, 'creation-react', 'dist', 'index.html'));
 });
 
 // OpenAI-compatible API endpoints
