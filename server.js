@@ -18,6 +18,9 @@ const io = new Server(server, {
 // Store connected R1 devices
 const connectedR1s = new Map();
 
+// Store pending chat completion requests
+const pendingRequests = new Map();
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -76,6 +79,23 @@ app.post('/v1/chat/completions', async (req, res) => {
     // Extract the latest user message
     const userMessage = messages[messages.length - 1]?.content || '';
     
+    // Generate unique request ID
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Store the response callback with timeout
+    const timeout = setTimeout(() => {
+      pendingRequests.delete(requestId);
+      console.log(`Request ${requestId} timed out`);
+      res.status(504).json({
+        error: {
+          message: 'Request timed out waiting for R1 response',
+          type: 'timeout_error'
+        }
+      });
+    }, 30000); // 30 second timeout
+    
+    pendingRequests.set(requestId, { res, timeout });
+    
     // Send command to all connected R1 devices via WebSocket
     const command = {
       type: 'chat_completion',
@@ -83,7 +103,8 @@ app.post('/v1/chat/completions', async (req, res) => {
         message: userMessage,
         model,
         temperature,
-        max_tokens
+        max_tokens,
+        requestId
       },
       timestamp: new Date().toISOString()
     };
@@ -97,28 +118,17 @@ app.post('/v1/chat/completions', async (req, res) => {
       responsesSent++;
     });
     
-    // Send OpenAI-compatible response
-    const response = {
-      id: `chatcmpl-${Date.now()}`,
-      object: 'chat.completion',
-      created: Math.floor(Date.now() / 1000),
-      model: model,
-      choices: [{
-        index: 0,
-        message: {
-          role: 'assistant',
-          content: `Command sent to ${responsesSent} R1 device(s): ${userMessage}`
-        },
-        finish_reason: 'stop'
-      }],
-      usage: {
-        prompt_tokens: userMessage.length,
-        completion_tokens: 50,
-        total_tokens: userMessage.length + 50
-      }
-    };
-    
-    res.json(response);
+    if (responsesSent === 0) {
+      // No R1 devices connected
+      pendingRequests.delete(requestId);
+      clearTimeout(timeout);
+      res.status(503).json({
+        error: {
+          message: 'No R1 devices connected',
+          type: 'service_unavailable'
+        }
+      });
+    }
   } catch (error) {
     console.error('Error processing chat completion:', error);
     res.status(500).json({
@@ -180,6 +190,70 @@ io.on('connection', (socket) => {
       }
     } catch (error) {
       console.error(`Error parsing message from ${deviceId}:`, error);
+    }
+  });
+  
+  // Handle response events from R1 devices
+  socket.on('response', (data) => {
+    console.log(`Response from ${deviceId}:`, data);
+    
+    const { requestId, response, originalMessage, model, timestamp } = data;
+    
+    if (requestId && pendingRequests.has(requestId)) {
+      const { res, timeout } = pendingRequests.get(requestId);
+      
+      // Clear timeout and remove from pending requests
+      clearTimeout(timeout);
+      pendingRequests.delete(requestId);
+      
+      // Send OpenAI-compatible response
+      const openaiResponse = {
+        id: `chatcmpl-${Date.now()}`,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: model || 'r1-llm',
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: response || 'No response from R1'
+          },
+          finish_reason: 'stop'
+        }],
+        usage: {
+          prompt_tokens: originalMessage ? originalMessage.length : 0,
+          completion_tokens: response ? response.length : 0,
+          total_tokens: (originalMessage ? originalMessage.length : 0) + (response ? response.length : 0)
+        }
+      };
+      
+      console.log(`Sending response for request ${requestId} to client`);
+      res.json(openaiResponse);
+    } else {
+      console.log(`No pending request found for response from ${deviceId} with requestId: ${requestId}`);
+    }
+  });
+  
+  // Handle error events from R1 devices
+  socket.on('error', (data) => {
+    console.error(`Error from ${deviceId}:`, data);
+    
+    const { requestId, error } = data;
+    
+    if (requestId && pendingRequests.has(requestId)) {
+      const { res, timeout } = pendingRequests.get(requestId);
+      
+      // Clear timeout and remove from pending requests
+      clearTimeout(timeout);
+      pendingRequests.delete(requestId);
+      
+      // Send error response
+      res.status(500).json({
+        error: {
+          message: error || 'Error from R1 device',
+          type: 'r1_error'
+        }
+      });
     }
   });
   
