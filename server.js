@@ -74,6 +74,55 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Response endpoint for R1 devices to send responses via HTTP
+app.post('/response', (req, res) => {
+  try {
+    const { requestId, response, originalMessage, model, deviceId } = req.body;
+    
+    console.log(`HTTP Response from ${deviceId}:`, { requestId, response: response?.substring(0, 100) });
+    
+    if (requestId && pendingRequests.has(requestId)) {
+      const { res: clientRes, timeout } = pendingRequests.get(requestId);
+      
+      // Clear timeout and remove from pending requests
+      clearTimeout(timeout);
+      pendingRequests.delete(requestId);
+      requestDeviceMap.delete(requestId);
+      
+      // Send OpenAI-compatible response
+      const openaiResponse = {
+        id: `chatcmpl-${Date.now()}`,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: model || 'r1-llm',
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: response || 'No response from R1'
+          },
+          finish_reason: 'stop'
+        }],
+        usage: {
+          prompt_tokens: originalMessage ? originalMessage.length : 0,
+          completion_tokens: response ? response.length : 0,
+          total_tokens: (originalMessage ? originalMessage.length : 0) + (response ? response.length : 0)
+        }
+      };
+      
+      console.log(`Sending HTTP response for request ${requestId} to client`);
+      clientRes.json(openaiResponse);
+      res.json({ status: 'response_sent' });
+    } else {
+      console.log(`No pending request found for HTTP response with requestId: ${requestId}`);
+      res.status(404).json({ error: 'No pending request found' });
+    }
+  } catch (error) {
+    console.error('Error processing HTTP response:', error);
+    res.status(500).json({ error: 'Failed to process response' });
+  }
+});
+
 // OpenAI-compatible API endpoints
 app.post('/v1/chat/completions', async (req, res) => {
   try {

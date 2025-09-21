@@ -39,22 +39,33 @@ function App() {
             requestId = messageRequestMap.current.get(originalMessage)
           }
           
-          // If we found a requestId, clean up the map
+          // If we found a requestId, send HTTP response to server
           if (requestId) {
             messageRequestMap.current.delete(originalMessage)
-          }
-          
-          // Send response back to server
-          if (socketRef.current && socketRef.current.connected) {
-            socketRef.current.emit('response', {
-              requestId: requestId, // Use the found request ID
-              originalMessage: originalMessage || response.message || 'unknown',
-              response: response.content || response.message || response,
-              model: 'r1-llm',
-              timestamp: new Date().toISOString(),
-              deviceId
+            
+            // Send response via HTTP POST instead of socket
+            fetch('/response', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                requestId: requestId,
+                originalMessage: originalMessage,
+                response: response.content || response.message || response,
+                model: 'r1-llm',
+                deviceId: deviceId,
+                timestamp: new Date().toISOString()
+              })
+            }).then(httpResponse => {
+              if (httpResponse.ok) {
+                addDebugLog(`Sent R1 SDK response via HTTP (requestId: ${requestId})`)
+              } else {
+                addDebugLog(`Failed to send HTTP response: ${httpResponse.status}`, 'error')
+              }
+            }).catch(error => {
+              addDebugLog(`HTTP response send error: ${error.message}`, 'error')
             })
-            addDebugLog(`Sent R1 SDK response to server (requestId: ${requestId})`)
+          } else {
+            addDebugLog('No requestId found for R1 response', 'warn')
           }
         })
       } else {
