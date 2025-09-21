@@ -26,6 +26,17 @@ app.use(express.static('public'));
 // Trust proxy for Cloudflare Tunnel
 app.set('trust proxy', 1);
 
+// Serve React creation assets from root for proper loading
+app.use('/assets', express.static(path.join(__dirname, 'creation-react', 'dist', 'assets'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    }
+  }
+}));
+
 // Serve creation assets with proper MIME types
 app.use('/creation', express.static(path.join(__dirname, 'creation-react', 'dist'), {
   setHeaders: (res, path) => {
