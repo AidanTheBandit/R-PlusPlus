@@ -17,9 +17,51 @@ const logEl = document.getElementById('log');
 const reconnectBtn = document.getElementById('reconnectBtn');
 let debugLogEl = null; // Will be set when DOM is ready
 
-// Error logging system for R1 debugging
-function sendErrorToServer(level, message, stack = null) {
+// Error logging system for R1 debugging (with XMLHttpRequest fallback)
+function sendErrorToServerXHR(level, message, stack = null) {
     try {
+        // Use XMLHttpRequest for better ancient WebView compatibility
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/errors', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.timeout = 5000;
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status !== 200) {
+                    console.warn('Failed to send error to server via XHR:', xhr.status);
+                }
+            }
+        };
+
+        xhr.onerror = function() {
+            console.warn('XHR error sending to /errors');
+        };
+
+        xhr.ontimeout = function() {
+            console.warn('XHR timeout sending to /errors');
+        };
+
+        const errorData = {
+            level,
+            message: String(message),
+            stack: stack ? String(stack) : null,
+            url: window.location.href,
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString(),
+            deviceId
+        };
+
+        xhr.send(JSON.stringify(errorData));
+    } catch (err) {
+        // Last resort - don't throw
+        console.warn('Error logging system failed:', err);
+    }
+}
+
+function sendErrorToServer(level, message, stack = null) {
+    // Try fetch first, fallback to XMLHttpRequest
+    if (typeof fetch !== 'undefined') {
         fetch('/errors', {
             method: 'POST',
             headers: {
@@ -35,12 +77,12 @@ function sendErrorToServer(level, message, stack = null) {
                 deviceId
             })
         }).catch(err => {
-            // Silently fail if error logging fails to avoid infinite loops
-            console.warn('Failed to send error to server:', err);
+            console.warn('Failed to send error to server via fetch, trying XHR:', err);
+            sendErrorToServerXHR(level, message, stack);
         });
-    } catch (err) {
-        // Last resort - don't throw
-        console.warn('Error logging system failed:', err);
+    } else {
+        // Fallback to XMLHttpRequest for ancient browsers
+        sendErrorToServerXHR(level, message, stack);
     }
 }
 
@@ -158,32 +200,24 @@ function connect() {
         return;
     }
     
-    // Socket.IO configuration FORCED to polling for ancient Android WebView compatibility
-    addDebugEntry('info', 'Initializing Socket.IO connection with polling-only mode for R1 WebView');
+    // Socket.IO configuration - same as R1-Walky for maximum compatibility
+    addDebugEntry('info', 'Initializing Socket.IO connection with WebSocket+polling fallback');
     socket = io('/', {
-        path: '/socketio-polling-only',
-        transports: ['polling'], // FORCE polling only for ancient WebView
-        timeout: 15000, // Longer timeout for slow connections
+        path: '/socket.io',
+        transports: ['websocket', 'polling'], // Allow both transports like R1-Walky
+        timeout: 5000,
+        forceNew: true,
         reconnection: true,
         reconnectionAttempts: 5,
-        reconnectionDelay: 2000,
-        forceNew: true,
-        upgrade: false, // DISABLE WebSocket upgrade - critical for ancient WebView
-        rememberUpgrade: false,
-        // Ancient WebView compatibility options
-        agent: false,
-        rejectUnauthorized: false,
-        withCredentials: false,
-        // Disable features that might not work in ancient WebView
-        multiplex: false
+        reconnectionDelay: 1000
     });
     
     // Connection events
     socket.on('connect', () => {
-        addDebugEntry('info', `Socket.IO connected successfully via polling (R1 WebView compatible)`);
-        console.log('Socket.IO connected via polling');
+        addDebugEntry('info', `Socket.IO connected successfully`);
+        console.log('Socket.IO connected');
         setStatus(true);
-        log('Connected (polling)');
+        log('Connected');
     });
     
     socket.on('disconnect', () => {

@@ -7,24 +7,24 @@ const http = require('http');
 const app = express();
 const server = http.createServer(app);
 
-// Socket.IO server for R1 communication - POLLING ONLY for ancient Android WebView
+// Socket.IO server for R1 communication - compatible with ancient Android WebView
 const io = new Server(server, {
-  path: '/socketio-polling-only',
+  path: '/socket.io',
   cors: {
     origin: "*",
     methods: ["GET", "POST"],
     credentials: true
   },
-  // FORCE polling only for ancient Android WebView compatibility
-  transports: ['polling'],
+  // Allow both WebSocket and polling for maximum compatibility
+  transports: ['websocket', 'polling'],
   allowEIO3: true,
   pingTimeout: 60000,
   pingInterval: 25000,
   upgradeTimeout: 10000,
   maxHttpBufferSize: 1e8,
   connectTimeout: 15000,
-  // Disable upgrades - critical for ancient WebView
-  allowUpgrades: false
+  // Allow upgrades for better performance when WebSocket works
+  allowUpgrades: true
 });
 
 // Store connected R1 devices
@@ -201,7 +201,7 @@ app.post('/errors', (req, res) => {
 const PORT = process.env.PORT || 5482;
 server.listen(PORT, () => {
   console.log(`R-API server running on http://localhost:${PORT}`);
-  console.log(`Socket.IO polling server available at /socketio-polling-only (R1 WebView compatible)`);
+  console.log(`Socket.IO server available at /socket.io (WebSocket+polling compatible)`);
   console.log(`R1 Creation available at http://localhost:${PORT}/creation`);
   console.log(`OpenAI-compatible API at http://localhost:${PORT}/v1/chat/completions`);
 });
