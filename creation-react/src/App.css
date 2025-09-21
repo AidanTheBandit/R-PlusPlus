@@ -1,0 +1,153 @@
+.app {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.container {
+  width: 100%;
+  max-width: 240px; /* R1 screen width */
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+h2 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.status {
+  margin: 12px 0 16px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.status.connected {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status.disconnected {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.reconnect-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.reconnect-btn:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.reconnect-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.debug-panel {
+  background: #1a1a1a;
+  color: #d4d4d4;
+  border-radius: 6px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
+  max-height: 200px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.debug-header {
+  padding: 8px 12px;
+  background: #2d2d2d;
+  border-radius: 6px 6px 0 0;
+  font-weight: bold;
+  border-bottom: 1px solid #444;
+}
+
+.debug-status {
+  color: #4ecdc4;
+}
+
+.debug-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  max-height: 180px;
+}
+
+.debug-entry {
+  margin: 2px 0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  word-wrap: break-word;
+}
+
+.debug-info {
+  background: #1a2a3a;
+  color: #80ccff;
+}
+
+.debug-log {
+  background: #2d2d2d;
+}
+
+.debug-warn {
+  background: #3a2a1a;
+  color: #ffcc80;
+}
+
+.debug-error {
+  background: #2a1a1a;
+  color: #ff8080;
+}
+
+/* Mobile optimizations for R1 */
+@media (max-width: 320px) {
+  .app {
+    padding: 5px;
+  }
+
+  .container {
+    padding: 12px;
+  }
+
+  h2 {
+    font-size: 16px;
+  }
+
+  .status {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .reconnect-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .debug-panel {
+    font-size: 10px;
+  }
+}
