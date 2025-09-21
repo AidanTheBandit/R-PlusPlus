@@ -15,11 +15,29 @@ function App() {
   useEffect(() => {
     try {
       // Check if R1 SDK is available
-      if (r1 && r1.llm) {
+      if (r1 && r1.messaging) {
         r1CreateRef.current = r1
         addDebugLog('R1 SDK available')
+        
+        // Set up message handler for LLM responses
+        r1.messaging.onMessage((response) => {
+          addDebugLog(`R1 SDK message received: ${JSON.stringify(response).substring(0, 100)}...`)
+          
+          // Send response back to server
+          if (socketRef.current && socketRef.current.connected) {
+            socketRef.current.emit('response', {
+              requestId: response.requestId, // Include the request ID
+              originalMessage: response.originalMessage || response.message || 'unknown',
+              response: response.content || response.message || response,
+              model: 'r1-llm',
+              timestamp: new Date().toISOString(),
+              deviceId
+            })
+            addDebugLog('Sent R1 SDK response to server')
+          }
+        })
       } else {
-        addDebugLog('R1 SDK not available - this app must run on R1 device', 'error')
+        addDebugLog('R1 SDK messaging not available - this app must run on R1 device', 'error')
       }
     } catch (error) {
       addDebugLog(`R1 SDK initialization error: ${error.message}`, 'error')
@@ -120,41 +138,28 @@ function App() {
     socketRef.current.on('chat_completion', (data) => {
       addDebugLog(`Received chat completion: ${JSON.stringify(data).substring(0, 100)}...`)
 
-      if (r1CreateRef.current && r1CreateRef.current.llm) {
+      if (r1CreateRef.current && r1CreateRef.current.messaging) {
         try {
-          // Use R1 SDK LLM API to process the message
-          r1CreateRef.current.llm.askLLMSpeak(data.message).then(response => {
-            addDebugLog(`R1 LLM response: ${response}`)
-            
-            // Send response back to server
-            socketRef.current.emit('response', {
-              originalMessage: data.message,
-              response: response,
-              model: data.model,
-              timestamp: new Date().toISOString(),
-              deviceId
-            })
-            addDebugLog('Sent R1 LLM response to server')
-          }).catch(error => {
-            addDebugLog(`R1 LLM error: ${error.message}`, 'error')
-            socketRef.current.emit('error', {
-              error: `R1 LLM error: ${error.message}`,
-              deviceId
-            })
-            sendErrorToServer('error', `R1 LLM processing failed: ${error.message}`)
+          // Use R1 SDK messaging API to send message to LLM
+          r1CreateRef.current.messaging.sendMessage(data.message, { 
+            useLLM: true,
+            requestId: data.requestId // Pass through the request ID
           })
+          addDebugLog('Sent message to R1 LLM via messaging API')
         } catch (error) {
-          addDebugLog(`R1 SDK LLM call error: ${error.message}`, 'error')
+          addDebugLog(`R1 SDK messaging error: ${error.message}`, 'error')
           socketRef.current.emit('error', {
-            error: `R1 SDK error: ${error.message}`,
+            requestId: data.requestId, // Include request ID in error
+            error: `R1 SDK messaging error: ${error.message}`,
             deviceId
           })
-          sendErrorToServer('error', `R1 SDK LLM call failed: ${error.message}`)
+          sendErrorToServer('error', `R1 SDK messaging failed: ${error.message}`)
         }
       } else {
-        addDebugLog('R1 SDK not available - cannot process message', 'error')
+        addDebugLog('R1 SDK messaging not available - cannot process message', 'error')
         socketRef.current.emit('error', {
-          error: 'R1 SDK not available - this app must run on R1 device',
+          requestId: data.requestId, // Include request ID in error
+          error: 'R1 SDK messaging not available - this app must run on R1 device',
           deviceId
         })
       }
