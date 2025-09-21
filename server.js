@@ -9,10 +9,11 @@ const server = http.createServer(app);
 
 // Socket.IO server for R1 communication
 const io = new Server(server, {
-  path: '/ws',
+  path: '/server',
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: true, // Allow same origin
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -23,6 +24,9 @@ const connectedR1s = new Map();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// Trust proxy for Cloudflare Tunnel
+app.set('trust proxy', 1);
 
 // Serve creation assets with proper MIME types
 app.use('/creation', express.static(path.join(__dirname, 'creation'), {
@@ -178,7 +182,7 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 5482;
 server.listen(PORT, () => {
   console.log(`R-API server running on http://localhost:${PORT}`);
-  console.log(`Socket.IO server available at ws://localhost:${PORT}/ws`);
+  console.log(`Socket.IO server available at /server`);
   console.log(`R1 Creation available at http://localhost:${PORT}/creation`);
   console.log(`OpenAI-compatible API at http://localhost:${PORT}/v1/chat/completions`);
 });
