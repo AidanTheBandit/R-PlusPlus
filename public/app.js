@@ -248,6 +248,111 @@ class RAPIClient {
         this.log('Log exported');
     }
 
+    // Camera control methods
+    async startCamera() {
+        try {
+            this.log('Starting magic cam...');
+            const response = await fetch('/magic-cam/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ facingMode: 'user' })
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
+                this.log(`Camera start command sent to ${result.devices} device(s)`);
+                this.updateCameraStatus('Starting camera...');
+            } else {
+                this.showError(`Failed to start camera: ${result.error}`);
+            }
+        } catch (error) {
+            this.showError(`Camera start error: ${error.message}`);
+        }
+    }
+
+    async stopCamera() {
+        try {
+            this.log('Stopping magic cam...');
+            const response = await fetch('/magic-cam/stop', {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
+                this.log(`Camera stop command sent to ${result.devices} device(s)`);
+                this.updateCameraStatus('Stopping camera...');
+            } else {
+                this.showError(`Failed to stop camera: ${result.error}`);
+            }
+        } catch (error) {
+            this.showError(`Camera stop error: ${error.message}`);
+        }
+    }
+
+    async capturePhoto() {
+        try {
+            this.log('Capturing photo...');
+            const response = await fetch('/magic-cam/capture', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ width: 240, height: 282 })
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
+                this.log(`Photo capture command sent to ${result.devices} device(s)`);
+                this.updateCameraStatus('Capturing photo...');
+            } else {
+                this.showError(`Failed to capture photo: ${result.error}`);
+            }
+        } catch (error) {
+            this.showError(`Photo capture error: ${error.message}`);
+        }
+    }
+
+    async switchCamera() {
+        try {
+            this.log('Switching camera...');
+            const response = await fetch('/magic-cam/switch', {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
+                this.log(`Camera switch command sent to ${result.devices} device(s)`);
+                this.updateCameraStatus('Switching camera...');
+            } else {
+                this.showError(`Failed to switch camera: ${result.error}`);
+            }
+        } catch (error) {
+            this.showError(`Camera switch error: ${error.message}`);
+        }
+    }
+
+    async getCameraStatus() {
+        try {
+            this.log('Getting camera status...');
+            const response = await fetch('/magic-cam/status');
+            
+            const result = await response.json();
+            if (response.ok) {
+                this.updateCameraStatus(`Connected devices: ${result.connectedDevices}, Commands: ${result.cameraCommands.join(', ')}`);
+                this.log(`Camera status: ${JSON.stringify(result)}`);
+            } else {
+                this.showError(`Failed to get camera status: ${result.error}`);
+            }
+        } catch (error) {
+            this.showError(`Camera status error: ${error.message}`);
+        }
+    }
+
+    updateCameraStatus(status) {
+        const cameraStatus = document.getElementById('cameraStatus');
+        if (cameraStatus) {
+            cameraStatus.textContent = status;
+        }
+    }
+
     showError(message) {
         this.addChatMessage('system', 'Error', message);
         this.log(`Error: ${message}`);
@@ -283,6 +388,27 @@ function clearLog() {
 
 function exportLog() {
     client.exportLog();
+}
+
+// Camera control functions
+function startCamera() {
+    client.startCamera();
+}
+
+function stopCamera() {
+    client.stopCamera();
+}
+
+function capturePhoto() {
+    client.capturePhoto();
+}
+
+function switchCamera() {
+    client.switchCamera();
+}
+
+function getCameraStatus() {
+    client.getCameraStatus();
 }
 
 // Initialize when DOM is loaded

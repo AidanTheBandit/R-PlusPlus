@@ -257,6 +257,18 @@
                         No devices connected
                     </div>
                 </div>
+                
+                <h3 style="margin-top: 30px;">Magic Cam Control</h3>
+                <div class="camera-controls">
+                    <button class="control-btn camera-btn" onclick="startCamera()">📷 Start Camera</button>
+                    <button class="control-btn camera-btn" onclick="stopCamera()">⏹️ Stop Camera</button>
+                    <button class="control-btn camera-btn" onclick="capturePhoto()">📸 Capture Photo</button>
+                    <button class="control-btn camera-btn" onclick="switchCamera()">🔄 Switch Camera</button>
+                    <button class="control-btn camera-btn" onclick="getCameraStatus()">📊 Camera Status</button>
+                </div>
+                <div id="cameraStatus" style="margin-top: 10px; font-size: 12px; color: #666;">
+                    Camera controls ready
+                </div>
             </div>
         </div>
 

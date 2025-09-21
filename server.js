@@ -126,6 +126,327 @@ app.post('/response', (req, res) => {
   }
 });
 
+// Magic Cam control endpoints
+app.post('/magic-cam/start', (req, res) => {
+  try {
+    const { facing = 'user' } = req.body;
+    console.log(`Magic cam start requested with facing: ${facing}`);
+    
+    // Broadcast to all connected R1 devices
+    let devicesSent = 0;
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_start', { facing });
+      devicesSent++;
+    });
+    
+    console.log(`Magic cam start command sent to ${devicesSent} devices`);
+    res.json({ 
+      status: 'sent', 
+      devices: devicesSent,
+      command: 'start',
+      facing 
+    });
+  } catch (error) {
+    console.error('Error sending magic cam start:', error);
+    res.status(500).json({ error: 'Failed to send camera start command' });
+  }
+});
+
+app.post('/magic-cam/stop', (req, res) => {
+  try {
+    console.log('Magic cam stop requested');
+    
+    // Broadcast to all connected R1 devices
+    let devicesSent = 0;
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_stop', {});
+      devicesSent++;
+    });
+    
+    console.log(`Magic cam stop command sent to ${devicesSent} devices`);
+    res.json({ 
+      status: 'sent', 
+      devices: devicesSent,
+      command: 'stop'
+    });
+  } catch (error) {
+    console.error('Error sending magic cam stop:', error);
+    res.status(500).json({ error: 'Failed to send camera stop command' });
+  }
+});
+
+app.post('/magic-cam/capture', (req, res) => {
+  try {
+    const { width = 240, height = 282 } = req.body;
+    console.log(`Magic cam capture requested with dimensions: ${width}x${height}`);
+    
+    // Broadcast to all connected R1 devices
+    let devicesSent = 0;
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_capture', { width, height });
+      devicesSent++;
+    });
+    
+    console.log(`Magic cam capture command sent to ${devicesSent} devices`);
+    res.json({ 
+      status: 'sent', 
+      devices: devicesSent,
+      command: 'capture',
+      dimensions: { width, height }
+    });
+  } catch (error) {
+    console.error('Error sending magic cam capture:', error);
+    res.status(500).json({ error: 'Failed to send camera capture command' });
+  }
+});
+
+app.post('/magic-cam/switch', (req, res) => {
+  try {
+    console.log('Magic cam switch requested');
+    
+    // Broadcast to all connected R1 devices
+    let devicesSent = 0;
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_switch', {});
+      devicesSent++;
+    });
+    
+    console.log(`Magic cam switch command sent to ${devicesSent} devices`);
+    res.json({ 
+      status: 'sent', 
+      devices: devicesSent,
+      command: 'switch'
+    });
+  } catch (error) {
+    console.error('Error sending magic cam switch:', error);
+    res.status(500).json({ error: 'Failed to send camera switch command' });
+  }
+});
+
+app.get('/magic-cam/status', (req, res) => {
+  try {
+    console.log('Magic cam status requested');
+    res.json({
+      connectedDevices: connectedR1s.size,
+      cameraCommands: ['start', 'stop', 'capture', 'switch'],
+      status: connectedR1s.size > 0 ? 'ready' : 'no_devices'
+    });
+  } catch (error) {
+    console.error('Error getting magic cam status:', error);
+    res.status(500).json({ error: 'Failed to get camera status' });
+  }
+});
+
+// OpenAI-compatible API endpoints
+
+// Magic Cam API endpoints
+app.post('/magic-cam/start', (req, res) => {
+  try {
+    const { facingMode = 'user' } = req.body;
+    
+    console.log(`Magic cam start command: facingMode=${facingMode}`);
+    
+    // Broadcast to all connected R1 devices
+    let devicesSent = 0;
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_start', { facingMode });
+      devicesSent++;
+    });
+    
+    res.json({ 
+      success: true, 
+      devices: devicesSent,
+      message: `Camera start command sent to ${devicesSent} device(s)`
+    });
+  } catch (error) {
+    console.error('Error sending magic cam start:', error);
+    res.status(500).json({ error: 'Failed to send camera start command' });
+  }
+});
+
+app.post('/magic-cam/stop', (req, res) => {
+  try {
+    console.log('Magic cam stop command');
+    
+    // Broadcast to all connected R1 devices
+    let devicesSent = 0;
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_stop', {});
+      devicesSent++;
+    });
+    
+    res.json({ 
+      success: true, 
+      devices: devicesSent,
+      message: `Camera stop command sent to ${devicesSent} device(s)`
+    });
+  } catch (error) {
+    console.error('Error sending magic cam stop:', error);
+    res.status(500).json({ error: 'Failed to send camera stop command' });
+  }
+});
+
+app.post('/magic-cam/capture', (req, res) => {
+  try {
+    const { width = 240, height = 282 } = req.body;
+    
+    console.log(`Magic cam capture command: ${width}x${height}`);
+    
+    // Broadcast to all connected R1 devices
+    let devicesSent = 0;
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_capture', { width, height });
+      devicesSent++;
+    });
+    
+    res.json({ 
+      success: true, 
+      devices: devicesSent,
+      message: `Photo capture command sent to ${devicesSent} device(s)`
+    });
+  } catch (error) {
+    console.error('Error sending magic cam capture:', error);
+    res.status(500).json({ error: 'Failed to send photo capture command' });
+  }
+});
+
+app.post('/magic-cam/switch', (req, res) => {
+  try {
+    console.log('Magic cam switch command');
+    
+    // Broadcast to all connected R1 devices
+    let devicesSent = 0;
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_switch', {});
+      devicesSent++;
+    });
+    
+    res.json({ 
+      success: true, 
+      devices: devicesSent,
+      message: `Camera switch command sent to ${devicesSent} device(s)`
+    });
+  } catch (error) {
+    console.error('Error sending magic cam switch:', error);
+    res.status(500).json({ error: 'Failed to send camera switch command' });
+  }
+});
+
+app.get('/magic-cam/status', (req, res) => {
+  try {
+    res.json({
+      connectedDevices: connectedR1s.size,
+      cameraCommands: ['start', 'stop', 'capture', 'switch'],
+      serverTime: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting magic cam status:', error);
+    res.status(500).json({ error: 'Failed to get camera status' });
+  }
+});
+
+// OpenAI-compatible API endpoints
+
+// Magic Cam control endpoints
+app.post('/magic-cam/start', (req, res) => {
+  try {
+    const { facingMode = 'user' } = req.body;
+    
+    console.log(`Starting magic cam with facing mode: ${facingMode}`);
+    
+    // Broadcast camera start command to all R1 devices
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_start', { facingMode });
+    });
+    
+    res.json({ 
+      status: 'command_sent',
+      command: 'start',
+      facingMode,
+      devices: connectedR1s.size
+    });
+  } catch (error) {
+    console.error('Error starting magic cam:', error);
+    res.status(500).json({ error: 'Failed to start camera' });
+  }
+});
+
+app.post('/magic-cam/stop', (req, res) => {
+  try {
+    console.log('Stopping magic cam');
+    
+    // Broadcast camera stop command to all R1 devices
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_stop', {});
+    });
+    
+    res.json({ 
+      status: 'command_sent',
+      command: 'stop',
+      devices: connectedR1s.size
+    });
+  } catch (error) {
+    console.error('Error stopping magic cam:', error);
+    res.status(500).json({ error: 'Failed to stop camera' });
+  }
+});
+
+app.post('/magic-cam/capture', (req, res) => {
+  try {
+    const { width = 240, height = 282 } = req.body;
+    
+    console.log(`Capturing photo with dimensions: ${width}x${height}`);
+    
+    // Broadcast photo capture command to all R1 devices
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_capture', { width, height });
+    });
+    
+    res.json({ 
+      status: 'command_sent',
+      command: 'capture',
+      dimensions: `${width}x${height}`,
+      devices: connectedR1s.size
+    });
+  } catch (error) {
+    console.error('Error capturing photo:', error);
+    res.status(500).json({ error: 'Failed to capture photo' });
+  }
+});
+
+app.post('/magic-cam/switch', (req, res) => {
+  try {
+    console.log('Switching magic cam');
+    
+    // Broadcast camera switch command to all R1 devices
+    connectedR1s.forEach((socket, deviceId) => {
+      socket.emit('magic_cam_switch', {});
+    });
+    
+    res.json({ 
+      status: 'command_sent',
+      command: 'switch',
+      devices: connectedR1s.size
+    });
+  } catch (error) {
+    console.error('Error switching magic cam:', error);
+    res.status(500).json({ error: 'Failed to switch camera' });
+  }
+});
+
+app.get('/magic-cam/status', (req, res) => {
+  try {
+    res.json({
+      connectedDevices: connectedR1s.size,
+      cameraCommands: ['start', 'stop', 'capture', 'switch'],
+      supportedFacingModes: ['user', 'environment']
+    });
+  } catch (error) {
+    console.error('Error getting magic cam status:', error);
+    res.status(500).json({ error: 'Failed to get camera status' });
+  }
+});
+
 // OpenAI-compatible API endpoints
 app.post('/v1/chat/completions', async (req, res) => {
   try {
