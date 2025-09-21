@@ -56,6 +56,18 @@ app.get('/creation', (req, res) => {
   res.sendFile(path.join(__dirname, 'creation-react', 'dist', 'index.html'));
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  console.log('💚 Health check called');
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    connectedDevices: connectedR1s.size,
+    server: 'R-API',
+    version: '1.0.0'
+  });
+});
+
 // OpenAI-compatible API endpoints
 app.post('/v1/chat/completions', async (req, res) => {
   try {
