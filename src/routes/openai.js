@@ -6,6 +6,18 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     try {
       const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
 
+      // Check if there are already pending requests (device can only handle one at a time)
+      if (pendingRequests.size > 0) {
+        console.log(`⚠️ Device is busy with ${pendingRequests.size} pending requests, rejecting new request`);
+        res.status(429).json({
+          error: {
+            message: 'R1 device is currently processing another request. Please wait a moment and try again.',
+            type: 'device_busy'
+          }
+        });
+        return;
+      }
+
       // Extract the latest user message
       const userMessage = messages[messages.length - 1]?.content || '';
 
@@ -44,14 +56,17 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
       // Store the response callback with timeout
       const timeout = setTimeout(() => {
+        console.log(`⏰ Request ${requestId} timed out, removing from pending requests`);
         pendingRequests.delete(requestId);
         requestDeviceMap.delete(requestId);
+        console.log(`💾 Total pending requests after timeout: ${pendingRequests.size}`);
         console.log(`Request ${requestId} timed out - sending fallback response`);
         // Send a fallback response instead of error
         sendOpenAIResponse(res, 'I apologize, but the R1 device is taking longer than expected to respond. This might be due to processing a complex request or temporary connectivity issues. Please try again in a moment.', userMessage, model, stream);
       }, 60000); // 60 second timeout
 
       pendingRequests.set(requestId, { res, timeout, stream });
+      console.log(`💾 Stored pending request: ${requestId}, total pending: ${pendingRequests.size}`);
 
       // Send command to all connected R1 devices via WebSocket
       const command = {
@@ -62,22 +77,16 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           model,
           temperature,
           max_tokens,
-          requestId
-        },
-        timestamp: new Date().toISOString()
+          requestId,
+          timestamp: new Date().toISOString()
+        }
       };
 
-      console.log('Sending command to R1 devices:', command);
+      console.log('Sending command to R1 devices:', JSON.stringify(command, null, 2));
 
-      // Broadcast to all connected R1s via Socket.IO
-      let responsesSent = 0;
-      connectedR1s.forEach((socket, deviceId) => {
-        socket.emit('chat_completion', command.data);
-        requestDeviceMap.set(requestId, deviceId); // Track which device gets this request
-        responsesSent++;
-      });
-
-      if (responsesSent === 0) {
+      // Send to the first available R1 device
+      const devices = Array.from(connectedR1s.keys());
+      if (devices.length === 0) {
         // No R1 devices connected
         pendingRequests.delete(requestId);
         clearTimeout(timeout);
@@ -87,7 +96,16 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
             type: 'service_unavailable'
           }
         });
+        return;
       }
+
+      const deviceId = devices[0]; // Use the first device
+      const socket = connectedR1s.get(deviceId);
+      console.log(`📤 Sending to device ${deviceId}:`, JSON.stringify(command, null, 2));
+      socket.emit('chat_completion', command);
+      requestDeviceMap.set(requestId, deviceId); // Track which device gets this request
+
+      console.log(`📊 Sent request ${requestId} to device ${deviceId}`);
     } catch (error) {
       console.error('Error processing chat completion:', error);
       res.status(500).json({
