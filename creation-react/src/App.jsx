@@ -67,8 +67,10 @@ function App() {
       timeout: 5000,
       forceNew: true,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.5
     })
 
     // Connection events
@@ -83,6 +85,16 @@ function App() {
       setIsConnected(false)
       setStatusMessage('Disconnected')
       setDeviceId(null)
+
+      // Clear any pending request data on disconnect
+      socketRef.current._pendingRequestId = null
+      socketRef.current._originalMessage = null
+
+      // Clear heartbeat interval
+      if (socketRef.current._heartbeatInterval) {
+        clearInterval(socketRef.current._heartbeatInterval)
+        socketRef.current._heartbeatInterval = null
+      }
     })
 
     socketRef.current.on('connect_error', (error) => {
@@ -94,12 +106,30 @@ function App() {
 
     socketRef.current.on('reconnect', (attemptNumber) => {
       addDebugLog(`Socket.IO reconnected after ${attemptNumber} attempts`)
+      setIsConnected(true)
+      setStatusMessage('Reconnected')
     })
 
     socketRef.current.on('reconnect_error', (error) => {
       addDebugLog(`Socket.IO reconnection failed: ${error.message}`, 'error')
       sendErrorToServer('error', `Socket reconnection failed: ${error.message}`)
     })
+
+    // Handle pong responses from server
+    socketRef.current.on('pong', (data) => {
+      const latency = Date.now() - data.timestamp
+      addDebugLog(`🏓 Pong received, latency: ${latency}ms`)
+    })
+
+    // Add heartbeat/ping mechanism
+    const heartbeatInterval = setInterval(() => {
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit('ping', { timestamp: Date.now(), deviceId })
+      }
+    }, 30000) // Ping every 30 seconds
+
+    // Store the interval so we can clear it on disconnect
+    socketRef.current._heartbeatInterval = heartbeatInterval
 
     // Application events
     socketRef.current.on('connected', (data) => {
@@ -138,15 +168,27 @@ function App() {
 
       if (r1CreateRef.current && r1CreateRef.current.messaging) {
         try {
+          // Store requestId for response
+          const currentRequestId = data.requestId || data.data?.requestId
+          const messageToSend = data.message || data.data?.message
+
           // Use R1 SDK messaging API to send message to LLM
-          r1CreateRef.current.messaging.sendMessage(data.message, { 
-            useLLM: true
+          r1CreateRef.current.messaging.sendMessage(messageToSend, {
+            useLLM: true,
+            requestId: currentRequestId // Pass requestId to messaging if supported
           })
-          addDebugLog('Sent message to R1 LLM via messaging API')
+
+          // Store the requestId for when we get the response
+          if (currentRequestId) {
+            socketRef.current._pendingRequestId = currentRequestId
+            socketRef.current._originalMessage = data.originalMessage || data.data?.originalMessage
+          }
+
+          addDebugLog(`Sent message to R1 LLM via messaging API, requestId: ${currentRequestId}`)
         } catch (error) {
           addDebugLog(`R1 SDK messaging error: ${error.message}`, 'error')
           socketRef.current.emit('error', {
-            requestId: data.requestId, // Include request ID in error
+            requestId: data.requestId || data.data?.requestId,
             error: `R1 SDK messaging error: ${error.message}`,
             deviceId
           })
@@ -155,7 +197,7 @@ function App() {
       } else {
         addDebugLog('R1 SDK messaging not available - cannot process message', 'error')
         socketRef.current.emit('error', {
-          requestId: data.requestId, // Include request ID in error
+          requestId: data.requestId || data.data?.requestId,
           error: 'R1 SDK messaging not available - this app must run on R1 device',
           deviceId
         })
@@ -186,19 +228,25 @@ function App() {
         // Set up message handler for LLM responses
         r1.messaging.onMessage((response) => {
           addDebugLog(`R1 SDK message received: ${JSON.stringify(response).substring(0, 100)}...`)
-          
+
           // The R1 responds with {"message":"text"}, so extract the response text
           const responseText = response.message || response.content || response
-          
+
           // Send response via socket (server will handle requestId matching)
           if (socketRef.current && socketRef.current.connected) {
             socketRef.current.emit('response', {
+              requestId: socketRef.current._pendingRequestId,
               response: responseText,
+              originalMessage: socketRef.current._originalMessage,
               model: 'r1-llm',
               timestamp: new Date().toISOString(),
               deviceId
             })
-            addDebugLog(`Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..."`)
+            addDebugLog(`Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId})`)
+
+            // Clear the pending request data
+            socketRef.current._pendingRequestId = null
+            socketRef.current._originalMessage = null
           } else {
             addDebugLog('Socket not connected, cannot send response', 'error')
           }
@@ -342,6 +390,9 @@ function App() {
     // Cleanup
     return () => {
       if (socketRef.current) {
+        if (socketRef.current._heartbeatInterval) {
+          clearInterval(socketRef.current._heartbeatInterval)
+        }
         socketRef.current.disconnect()
       }
     }

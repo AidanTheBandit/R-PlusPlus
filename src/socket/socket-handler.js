@@ -126,6 +126,17 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
       };
     });
 
+    // Handle ping/heartbeat from client
+    socket.on('ping', (data) => {
+      console.log(`🏓 Ping from ${deviceId}:`, data);
+      // Respond with pong to keep connection alive
+      socket.emit('pong', {
+        timestamp: Date.now(),
+        deviceId,
+        serverTime: new Date().toISOString()
+      });
+    });
+
     socket.on('message', (data) => {
       try {
         const message = JSON.parse(data);
@@ -152,7 +163,7 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
 
     // Handle response events from R1 devices
     socket.on('response', (data) => {
-      console.log(`🔄 Socket Response from ${deviceId}:`, data);
+      console.log(`🔄 Socket Response from ${deviceId}:`, JSON.stringify(data, null, 2));
 
       const { requestId, response, originalMessage, model, timestamp } = data;
 
@@ -168,18 +179,46 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
         clearTimeout(timeout);
         pendingRequests.delete(requestId);
         requestDeviceMap.delete(requestId);
+        console.log(`🗑️ Removed pending request: ${requestId}, remaining: ${pendingRequests.size}`);
 
         sendOpenAIResponse(res, response, originalMessage, model, stream);
       }
-      // If no requestId or it doesn't match, but we have pending requests, use the first one
+      // If requestId is null/undefined but we have pending requests, try to match by device
+      else if (!requestId && pendingRequests.size > 0) {
+        console.log(`⚠️ No requestId provided, trying to match by device ${deviceId}`);
+
+        // Find requests that were sent to this device
+        const deviceRequests = Array.from(requestDeviceMap.entries())
+          .filter(([reqId, devId]) => devId === deviceId)
+          .map(([reqId]) => reqId);
+
+        if (deviceRequests.length > 0) {
+          const matchingRequestId = deviceRequests[0]; // Use the first one
+          console.log(`✅ Matched request ${matchingRequestId} by device ${deviceId}`);
+
+          const { res, timeout, stream } = pendingRequests.get(matchingRequestId);
+
+          // Clear timeout and remove from pending requests
+          clearTimeout(timeout);
+          pendingRequests.delete(matchingRequestId);
+          requestDeviceMap.delete(matchingRequestId);
+          console.log(`🗑️ Removed pending request: ${matchingRequestId}, remaining: ${pendingRequests.size}`);
+
+          sendOpenAIResponse(res, response, originalMessage, model, stream);
+        } else {
+          console.log(`❌ No requests found for device ${deviceId}`);
+        }
+      }
+      // If no requestId or it doesn't match, but we have pending requests, use the first one (fallback)
       else if (pendingRequests.size > 0) {
-        console.log(`⚠️ No matching requestId, using first pending request`);
+        console.log(`⚠️ No matching requestId, using first pending request as fallback`);
         const [firstRequestId, { res, timeout, stream }] = pendingRequests.entries().next().value;
 
         // Clear timeout and remove from pending requests
         clearTimeout(timeout);
         pendingRequests.delete(firstRequestId);
         requestDeviceMap.delete(firstRequestId);
+        console.log(`🗑️ Removed pending request (fallback): ${firstRequestId}, remaining: ${pendingRequests.size}`);
 
         sendOpenAIResponse(res, response, originalMessage, model, stream);
       } else {
@@ -208,6 +247,32 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
             type: 'r1_error'
           }
         });
+      }
+      // If no requestId, try to match by device
+      else if (!requestId && pendingRequests.size > 0) {
+        const deviceRequests = Array.from(requestDeviceMap.entries())
+          .filter(([reqId, devId]) => devId === deviceId)
+          .map(([reqId]) => reqId);
+
+        if (deviceRequests.length > 0) {
+          const matchingRequestId = deviceRequests[0];
+          console.log(`✅ Matched error for request ${matchingRequestId} by device ${deviceId}`);
+
+          const { res, timeout } = pendingRequests.get(matchingRequestId);
+
+          // Clear timeout and remove from pending requests
+          clearTimeout(timeout);
+          pendingRequests.delete(matchingRequestId);
+          requestDeviceMap.delete(matchingRequestId);
+
+          // Send error response
+          res.status(500).json({
+            error: {
+              message: error || 'Error from R1 device',
+              type: 'r1_error'
+            }
+          });
+        }
       }
     });
 
