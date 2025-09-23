@@ -1,31 +1,33 @@
 import { useState, useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
 import { r1 } from 'r1-create'
-import DebugTool from './components/DebugTool'
 import './App.css'
-import './components/DebugComponents.css'
 
 function App() {
   const [isConnected, setIsConnected] = useState(false)
   const [deviceId, setDeviceId] = useState(null)
-  const [statusMessage, setStatusMessage] = useState('Initializing...')
-  const [debugLogs, setDebugLogs] = useState([])
-  const [cameraActive, setCameraActive] = useState(false)
-  const [cameraFacing, setCameraFacing] = useState('user') // 'user' or 'environment'
-  const [cameraStream, setCameraStream] = useState(null)
+  const [connectionStatus, setConnectionStatus] = useState('Initializing...')
+  const [consoleLogs, setConsoleLogs] = useState([])
   const socketRef = useRef(null)
   const r1CreateRef = useRef(null)
-  const videoRef = useRef(null)
+  const consoleRef = useRef(null)
 
-  // Debug logging function
-  const addDebugLog = (message, level = 'info') => {
+  // Console logging function
+  const addConsoleLog = (message, type = 'info') => {
     const logEntry = {
       timestamp: new Date().toLocaleTimeString(),
-      level,
+      type,
       message
     }
-    setDebugLogs(prev => [...prev.slice(-49), logEntry]) // Keep last 50 logs
-    console.log(`[${logEntry.timestamp}] ${level.toUpperCase()}: ${message}`)
+    setConsoleLogs(prev => [...prev.slice(-99), logEntry]) // Keep last 100 logs
+    console.log(`[${logEntry.timestamp}] ${type.toUpperCase()}: ${message}`)
+
+    // Auto-scroll to bottom
+    setTimeout(() => {
+      if (consoleRef.current) {
+        consoleRef.current.scrollTop = consoleRef.current.scrollHeight
+      }
+    }, 100)
   }
 
   // Error logging to server
@@ -53,14 +55,14 @@ function App() {
 
   // Socket connection
   const connectSocket = () => {
-    addDebugLog('Starting Socket.IO connection attempt')
+    addConsoleLog('Starting Socket.IO connection attempt')
 
     if (socketRef.current && socketRef.current.connected) {
-      addDebugLog('Socket.IO already connected')
+      addConsoleLog('Socket.IO already connected')
       return
     }
 
-    // Socket.IO configuration - same as R1-Walky
+    // Socket.IO configuration
     socketRef.current = io('/', {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
@@ -75,20 +77,22 @@ function App() {
 
     // Connection events
     socketRef.current.on('connect', () => {
-      addDebugLog('Socket.IO connected successfully')
+      addConsoleLog('Socket.IO connected successfully')
       setIsConnected(true)
-      setStatusMessage('Connected')
+      setConnectionStatus('Connected')
     })
 
     socketRef.current.on('disconnect', () => {
-      addDebugLog('Socket.IO disconnected', 'warn')
+      addConsoleLog('Socket.IO disconnected', 'warn')
       setIsConnected(false)
-      setStatusMessage('Disconnected')
+      setConnectionStatus('Disconnected')
       setDeviceId(null)
 
       // Clear any pending request data on disconnect
-      socketRef.current._pendingRequestId = null
-      socketRef.current._originalMessage = null
+      if (socketRef.current._pendingRequestId) {
+        socketRef.current._pendingRequestId = null
+        socketRef.current._originalMessage = null
+      }
 
       // Clear heartbeat interval
       if (socketRef.current._heartbeatInterval) {
@@ -98,27 +102,27 @@ function App() {
     })
 
     socketRef.current.on('connect_error', (error) => {
-      addDebugLog(`Socket.IO connection error: ${error.message}`, 'error')
+      addConsoleLog(`Socket.IO connection error: ${error.message}`, 'error')
       setIsConnected(false)
-      setStatusMessage(`Connection error: ${error.message}`)
+      setConnectionStatus(`Connection error: ${error.message}`)
       sendErrorToServer('error', `Socket connection failed: ${error.message}`)
     })
 
     socketRef.current.on('reconnect', (attemptNumber) => {
-      addDebugLog(`Socket.IO reconnected after ${attemptNumber} attempts`)
+      addConsoleLog(`Socket.IO reconnected after ${attemptNumber} attempts`)
       setIsConnected(true)
-      setStatusMessage('Reconnected')
+      setConnectionStatus('Reconnected')
     })
 
     socketRef.current.on('reconnect_error', (error) => {
-      addDebugLog(`Socket.IO reconnection failed: ${error.message}`, 'error')
+      addConsoleLog(`Socket.IO reconnection failed: ${error.message}`, 'error')
       sendErrorToServer('error', `Socket reconnection failed: ${error.message}`)
     })
 
     // Handle pong responses from server
     socketRef.current.on('pong', (data) => {
       const latency = Date.now() - data.timestamp
-      addDebugLog(`🏓 Pong received, latency: ${latency}ms`)
+      addConsoleLog(`🏓 Pong received, latency: ${latency}ms`)
     })
 
     // Add heartbeat/ping mechanism
@@ -134,37 +138,13 @@ function App() {
     // Application events
     socketRef.current.on('connected', (data) => {
       setDeviceId(data.deviceId)
-      setStatusMessage(`Connected - ID: ${data.deviceId}`)
-      addDebugLog(`Connected with device ID: ${data.deviceId}`)
+      setConnectionStatus(`Connected - Device: ${data.deviceId}`)
+      addConsoleLog(`Connected with device ID: ${data.deviceId}`)
     })
 
-    // Camera control events
-    socketRef.current.on('magic_cam_start', (data) => {
-      addDebugLog(`Magic cam start command received: ${JSON.stringify(data)}`)
-      console.log('Magic cam start event received:', data)
-      startCamera()
-    })
-
-    socketRef.current.on('magic_cam_stop', (data) => {
-      addDebugLog('Magic cam stop command received')
-      console.log('Magic cam stop event received:', data)
-      stopCamera()
-    })
-
-    socketRef.current.on('magic_cam_capture', (data) => {
-      addDebugLog(`Magic cam capture command received: ${JSON.stringify(data)}`)
-      console.log('Magic cam capture event received:', data)
-      capturePhoto()
-    })
-
-    socketRef.current.on('magic_cam_switch', (data) => {
-      addDebugLog('Magic cam switch command received')
-      console.log('Magic cam switch event received:', data)
-      switchCamera()
-    })
-
+    // Handle incoming chat completion requests
     socketRef.current.on('chat_completion', (data) => {
-      addDebugLog(`Received chat completion: ${JSON.stringify(data).substring(0, 100)}...`)
+      addConsoleLog(`📥 Received chat completion request: ${data.message?.substring(0, 50)}...`)
 
       if (r1CreateRef.current && r1CreateRef.current.messaging) {
         try {
@@ -175,7 +155,7 @@ function App() {
           // Use R1 SDK messaging API to send message to LLM
           r1CreateRef.current.messaging.sendMessage(messageToSend, {
             useLLM: true,
-            requestId: currentRequestId // Pass requestId to messaging if supported
+            requestId: currentRequestId
           })
 
           // Store the requestId for when we get the response
@@ -184,9 +164,9 @@ function App() {
             socketRef.current._originalMessage = data.originalMessage || data.data?.originalMessage
           }
 
-          addDebugLog(`Sent message to R1 LLM via messaging API, requestId: ${currentRequestId}`)
+          addConsoleLog(`📤 Sent message to R1 LLM via messaging API, requestId: ${currentRequestId}`)
         } catch (error) {
-          addDebugLog(`R1 SDK messaging error: ${error.message}`, 'error')
+          addConsoleLog(`R1 SDK messaging error: ${error.message}`, 'error')
           socketRef.current.emit('error', {
             requestId: data.requestId || data.data?.requestId,
             error: `R1 SDK messaging error: ${error.message}`,
@@ -195,13 +175,27 @@ function App() {
           sendErrorToServer('error', `R1 SDK messaging failed: ${error.message}`)
         }
       } else {
-        addDebugLog('R1 SDK messaging not available - cannot process message', 'error')
+        addConsoleLog('R1 SDK messaging not available - cannot process message', 'error')
         socketRef.current.emit('error', {
           requestId: data.requestId || data.data?.requestId,
           error: 'R1 SDK messaging not available - this app must run on R1 device',
           deviceId
         })
       }
+    })
+
+    // Handle device connection/disconnection broadcasts
+    socketRef.current.on('device_connected', (data) => {
+      addConsoleLog(`📱 Device connected: ${data.deviceId}`)
+    })
+
+    socketRef.current.on('device_disconnected', (data) => {
+      addConsoleLog(`📱 Device disconnected: ${data.deviceId}`)
+    })
+
+    // Handle debug data broadcasts
+    socketRef.current.on('debug_data', (data) => {
+      addConsoleLog(`🔍 ${data.type}: ${JSON.stringify(data.data).substring(0, 100)}...`)
     })
   }
 
@@ -211,8 +205,8 @@ function App() {
       // Check if R1 SDK is available
       if (r1 && r1.messaging) {
         r1CreateRef.current = r1
-        addDebugLog('R1 SDK available')
-        
+        addConsoleLog('R1 SDK available')
+
         // Check what APIs are available
         const availableAPIs = []
         if (r1.messaging) availableAPIs.push('messaging')
@@ -222,12 +216,12 @@ function App() {
         if (r1.storage) availableAPIs.push('storage')
         if (r1.microphone) availableAPIs.push('microphone')
         if (r1.speaker) availableAPIs.push('speaker')
-        
-        addDebugLog(`Available R1 APIs: ${availableAPIs.join(', ')}`)
-        
+
+        addConsoleLog(`Available R1 APIs: ${availableAPIs.join(', ')}`)
+
         // Set up message handler for LLM responses
         r1.messaging.onMessage((response) => {
-          addDebugLog(`R1 SDK message received: ${JSON.stringify(response).substring(0, 100)}...`)
+          addConsoleLog(`📤 R1 SDK message received: ${JSON.stringify(response).substring(0, 100)}...`)
 
           // The R1 responds with {"message":"text"}, so extract the response text
           const responseText = response.message || response.content || response
@@ -242,21 +236,21 @@ function App() {
               timestamp: new Date().toISOString(),
               deviceId
             })
-            addDebugLog(`Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId})`)
+            addConsoleLog(`📤 Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId})`)
 
             // Clear the pending request data
             socketRef.current._pendingRequestId = null
             socketRef.current._originalMessage = null
           } else {
-            addDebugLog('Socket not connected, cannot send response', 'error')
+            addConsoleLog('Socket not connected, cannot send response', 'error')
           }
         })
       } else {
-        addDebugLog('R1 SDK messaging not available - this app must run on R1 device', 'error')
+        addConsoleLog('R1 SDK messaging not available - this app must run on R1 device', 'error')
         console.error('r1 object:', r1)
       }
     } catch (error) {
-      addDebugLog(`R1 SDK initialization error: ${error.message}`, 'error')
+      addConsoleLog(`R1 SDK initialization error: ${error.message}`, 'error')
       console.error('R1 SDK initialization error details:', error)
     }
 
@@ -273,93 +267,9 @@ function App() {
     connectSocket()
   }
 
-  // Camera control functions
-  const startCamera = async () => {
-    addDebugLog('Attempting to start camera...')
-    console.log('r1CreateRef.current:', r1CreateRef.current)
-    console.log('r1 object:', r1)
-    
-    if (r1CreateRef.current && r1CreateRef.current.camera) {
-      try {
-        addDebugLog(`R1 camera API found, starting with facing mode: ${cameraFacing}`)
-        console.log('Calling r1.camera.start with:', { facingMode: cameraFacing })
-        const stream = await r1CreateRef.current.camera.start({ facingMode: cameraFacing })
-        setCameraActive(true)
-        addDebugLog(`Camera started successfully with ${cameraFacing} facing mode`)
-        console.log('Camera start result:', stream)
-      } catch (error) {
-        addDebugLog(`Camera start error: ${error.message}`, 'error')
-        console.error('Camera start error details:', error)
-      }
-    } else {
-      addDebugLog('R1 camera API not available - this app must run on R1 device', 'error')
-      console.error('r1CreateRef.current:', r1CreateRef.current)
-      console.error('r1 object:', r1)
-      if (r1CreateRef.current) {
-        console.error('Available properties on r1CreateRef.current:', Object.keys(r1CreateRef.current))
-      }
-    }
-  }
-
-  const stopCamera = async () => {
-    addDebugLog('Attempting to stop camera...')
-    if (r1CreateRef.current && r1CreateRef.current.camera) {
-      try {
-        await r1CreateRef.current.camera.stop()
-        setCameraActive(false)
-        addDebugLog('Camera stopped successfully')
-      } catch (error) {
-        addDebugLog(`Camera stop error: ${error.message}`, 'error')
-        console.error('Camera stop error details:', error)
-      }
-    } else {
-      addDebugLog('R1 camera API not available for stop', 'error')
-    }
-  }
-
-  const capturePhoto = async () => {
-    addDebugLog('Attempting to capture photo...')
-    if (r1CreateRef.current && r1CreateRef.current.camera) {
-      try {
-        const photo = await r1CreateRef.current.camera.capturePhoto(240, 282)
-        addDebugLog(`Photo captured: ${photo ? 'success' : 'failed'}`)
-        console.log('Photo capture result:', photo)
-        if (photo && socketRef.current && socketRef.current.connected) {
-          socketRef.current.emit('photo_captured', {
-            photo: photo,
-            deviceId
-          })
-          addDebugLog('Photo sent via socket')
-        }
-      } catch (error) {
-        addDebugLog(`Photo capture error: ${error.message}`, 'error')
-        console.error('Photo capture error details:', error)
-      }
-    } else {
-      addDebugLog('R1 camera API not available for capture', 'error')
-    }
-  }
-
-  const switchCamera = () => {
-    addDebugLog('Attempting to switch camera...')
-    const newFacing = cameraFacing === 'user' ? 'environment' : 'user'
-    setCameraFacing(newFacing)
-    if (cameraActive) {
-      addDebugLog(`Switching camera while active, stopping first...`)
-      stopCamera().then(() => {
-        addDebugLog(`Restarting camera with new facing mode: ${newFacing}`)
-        startCamera()
-      }).catch(error => {
-        addDebugLog(`Error during camera switch: ${error.message}`, 'error')
-      })
-    } else {
-      addDebugLog(`Camera facing mode switched to ${newFacing} (camera not active)`)
-    }
-  }
-
   // Initialize on mount
   useEffect(() => {
-    addDebugLog('R1 Creation React App initialized')
+    addConsoleLog('R1 Creation Console initialized')
 
     // Override console methods for error logging
     const originalConsoleError = console.error
@@ -400,13 +310,16 @@ function App() {
 
   return (
     <div className="app">
-      <div className="container">
-        <h2>R1 Debug Tool</h2>
-
+      <div className="header">
+        <h1>R1 Device Console</h1>
         <div className={`status ${isConnected ? 'connected' : 'disconnected'}`}>
-          {statusMessage}
+          {connectionStatus}
         </div>
-
+        {deviceId && (
+          <div className="device-id">
+            Device ID: <code>{deviceId}</code>
+          </div>
+        )}
         <button
           className="reconnect-btn"
           onClick={handleReconnect}
@@ -414,13 +327,27 @@ function App() {
         >
           {isConnected ? 'Connected' : 'Reconnect'}
         </button>
+      </div>
 
-        <DebugTool
-          r1Sdk={r1CreateRef.current}
-          socket={socketRef.current}
-          deviceId={deviceId}
-          isConnected={isConnected}
-        />
+      <div className="console-container">
+        <div className="console-header">
+          <h3>Activity Log</h3>
+          <span className="log-count">{consoleLogs.length} entries</span>
+        </div>
+        <div className="console" ref={consoleRef}>
+          {consoleLogs.map((log, index) => (
+            <div key={index} className={`console-line ${log.type}`}>
+              <span className="timestamp">[{log.timestamp}]</span>
+              <span className="level">{log.type.toUpperCase()}</span>
+              <span className="message">{log.message}</span>
+            </div>
+          ))}
+          {consoleLogs.length === 0 && (
+            <div className="console-placeholder">
+              Waiting for activity...
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

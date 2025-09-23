@@ -1,8 +1,51 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 
-function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap) {
+function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager) {
   // OpenAI-compatible API endpoints
   app.post('/v1/chat/completions', async (req, res) => {
+    await handleChatCompletion(req, res, null); // null means broadcast to all devices
+  });
+
+  // Device-specific endpoints: /device-{deviceId}/v1/chat/completions
+  app.post('/device-:deviceId/v1/chat/completions', async (req, res) => {
+    const { deviceId } = req.params;
+    await handleChatCompletion(req, res, deviceId);
+  });
+
+  // Models endpoint (OpenAI compatible)
+  app.get('/v1/models', (req, res) => {
+    res.json({
+      object: 'list',
+      data: [
+        {
+          id: 'r1-command',
+          object: 'model',
+          created: Math.floor(Date.now() / 1000),
+          owned_by: 'r1-api'
+        }
+      ]
+    });
+  });
+
+  // Device-specific models endpoint
+  app.get('/device-:deviceId/v1/models', (req, res) => {
+    const { deviceId } = req.params;
+    res.json({
+      object: 'list',
+      data: [
+        {
+          id: `r1-command-${deviceId}`,
+          object: 'model',
+          created: Math.floor(Date.now() / 1000),
+          owned_by: 'r1-api',
+          device_id: deviceId
+        }
+      ]
+    });
+  });
+
+  // Shared handler for chat completions
+  async function handleChatCompletion(req, res, targetDeviceId) {
     try {
       const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
 
@@ -26,7 +69,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
       // Get conversation history for this "session" (using a simple approach)
       // In a real implementation, you'd use proper session management
-      const sessionId = 'default'; // For now, use a single conversation per device
+      const sessionId = targetDeviceId || 'default'; // For now, use a single conversation per device
       const history = conversationHistory.get(sessionId) || [];
 
       // Add current user message to history
@@ -68,7 +111,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       pendingRequests.set(requestId, { res, timeout, stream });
       console.log(`💾 Stored pending request: ${requestId}, total pending: ${pendingRequests.size}`);
 
-      // Send command to all connected R1 devices via WebSocket
+      // Send command to R1 devices
       const command = {
         type: 'chat_completion',
         data: {
@@ -84,28 +127,70 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
       console.log('Sending command to R1 devices:', JSON.stringify(command, null, 2));
 
-      // Send to the first available R1 device
-      const devices = Array.from(connectedR1s.keys());
-      if (devices.length === 0) {
-        // No R1 devices connected
+      let responsesSent = 0;
+
+      if (targetDeviceId) {
+        // Send to specific device
+        if (deviceIdManager.hasDevice(targetDeviceId)) {
+          const socket = connectedR1s.get(targetDeviceId);
+          if (socket) {
+            console.log(`📤 Sending to device ${targetDeviceId}:`, JSON.stringify(command, null, 2));
+            socket.emit('chat_completion', command);
+            requestDeviceMap.set(requestId, targetDeviceId);
+            responsesSent++;
+            console.log(`📊 Sent request ${requestId} to specific device: ${targetDeviceId}`);
+          } else {
+            console.log(`❌ Device ${targetDeviceId} not connected`);
+          }
+        } else {
+          console.log(`❌ Device ${targetDeviceId} not found`);
+          // No devices connected or target device not found
+          pendingRequests.delete(requestId);
+          clearTimeout(timeout);
+          res.status(503).json({
+            error: {
+              message: `Device ${targetDeviceId} not connected`,
+              type: 'service_unavailable'
+            }
+          });
+          return;
+        }
+      } else {
+        // Send to the first available R1 device
+        const devices = Array.from(connectedR1s.keys());
+        if (devices.length === 0) {
+          // No R1 devices connected
+          pendingRequests.delete(requestId);
+          clearTimeout(timeout);
+          res.status(503).json({
+            error: {
+              message: 'No R1 devices connected',
+              type: 'service_unavailable'
+            }
+          });
+          return;
+        }
+
+        const deviceId = devices[0]; // Use the first device
+        const socket = connectedR1s.get(deviceId);
+        console.log(`📤 Sending to device ${deviceId}:`, JSON.stringify(command, null, 2));
+        socket.emit('chat_completion', command);
+        requestDeviceMap.set(requestId, deviceId); // Track which device gets this request
+        responsesSent++;
+        console.log(`📊 Sent request ${requestId} to device ${deviceId}`);
+      }
+
+      if (responsesSent === 0) {
+        // This shouldn't happen with the checks above, but just in case
         pendingRequests.delete(requestId);
         clearTimeout(timeout);
         res.status(503).json({
           error: {
-            message: 'No R1 devices connected',
+            message: 'No R1 devices available',
             type: 'service_unavailable'
           }
         });
-        return;
       }
-
-      const deviceId = devices[0]; // Use the first device
-      const socket = connectedR1s.get(deviceId);
-      console.log(`📤 Sending to device ${deviceId}:`, JSON.stringify(command, null, 2));
-      socket.emit('chat_completion', command);
-      requestDeviceMap.set(requestId, deviceId); // Track which device gets this request
-
-      console.log(`📊 Sent request ${requestId} to device ${deviceId}`);
     } catch (error) {
       console.error('Error processing chat completion:', error);
       res.status(500).json({
@@ -115,22 +200,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         }
       });
     }
-  });
-
-  // Models endpoint (OpenAI compatible)
-  app.get('/v1/models', (req, res) => {
-    res.json({
-      object: 'list',
-      data: [
-        {
-          id: 'r1-command',
-          object: 'model',
-          created: Math.floor(Date.now() / 1000),
-          owned_by: 'r1-api'
-        }
-      ]
-    });
-  });
+  }
 }
 
 module.exports = { setupOpenAIRoutes };
