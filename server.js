@@ -492,14 +492,10 @@ app.post('/v1/chat/completions', async (req, res) => {
     const timeout = setTimeout(() => {
       pendingRequests.delete(requestId);
       requestDeviceMap.delete(requestId);
-      console.log(`Request ${requestId} timed out`);
-      res.status(504).json({
-        error: {
-          message: 'Request timed out waiting for R1 response',
-          type: 'timeout_error'
-        }
-      });
-    }, 30000); // 30 second timeout
+      console.log(`Request ${requestId} timed out - sending fallback response`);
+      // Send a fallback response instead of error
+      sendOpenAIResponse(res, 'I apologize, but the R1 device is taking longer than expected to respond. This might be due to processing a complex request or temporary connectivity issues. Please try again in a moment.', originalMessage, model, stream);
+    }, 60000); // 60 second timeout
     
     pendingRequests.set(requestId, { res, timeout, stream });
     
@@ -761,8 +757,8 @@ io.on('connection', (socket) => {
       const id = `chatcmpl-${Date.now()}`;
       const created = Math.floor(Date.now() / 1000);
 
-      // Send the completion chunk
-      const chunk = {
+      // Send role chunk first
+      const roleChunk = {
         id,
         object: 'chat.completion.chunk',
         created,
@@ -770,16 +766,59 @@ io.on('connection', (socket) => {
         choices: [{
           index: 0,
           delta: {
-            role: 'assistant',
-            content: response || 'No response from R1'
+            role: 'assistant'
           },
-          finish_reason: 'stop'
+          finish_reason: null
         }]
       };
+      clientRes.write(`data: ${JSON.stringify(roleChunk)}\n\n`);
 
-      clientRes.write(`data: ${JSON.stringify(chunk)}\n\n`);
-      clientRes.write(`data: [DONE]\n\n`);
-      clientRes.end();
+      // Split content into words and send progressively
+      const content = response || 'No response from R1';
+      const words = content.split(' ');
+      let wordIndex = 0;
+
+      const sendNextWord = () => {
+        if (wordIndex < words.length) {
+          const word = words[wordIndex] + (wordIndex < words.length - 1 ? ' ' : '');
+          const contentChunk = {
+            id,
+            object: 'chat.completion.chunk',
+            created,
+            model: model || 'r1-llm',
+            choices: [{
+              index: 0,
+              delta: {
+                content: word
+              },
+              finish_reason: null
+            }]
+          };
+          clientRes.write(`data: ${JSON.stringify(contentChunk)}\n\n`);
+          wordIndex++;
+          // Send next word after a small delay to simulate streaming
+          setTimeout(sendNextWord, 50); // 50ms delay between words
+        } else {
+          // Send finish chunk
+          const finishChunk = {
+            id,
+            object: 'chat.completion.chunk',
+            created,
+            model: model || 'r1-llm',
+            choices: [{
+              index: 0,
+              delta: {},
+              finish_reason: 'stop'
+            }]
+          };
+          clientRes.write(`data: ${JSON.stringify(finishChunk)}\n\n`);
+          clientRes.write(`data: [DONE]\n\n`);
+          clientRes.end();
+        }
+      };
+
+      // Start sending words after role
+      setTimeout(sendNextWord, 100);
     } else {
       const openaiResponse = {
         id: `chatcmpl-${Date.now()}`,
