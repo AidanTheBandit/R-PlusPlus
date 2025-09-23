@@ -25,47 +25,13 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     await handleModelsRequest(req, res, deviceId);
   });
 
-    // Device management endpoints
-  app.post('/:deviceId/disable-pin', async (req, res) => {
-    const { deviceId } = req.params;
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: { message: 'Missing or invalid authorization header', type: 'auth_error' } });
-    }
-
-    const pinCode = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    try {
-      // Verify the PIN matches
-      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
-      if (!deviceInfo || deviceInfo.pin_code !== pinCode) {
-        return res.status(403).json({ error: { message: 'Invalid PIN code', type: 'auth_error' } });
-      }
-
-      // Disable the PIN
-      await deviceIdManager.database.disableDevicePin(deviceId);
-
-      // Update in-memory state
-      const deviceData = deviceIdManager.deviceIds.get(deviceId);
-      if (deviceData) {
-        deviceData.pinCode = null;
-      }
-
-      console.log(`🔓 PIN disabled for device: ${deviceId}`);
-      res.json({ success: true, message: 'PIN disabled successfully' });
-    } catch (error) {
-      console.error('Error disabling PIN:', error);
-      res.status(500).json({ error: { message: 'Internal server error', type: 'server_error' } });
-    }
-  });
-
+  // Enable PIN for a device
   app.post('/:deviceId/enable-pin', async (req, res) => {
     const { deviceId } = req.params;
     const { newPin } = req.body;
 
     if (!newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
-      return res.status(400).json({ error: { message: 'PIN must be exactly 6 digits', type: 'validation_error' } });
+      return res.status(400).json({ error: { message: 'New PIN must be exactly 6 digits', type: 'validation_error' } });
     }
 
     try {
@@ -105,6 +71,42 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     }
   });
 
+  // Disable PIN for a device
+  app.post('/:deviceId/disable-pin', async (req, res) => {
+    const { deviceId } = req.params;
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: { message: 'Missing or invalid authorization header', type: 'auth_error' } });
+    }
+
+    const pinCode = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    try {
+      // Verify the PIN matches
+      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+      if (!deviceInfo || deviceInfo.pin_code !== pinCode) {
+        return res.status(403).json({ error: { message: 'Invalid PIN code', type: 'auth_error' } });
+      }
+
+      // Disable the PIN
+      await deviceIdManager.database.disableDevicePin(deviceId);
+
+      // Update in-memory state
+      const deviceData = deviceIdManager.deviceIds.get(deviceId);
+      if (deviceData) {
+        deviceData.pinCode = null;
+      }
+
+      console.log(`� PIN disabled for device: ${deviceId}`);
+      res.json({ success: true, message: 'PIN disabled successfully' });
+    } catch (error) {
+      console.error('Error disabling PIN:', error);
+      res.status(500).json({ error: { message: 'Internal server error', type: 'server_error' } });
+    }
+  });
+
+  // Change PIN for a device
   app.post('/:deviceId/change-pin', async (req, res) => {
     const { deviceId } = req.params;
     const { currentPin, newPin } = req.body;

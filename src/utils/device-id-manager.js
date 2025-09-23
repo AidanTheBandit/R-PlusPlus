@@ -33,30 +33,30 @@ class DeviceIdManager {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-      // Get or create a persistent device ID for a socket
+  // Get or create a persistent device ID for a socket
   async getPersistentDeviceId(socketId, userAgent = null, ipAddress = null) {
     // First check if we already have this socket mapped
     if (this.persistentIds.has(socketId)) {
       return this.persistentIds.get(socketId);
     }
 
-    // If we have database access, try to find an existing device for this user agent/IP
+    // If we have database access and user agent, try to find an existing device for this user agent/IP
     if (this.database && userAgent) {
       try {
         // Look for existing devices with the same user agent (R1 devices should have consistent UA)
+        // Check within the last 2 hours to avoid conflicts with old devices
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
         const existingDevices = await this.database.all(
-          `SELECT * FROM devices WHERE user_agent = ? ORDER BY last_seen DESC LIMIT 5`,
-          [userAgent]
+          `SELECT * FROM devices WHERE user_agent = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 3`,
+          [userAgent, twoHoursAgo]
         );
 
-        // If we find a recent device (within last hour), reuse it
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        const recentDevice = existingDevices.find(device => device.last_seen > oneHourAgo);
-
-        if (recentDevice) {
-          this.persistentIds.set(socketId, recentDevice.device_id);
-          console.log(`🔄 Reusing existing device ID: ${recentDevice.device_id} for socket: ${socketId}`);
-          return recentDevice.device_id;
+        if (existingDevices.length > 0) {
+          // Use the most recently seen device
+          const device = existingDevices[0];
+          this.persistentIds.set(socketId, device.device_id);
+          console.log(`🔄 Reusing existing device ID: ${device.device_id} for socket: ${socketId} (user agent match)`);
+          return device.device_id;
         }
       } catch (error) {
         console.warn('Database query for existing device failed:', error);
@@ -70,9 +70,7 @@ class DeviceIdManager {
 
     console.log(`🔄 Generated new device ID: ${deviceId} for socket: ${socketId}`);
     return deviceId;
-  }
-
-  // Register a device connection
+  }  // Register a device connection
   async registerDevice(socketId, deviceId = null, userAgent = null, ipAddress = null, enablePin = true) {
     if (!deviceId) {
       deviceId = await this.getPersistentDeviceId(socketId, userAgent, ipAddress);
