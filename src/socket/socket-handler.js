@@ -17,6 +17,7 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
     const ipAddress = socket.handshake.address || socket.request.connection.remoteAddress;
 
     // Get or create persistent device ID
+    console.log(`🔌 New socket connection: ${socket.id}, userAgent: ${userAgent?.substring(0, 50)}..., ipAddress: ${ipAddress}`);
     const { deviceId, pinCode } = await deviceIdManager.registerDevice(socket.id, null, userAgent, ipAddress, enablePin);
     connectedR1s.set(deviceId, socket);
 
@@ -40,7 +41,7 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
 
     // Handle disconnection
     socket.on('disconnect', () => {
-      console.log(`R1 device disconnected: ${deviceId}`);
+      console.log(`R1 device disconnected: ${deviceId}, socket: ${socket.id}`);
       connectedR1s.delete(deviceId);
       deviceIdManager.unregisterDevice(socket.id);
 
@@ -49,6 +50,8 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
         deviceId: deviceId,
         disconnectedAt: new Date().toISOString()
       });
+
+      console.log(`Total connected devices after disconnect: ${connectedR1s.size}`);
     });
 
     // Debug data streaming handlers

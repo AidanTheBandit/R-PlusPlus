@@ -33,31 +33,72 @@ class DeviceIdManager {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  // Get or create a persistent device ID for a socket
+    // Get or create a persistent device ID for a socket
   async getPersistentDeviceId(socketId, userAgent = null, ipAddress = null) {
     // First check if we already have this socket mapped
     if (this.persistentIds.has(socketId)) {
       return this.persistentIds.get(socketId);
     }
 
-    // If we have database access and user agent, try to find an existing device for this user agent/IP
-    if (this.database && userAgent) {
+    // If we have database access, try to find an existing device for this connection
+    if (this.database && (userAgent || ipAddress)) {
       try {
-        // Look for existing devices with the same user agent (R1 devices should have consistent UA)
-        // Check within the last 2 hours to avoid conflicts with old devices
-        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-        const existingDevices = await this.database.all(
-          `SELECT * FROM devices WHERE user_agent = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 3`,
-          [userAgent, twoHoursAgo]
-        );
+        // Look for existing devices with matching criteria
+        // Use a broader time window (24 hours instead of 2 hours)
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-        if (existingDevices.length > 0) {
-          // Use the most recently seen device
-          const device = existingDevices[0];
-          this.persistentIds.set(socketId, device.device_id);
-          console.log(`🔄 Reusing existing device ID: ${device.device_id} for socket: ${socketId} (user agent match)`);
-          return device.device_id;
+        let existingDevices = [];
+
+        // Try to match by IP address first (most reliable for device identification)
+        if (ipAddress) {
+          existingDevices = await this.database.all(
+            `SELECT * FROM devices WHERE ip_address = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 5`,
+            [ipAddress, oneDayAgo]
+          );
+
+          if (existingDevices.length > 0) {
+            const device = existingDevices[0];
+            this.persistentIds.set(socketId, device.device_id);
+            console.log(`🔄 Reusing device ID by IP match: ${device.device_id} for socket: ${socketId}`);
+            return device.device_id;
+          }
         }
+
+        // If no IP match, try user agent (less reliable but still useful)
+        if (userAgent) {
+          existingDevices = await this.database.all(
+            `SELECT * FROM devices WHERE user_agent = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 3`,
+            [userAgent, oneDayAgo]
+          );
+
+          if (existingDevices.length > 0) {
+            const device = existingDevices[0];
+            this.persistentIds.set(socketId, device.device_id);
+            console.log(`🔄 Reusing device ID by user agent match: ${device.device_id} for socket: ${socketId}`);
+            return device.device_id;
+          }
+        }
+
+        // As a last resort, look for any recently connected device from the same IP range
+        // (useful for devices behind NAT that change IP slightly)
+        if (ipAddress) {
+          const ipParts = ipAddress.split('.');
+          if (ipParts.length === 4) {
+            const ipPrefix = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`; // First 3 octets
+            existingDevices = await this.database.all(
+              `SELECT * FROM devices WHERE ip_address LIKE ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 3`,
+              [`${ipPrefix}.%`, oneDayAgo]
+            );
+
+            if (existingDevices.length > 0) {
+              const device = existingDevices[0];
+              this.persistentIds.set(socketId, device.device_id);
+              console.log(`🔄 Reusing device ID by IP range match: ${device.device_id} for socket: ${socketId}`);
+              return device.device_id;
+            }
+          }
+        }
+
       } catch (error) {
         console.warn('Database query for existing device failed:', error);
       }
@@ -72,12 +113,16 @@ class DeviceIdManager {
     return deviceId;
   }  // Register a device connection
   async registerDevice(socketId, deviceId = null, userAgent = null, ipAddress = null, enablePin = true) {
+    console.log(`📱 Registering device for socket: ${socketId}, userAgent: ${userAgent?.substring(0, 50)}..., ipAddress: ${ipAddress}`);
+
     if (!deviceId) {
       deviceId = await this.getPersistentDeviceId(socketId, userAgent, ipAddress);
+      console.log(`📱 Generated/found deviceId: ${deviceId} for socket: ${socketId}`);
     } else {
       // If a specific deviceId is provided, use it
       this.persistentIds.set(socketId, deviceId);
       this.deviceIds.set(deviceId, { socketId, connectedAt: new Date().toISOString() });
+      console.log(`📱 Using provided deviceId: ${deviceId} for socket: ${socketId}`);
     }
 
     // Check if device already exists in database and has a PIN
@@ -85,9 +130,11 @@ class DeviceIdManager {
     if (this.database) {
       try {
         const existingDevice = await this.database.getDevice(deviceId);
-        if (existingDevice && existingDevice.pin_code) {
+        if (existingDevice) {
           pinCode = existingDevice.pin_code;
-          console.log(`📌 Using existing PIN for device: ${deviceId}`);
+          console.log(`📌 Found existing device ${deviceId} in database with PIN: ${pinCode ? 'set' : 'none'}`);
+        } else {
+          console.log(`📌 Device ${deviceId} not found in database, will create new entry`);
         }
       } catch (error) {
         console.warn('Failed to check existing device PIN:', error);
@@ -97,13 +144,26 @@ class DeviceIdManager {
     // Generate new PIN code only if enabled and no existing PIN
     if (enablePin && !pinCode) {
       pinCode = this.generatePinCode();
-      console.log(`🔢 Generated new PIN for device: ${deviceId}`);
+      console.log(`🔢 Generated new PIN for device: ${deviceId}: ${pinCode}`);
     }
 
     // Save to database if available
     if (this.database) {
       try {
-        await this.database.saveDevice(deviceId, socketId, userAgent, ipAddress, pinCode);
+        // First check if device already exists
+        const existingDevice = await this.database.getDevice(deviceId);
+        if (existingDevice) {
+          // Update existing device with new connection info
+          await this.database.run(
+            `UPDATE devices SET socket_id = ?, last_seen = CURRENT_TIMESTAMP, user_agent = ?, ip_address = ? WHERE device_id = ?`,
+            [socketId, userAgent, ipAddress, deviceId]
+          );
+          console.log(`📱 Updated existing device: ${deviceId}`);
+        } else {
+          // Insert new device
+          await this.database.saveDevice(deviceId, socketId, userAgent, ipAddress, pinCode);
+          console.log(`📱 Created new device: ${deviceId}`);
+        }
       } catch (error) {
         console.warn('Failed to save device to database:', error);
       }
