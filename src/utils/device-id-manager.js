@@ -14,9 +14,10 @@ const nouns = [
 ];
 
 class DeviceIdManager {
-  constructor() {
-    this.deviceIds = new Map(); // deviceId -> socket/connection info
-    this.persistentIds = new Map(); // persistent mapping of socket IDs to device IDs
+  constructor(database = null) {
+    this.database = database;
+    this.deviceIds = new Map(); // deviceId -> socket/connection info (in-memory cache)
+    this.persistentIds = new Map(); // socketId -> deviceId mapping (in-memory)
   }
 
   // Generate a short, memorable device ID
@@ -27,10 +28,39 @@ class DeviceIdManager {
     return `${adjective}-${noun}-${number}`;
   }
 
-  // Get or create a persistent device ID for a socket
-  getPersistentDeviceId(socketId) {
+  // Generate a 6-digit PIN code
+  generatePinCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+      // Get or create a persistent device ID for a socket
+  async getPersistentDeviceId(socketId, userAgent = null, ipAddress = null) {
+    // First check if we already have this socket mapped
     if (this.persistentIds.has(socketId)) {
       return this.persistentIds.get(socketId);
+    }
+
+    // If we have database access, try to find an existing device for this user agent/IP
+    if (this.database && userAgent) {
+      try {
+        // Look for existing devices with the same user agent (R1 devices should have consistent UA)
+        const existingDevices = await this.database.all(
+          `SELECT * FROM devices WHERE user_agent = ? ORDER BY last_seen DESC LIMIT 5`,
+          [userAgent]
+        );
+
+        // If we find a recent device (within last hour), reuse it
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        const recentDevice = existingDevices.find(device => device.last_seen > oneHourAgo);
+
+        if (recentDevice) {
+          this.persistentIds.set(socketId, recentDevice.device_id);
+          console.log(`🔄 Reusing existing device ID: ${recentDevice.device_id} for socket: ${socketId}`);
+          return recentDevice.device_id;
+        }
+      } catch (error) {
+        console.warn('Database query for existing device failed:', error);
+      }
     }
 
     // Generate a new ID and store it
@@ -43,21 +73,51 @@ class DeviceIdManager {
   }
 
   // Register a device connection
-  registerDevice(socketId, deviceId = null) {
+  async registerDevice(socketId, deviceId = null, userAgent = null, ipAddress = null, enablePin = true) {
     if (!deviceId) {
-      deviceId = this.getPersistentDeviceId(socketId);
+      deviceId = await this.getPersistentDeviceId(socketId, userAgent, ipAddress);
     } else {
       // If a specific deviceId is provided, use it
       this.persistentIds.set(socketId, deviceId);
       this.deviceIds.set(deviceId, { socketId, connectedAt: new Date().toISOString() });
     }
 
-    console.log(`📱 Device registered: ${deviceId} (socket: ${socketId})`);
-    return deviceId;
+    // Check if device already exists in database and has a PIN
+    let pinCode = null;
+    if (this.database) {
+      try {
+        const existingDevice = await this.database.getDevice(deviceId);
+        if (existingDevice && existingDevice.pin_code) {
+          pinCode = existingDevice.pin_code;
+          console.log(`📌 Using existing PIN for device: ${deviceId}`);
+        }
+      } catch (error) {
+        console.warn('Failed to check existing device PIN:', error);
+      }
+    }
+
+    // Generate new PIN code only if enabled and no existing PIN
+    if (enablePin && !pinCode) {
+      pinCode = this.generatePinCode();
+      console.log(`🔢 Generated new PIN for device: ${deviceId}`);
+    }
+
+    // Save to database if available
+    if (this.database) {
+      try {
+        await this.database.saveDevice(deviceId, socketId, userAgent, ipAddress, pinCode);
+      } catch (error) {
+        console.warn('Failed to save device to database:', error);
+      }
+    }
+
+    const pinMessage = pinCode ? `, PIN: ${pinCode}` : ', PIN disabled';
+    console.log(`📱 Device registered: ${deviceId} (socket: ${socketId}${pinMessage})`);
+    return { deviceId, pinCode };
   }
 
   // Unregister a device (on disconnect)
-  unregisterDevice(socketId) {
+  async unregisterDevice(socketId) {
     const deviceId = this.persistentIds.get(socketId);
     if (deviceId) {
       this.deviceIds.delete(deviceId);
@@ -88,6 +148,17 @@ class DeviceIdManager {
   // Get device info
   getDeviceInfo(deviceId) {
     return this.deviceIds.get(deviceId) || null;
+  }
+
+  // Get device info from database
+  async getDeviceInfoFromDB(deviceId) {
+    if (!this.database) return null;
+    try {
+      return await this.database.getDevice(deviceId);
+    } catch (error) {
+      console.warn('Failed to get device info from database:', error);
+      return null;
+    }
   }
 
   // Clean up old persistent IDs (optional - call periodically)

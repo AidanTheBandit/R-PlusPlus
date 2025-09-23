@@ -7,10 +7,17 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
     deviceIdManager = new DeviceIdManager();
   }
 
+  // Get PIN configuration from environment
+  const enablePin = process.env.DISABLE_PIN !== 'true'; // Default to enabled, disable if DISABLE_PIN=true
+
   // Socket.IO connection handling
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
+    // Get client info for device identification
+    const userAgent = socket.handshake.headers['user-agent'];
+    const ipAddress = socket.handshake.address || socket.request.connection.remoteAddress;
+
     // Get or create persistent device ID
-    const deviceId = deviceIdManager.registerDevice(socket.id);
+    const { deviceId, pinCode } = await deviceIdManager.registerDevice(socket.id, null, userAgent, ipAddress, enablePin);
     connectedR1s.set(deviceId, socket);
 
     console.log(`R1 device connected: ${deviceId}`);
@@ -23,9 +30,11 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
       connectedAt: new Date().toISOString()
     });
 
-    // Send welcome message with device ID
+    // Send welcome message with device ID and PIN code
     socket.emit('connected', {
       deviceId: deviceId,
+      pinCode: pinCode,
+      pinEnabled: pinCode !== null,
       message: 'Connected to R-API server'
     });
 
