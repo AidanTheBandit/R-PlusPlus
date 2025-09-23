@@ -450,7 +450,7 @@ app.get('/magic-cam/status', (req, res) => {
 // OpenAI-compatible API endpoints
 app.post('/v1/chat/completions', async (req, res) => {
   try {
-    const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150 } = req.body;
+    const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
     
     // Extract the latest user message
     const userMessage = messages[messages.length - 1]?.content || '';
@@ -501,7 +501,7 @@ app.post('/v1/chat/completions', async (req, res) => {
       });
     }, 30000); // 30 second timeout
     
-    pendingRequests.set(requestId, { res, timeout });
+    pendingRequests.set(requestId, { res, timeout, stream });
     
     // Send command to all connected R1 devices via WebSocket
     const command = {
@@ -725,71 +725,101 @@ io.on('connection', (socket) => {
     // If we have a requestId and it matches, use it
     if (requestId && pendingRequests.has(requestId)) {
       console.log(`✅ Found matching request ${requestId}, sending response to client`);
-      const { res, timeout } = pendingRequests.get(requestId);
+      const { res, timeout, stream } = pendingRequests.get(requestId);
       
       // Clear timeout and remove from pending requests
       clearTimeout(timeout);
       pendingRequests.delete(requestId);
       requestDeviceMap.delete(requestId);
       
-      sendOpenAIResponse(res, response, originalMessage, model);
+      sendOpenAIResponse(res, response, originalMessage, model, stream);
     } 
     // If no requestId or it doesn't match, but we have pending requests, use the first one
     else if (pendingRequests.size > 0) {
       console.log(`⚠️ No matching requestId, using first pending request`);
-      const [firstRequestId, { res, timeout }] = pendingRequests.entries().next().value;
+      const [firstRequestId, { res, timeout, stream }] = pendingRequests.entries().next().value;
       
       // Clear timeout and remove from pending requests
       clearTimeout(timeout);
       pendingRequests.delete(firstRequestId);
       requestDeviceMap.delete(firstRequestId);
       
-      sendOpenAIResponse(res, response, originalMessage, model);
+      sendOpenAIResponse(res, response, originalMessage, model, stream);
     } else {
       console.log(`❌ No pending requests found for response from ${deviceId}`);
     }
   });
   
   // Helper function to send OpenAI-compatible response
-  function sendOpenAIResponse(clientRes, response, originalMessage, model) {
-    const openaiResponse = {
-      id: `chatcmpl-${Date.now()}`,
-      object: 'chat.completion',
-      created: Math.floor(Date.now() / 1000),
-      model: model || 'r1-llm',
-      choices: [{
-        index: 0,
-        message: {
-          role: 'assistant',
-          content: response || 'No response from R1'
-        },
-        finish_reason: 'stop'
-      }],
-      usage: {
-        prompt_tokens: originalMessage ? originalMessage.length : 0,
-        completion_tokens: response ? response.length : 0,
-        total_tokens: (originalMessage ? originalMessage.length : 0) + (response ? response.length : 0)
-      }
-    };
-    
-      console.log(`📤 Sending OpenAI response to client:`, openaiResponse.choices[0].message.content.substring(0, 100));
-      
-      // Add assistant response to conversation history
-      const sessionId = 'default';
-      const history = conversationHistory.get(sessionId) || [];
-      history.push({
-        role: 'assistant',
-        content: openaiResponse.choices[0].message.content,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Keep only last 10 messages
-      if (history.length > 10) {
-        history.splice(0, history.length - 10);
-      }
-      conversationHistory.set(sessionId, history);
+  function sendOpenAIResponse(clientRes, response, originalMessage, model, stream = false) {
+    if (stream) {
+      // Set headers for SSE
+      clientRes.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      clientRes.setHeader('Cache-Control', 'no-cache');
+      clientRes.setHeader('Connection', 'keep-alive');
+
+      const id = `chatcmpl-${Date.now()}`;
+      const created = Math.floor(Date.now() / 1000);
+
+      // Send the completion chunk
+      const chunk = {
+        id,
+        object: 'chat.completion.chunk',
+        created,
+        model: model || 'r1-llm',
+        choices: [{
+          index: 0,
+          delta: {
+            role: 'assistant',
+            content: response || 'No response from R1'
+          },
+          finish_reason: 'stop'
+        }]
+      };
+
+      clientRes.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      clientRes.write(`data: [DONE]\n\n`);
+      clientRes.end();
+    } else {
+      const openaiResponse = {
+        id: `chatcmpl-${Date.now()}`,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: model || 'r1-llm',
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: response || 'No response from R1'
+          },
+          finish_reason: 'stop'
+        }],
+        usage: {
+          prompt_tokens: originalMessage ? originalMessage.length : 0,
+          completion_tokens: response ? response.length : 0,
+          total_tokens: (originalMessage ? originalMessage.length : 0) + (response ? response.length : 0)
+        }
+      };
       
       clientRes.json(openaiResponse);
+    }
+    
+    console.log(`📤 Sending ${stream ? 'streaming' : 'normal'} OpenAI response to client:`, (response || 'No response from R1').substring(0, 100));
+    
+    // Add assistant response to conversation history
+    const sessionId = 'default';
+    const history = conversationHistory.get(sessionId) || [];
+    history.push({
+      role: 'assistant',
+      content: response || 'No response from R1',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Keep only last 10 messages
+    if (history.length > 10) {
+      history.splice(0, history.length - 10);
+    }
+    conversationHistory.set(sessionId, history);
   }
   
   // Handle error events from R1 devices
