@@ -118,12 +118,17 @@ class DeviceIdManager {
     if (!deviceId) {
       deviceId = await this.getPersistentDeviceId(socketId, userAgent, ipAddress);
       console.log(`📱 Generated/found deviceId: ${deviceId} for socket: ${socketId}`);
-    } else {
-      // If a specific deviceId is provided, use it
-      this.persistentIds.set(socketId, deviceId);
-      this.deviceIds.set(deviceId, { socketId, connectedAt: new Date().toISOString() });
-      console.log(`📱 Using provided deviceId: ${deviceId} for socket: ${socketId}`);
     }
+    
+    // CRITICAL FIX: Always update the deviceIds map for chat completion lookup
+    this.persistentIds.set(socketId, deviceId);
+    this.deviceIds.set(deviceId, { 
+      socketId, 
+      connectedAt: new Date().toISOString(),
+      userAgent,
+      ipAddress 
+    });
+    console.log(`📱 Updated deviceIds map: ${deviceId} for socket: ${socketId}`)
 
     // Check if device already exists in database and has a PIN
     let pinCode = null;
