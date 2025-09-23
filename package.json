@@ -6,9 +6,15 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
-    "build-creation": "cd creation-react && npm run build",
+    "build-creation": "cd creation-react && npm install && npm run build",
     "dev-creation": "cd creation-react && npm run dev",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build-control-panel": "cd r1-control-panel && npm install && npm run build",
+    "dev-control-panel": "cd r1-control-panel && npm start",
+    "build-all": "npm run build-creation && npm run build-control-panel",
+    "all": "npm run build-all && npm start",
+    "check-builds": "node scripts/check-builds.js",
+    "test-blacklist": "node scripts/test-blacklist.js",
+    "test": "npm run test-blacklist"
   },
   "keywords": [
     "r1",

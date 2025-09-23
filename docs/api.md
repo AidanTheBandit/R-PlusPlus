@@ -80,7 +80,7 @@ Lists available models.
       "id": "r1-command",
       "object": "model",
       "created": 1677652288,
-      "owned_by": "r1-api"
+      "owned_by": "rabbit-r1"
     }
   ]
 }

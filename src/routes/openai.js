@@ -216,7 +216,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           id: 'r1-command',
           object: 'model',
           created: Math.floor(Date.now() / 1000),
-          owned_by: 'r1-api'
+          owned_by: 'rabbit-r1'
         }
       ]
     });

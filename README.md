@@ -18,6 +18,7 @@ R-API provides a bridge between the R1 device and external applications through:
 - ✅ Modular architecture with plugin system
 - ✅ Streaming response support
 - ✅ Comprehensive debug and analytics tools
+- ✅ **MCP (Model Context Protocol) integration** for extensible tool support
 
 ## Configuration
 
@@ -38,7 +39,9 @@ When PIN codes are disabled, API endpoints can be accessed without authenticatio
 
 ### Device Identification
 
-R1 devices are automatically assigned persistent IDs based on their user agent and IP address. Device IDs follow the format: `{adjective}-{noun}-{number}` (e.g., `red-fox-42`).
+R1 devices are automatically assigned persistent IDs based on their user agent and IP address. Device IDs follow the format: `{adjective}-{noun}-{number}` (e.g., `green-wolf-23`, `blue-eagle-8`).
+
+**Note:** Certain device IDs used in documentation examples (like `red-fox-42`) are blacklisted to prevent accidental assignment to real devices.
 
 ## API Authentication
 
@@ -105,6 +108,19 @@ GET /magic-cam/status
 GET /debug/devices
 GET /debug/history/:deviceId
 POST /debug/stream/:type
+```
+
+### MCP (Model Context Protocol)
+```http
+GET /{deviceId}/mcp/servers
+POST /{deviceId}/mcp/servers
+GET /{deviceId}/mcp/servers/{serverName}
+DELETE /{deviceId}/mcp/servers/{serverName}
+POST /{deviceId}/mcp/servers/{serverName}/toggle
+GET /{deviceId}/mcp/servers/{serverName}/tools
+POST /{deviceId}/mcp/servers/{serverName}/tools/{toolName}/call
+GET /{deviceId}/mcp/logs
+GET /mcp/templates
 ```
 
 ## WebSocket Communication
@@ -188,6 +204,22 @@ docs/                       # Documentation
 ├── backend.md             # Backend architecture
 └── plugins.md             # Plugin system guide
 ```
+
+## Quick Start
+
+### One Command Setup
+```bash
+# Build all React UIs and start the server
+npm run all
+```
+
+This will:
+1. Install dependencies for both React apps
+2. Build the creation-react interface
+3. Build the r1-control-panel interface  
+4. Start the R-API server
+
+Then visit `http://localhost:5482` for the full control panel with MCP management.
 
 ## Usage Examples
 
@@ -289,10 +321,38 @@ node src/tests/test-api.js
 3. **Process** → R1 Device → Generate Response
 4. **Return** → WebSocket → Response Utils → API Client
 
+## MCP (Model Context Protocol) Integration
+
+R-API now includes comprehensive MCP support, allowing R1 devices to connect to external tools and services:
+
+### Key Features
+- **Web-based Management**: Configure MCP servers through the control panel
+- **Pre-configured Templates**: Quick setup for popular MCP servers (filesystem, web-search, GitHub, etc.)
+- **Security Controls**: Auto-approval lists and manual approval workflows
+- **Real-time Monitoring**: Live status monitoring and comprehensive logging
+- **Device-specific Configuration**: Each R1 device can have its own MCP server setup
+
+### Quick Start
+1. Open the R-API Control Panel at `http://localhost:5482`
+2. Navigate to the "MCP Servers" tab
+3. Select your R1 device from the dropdown
+4. Click "Add Server" and choose from templates or create custom configuration
+5. Your R1 can now use MCP tools for enhanced capabilities
+
+### Popular MCP Servers
+- **File System**: Read/write files and directories
+- **Web Search**: Search the internet for information
+- **GitHub**: Interact with repositories and issues
+- **SQLite**: Query databases
+- **AWS Docs**: Search AWS documentation
+
+See [MCP Documentation](docs/mcp.md) for detailed setup and usage instructions.
+
 ## Documentation
 
 - [Backend Architecture](docs/backend.md) - Detailed technical documentation
 - [Plugin System](docs/plugins.md) - Plugin development guide
+- [MCP Integration](docs/mcp.md) - Model Context Protocol setup and usage
 - [API Reference](docs/api.md) - Complete API documentation (planned)
 
 ## Contributing

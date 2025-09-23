@@ -9,9 +9,11 @@ const { setupOpenAIRoutes } = require('./routes/openai');
 const { setupMagicCamRoutes } = require('./routes/magic-cam');
 const { setupHealthRoutes } = require('./routes/health');
 const { setupDebugRoutes } = require('./routes/debug');
+const { setupMCPRoutes } = require('./routes/mcp');
 const { setupSocketHandler } = require('./socket/socket-handler');
 const { DeviceIdManager } = require('./utils/device-id-manager');
 const { DatabaseManager } = require('./utils/database');
+const { MCPManager } = require('./utils/mcp-manager');
 const PluginManager = require('./plugins/plugin-manager');
 
 const app = express();
@@ -40,6 +42,7 @@ const performanceMetrics = new Map(); // deviceId -> metrics array
 // Initialize database and device ID manager
 const database = new DatabaseManager();
 const deviceIdManager = new DeviceIdManager(database);
+const mcpManager = new MCPManager(database, deviceIdManager);
 
 // Middleware
 app.use(cors());
@@ -53,6 +56,7 @@ setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, r
 setupMagicCamRoutes(app, connectedR1s);
 setupHealthRoutes(app, connectedR1s);
 setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugDataStore, performanceMetrics);
+setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager);
 
 // Serve React creation assets from root for proper loading
 app.use('/assets', express.static(path.join(__dirname, '..', 'creation-react', 'dist', 'assets'), {
@@ -74,8 +78,35 @@ app.use('/creation', express.static(path.join(__dirname, '..', 'creation-react',
   }
 }));
 
-// Serve the device testing interface at root (LAST)
+// Serve React control panel build files
+app.use(express.static(path.join(__dirname, '..', 'r1-control-panel', 'build')));
+
+// Serve the React control panel at root (LAST)
 app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'r1-control-panel', 'build', 'index.html'));
+});
+
+// Serve public static files for fallback (CSS, JS, images)
+app.use('/static', express.static(path.join(__dirname, '..', 'public')));
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  // Don't interfere with API routes
+  if (req.path.startsWith('/api') || 
+      req.path.startsWith('/mcp') || 
+      req.path.startsWith('/health') || 
+      req.path.startsWith('/debug') ||
+      req.path.includes('/v1/') ||
+      req.path.startsWith('/creation') ||
+      req.path.startsWith('/static')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  
+  res.sendFile(path.join(__dirname, '..', 'r1-control-panel', 'build', 'index.html'));
+});
+
+// Serve the device testing interface at /test
+app.get('/test', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -718,7 +749,7 @@ app.post('/:deviceId/change-pin', async (req, res) => {
 });
 
 // Setup socket handler
-setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager);
+setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager, mcpManager);
 
 // Plugin system
 const pluginManager = new PluginManager();
@@ -733,7 +764,8 @@ const sharedState = {
   deviceLogs,
   debugDataStore,
   performanceMetrics,
-  deviceIdManager
+  deviceIdManager,
+  mcpManager
 };
 
 pluginManager.initPlugins(app, io, sharedState);
@@ -741,18 +773,99 @@ pluginManager.initPlugins(app, io, sharedState);
 // Start server
 const PORT = process.env.PORT || 5482;
 
+// Check if React builds exist
+const checkBuilds = () => {
+  const controlPanelBuild = path.join(__dirname, '..', 'r1-control-panel', 'build', 'index.html');
+  const creationBuild = path.join(__dirname, '..', 'creation-react', 'dist', 'index.html');
+  
+  const fs = require('fs');
+  
+  if (!fs.existsSync(controlPanelBuild)) {
+    console.warn('⚠️  R1 Control Panel build not found. Run: npm run build-control-panel');
+  }
+  
+  if (!fs.existsSync(creationBuild)) {
+    console.warn('⚠️  Creation React build not found. Run: npm run build-creation');
+  }
+  
+  if (!fs.existsSync(controlPanelBuild) && !fs.existsSync(creationBuild)) {
+    console.warn('💡 Build all React UIs with: npm run build-all');
+  }
+};
+
 // Initialize database before starting server
 database.init().then(() => {
   console.log('Database initialized successfully');
+  checkBuilds();
 
   server.listen(PORT, () => {
-    console.log(`R-API server running on http://localhost:${PORT}`);
-    console.log(`Socket.IO server available at /socket.io (WebSocket+polling compatible)`);
-    console.log(`R1 Anywhere available at http://localhost:${PORT}`);
-    console.log(`Device-specific API at http://localhost:${PORT}/device-{deviceId}/v1/chat/completions`);
-    console.log(`Loaded plugins: ${pluginManager.getAllPlugins().join(', ') || 'none'}`);
+    console.log(`🚀 R-API server running on http://localhost:${PORT}`);
+    console.log(`📡 Socket.IO server available at /socket.io (WebSocket+polling compatible)`);
+    console.log(`🎛️  React Control Panel available at http://localhost:${PORT}`);
+    console.log(`🔌 MCP Management available at http://localhost:${PORT} (MCP Servers tab)`);
+    console.log(`🎨 Creation React UI available at http://localhost:${PORT}/creation`);
+    console.log(`🔗 Device-specific API at http://localhost:${PORT}/{deviceId}/v1/chat/completions`);
+    console.log(`🔧 Loaded plugins: ${pluginManager.getAllPlugins().join(', ') || 'none'}`);
+    console.log(`\n💡 Quick start: npm run all`);
   });
 }).catch((error) => {
   console.error('Failed to initialize database:', error);
   process.exit(1);
+});
+
+// Graceful shutdown handling
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal) {
+  if (isShuttingDown) {
+    console.log('⚠️ Shutdown already in progress...');
+    return;
+  }
+  
+  isShuttingDown = true;
+  console.log(`\n🛑 Received ${signal}, shutting down R-API server...`);
+  
+  try {
+    // Shutdown MCP manager first
+    if (mcpManager) {
+      await mcpManager.shutdown();
+      console.log('✅ MCP servers shut down');
+    }
+    
+    // Close database connection
+    if (database) {
+      database.close();
+      console.log('✅ Database connection closed');
+    }
+    
+    // Close HTTP server
+    server.close(() => {
+      console.log('✅ HTTP server closed');
+      process.exit(0);
+    });
+    
+    // Force exit after 10 seconds if graceful shutdown fails
+    setTimeout(() => {
+      console.log('⚠️ Forcing shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+    
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown('unhandledRejection');
 });

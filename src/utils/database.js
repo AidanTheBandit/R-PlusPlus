@@ -75,6 +75,54 @@ class DatabaseManager {
         device_id TEXT,
         data TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS mcp_servers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT NOT NULL,
+        server_name TEXT NOT NULL,
+        server_type TEXT DEFAULT 'external',
+        command TEXT,
+        args TEXT,
+        env TEXT,
+        enabled BOOLEAN DEFAULT 1,
+        auto_approve TEXT,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(device_id, server_name)
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS mcp_tools (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        server_id INTEGER,
+        tool_name TEXT NOT NULL,
+        tool_description TEXT,
+        tool_schema TEXT,
+        enabled BOOLEAN DEFAULT 1,
+        usage_count INTEGER DEFAULT 0,
+        last_used DATETIME,
+        FOREIGN KEY(server_id) REFERENCES mcp_servers(id) ON DELETE CASCADE
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS mcp_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT NOT NULL,
+        server_name TEXT NOT NULL,
+        session_id TEXT UNIQUE NOT NULL,
+        status TEXT DEFAULT 'active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_activity DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS mcp_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT,
+        server_name TEXT,
+        level TEXT,
+        message TEXT,
+        metadata TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )`
     ];
 
@@ -307,10 +355,117 @@ class DatabaseManager {
     return cleaned;
   }
 
+  // MCP Server management
+  async saveMCPServer(deviceId, serverName, config) {
+    const sql = `
+      INSERT OR REPLACE INTO mcp_servers 
+      (device_id, server_name, server_type, command, args, env, enabled, auto_approve, description, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `;
+    const args = [
+      deviceId,
+      serverName,
+      config.type || 'external',
+      config.command || null,
+      config.args ? JSON.stringify(config.args) : null,
+      config.env ? JSON.stringify(config.env) : null,
+      config.enabled !== false ? 1 : 0,
+      config.autoApprove ? JSON.stringify(config.autoApprove) : null,
+      config.description || null
+    ];
+    return await this.run(sql, args);
+  }
+
+  async getMCPServers(deviceId) {
+    const sql = `SELECT * FROM mcp_servers WHERE device_id = ? ORDER BY server_name`;
+    return await this.all(sql, [deviceId]);
+  }
+
+  async getMCPServer(deviceId, serverName) {
+    const sql = `SELECT * FROM mcp_servers WHERE device_id = ? AND server_name = ?`;
+    return await this.get(sql, [deviceId, serverName]);
+  }
+
+  async deleteMCPServer(deviceId, serverName) {
+    const sql = `DELETE FROM mcp_servers WHERE device_id = ? AND server_name = ?`;
+    return await this.run(sql, [deviceId, serverName]);
+  }
+
+  async updateMCPServerStatus(deviceId, serverName, enabled) {
+    const sql = `UPDATE mcp_servers SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE device_id = ? AND server_name = ?`;
+    return await this.run(sql, [enabled ? 1 : 0, deviceId, serverName]);
+  }
+
+  // MCP Tools management
+  async saveMCPTool(serverId, toolName, toolDescription, toolSchema) {
+    const sql = `
+      INSERT OR REPLACE INTO mcp_tools (server_id, tool_name, tool_description, tool_schema)
+      VALUES (?, ?, ?, ?)
+    `;
+    return await this.run(sql, [serverId, toolName, toolDescription, JSON.stringify(toolSchema)]);
+  }
+
+  async getMCPTools(serverId) {
+    const sql = `SELECT * FROM mcp_tools WHERE server_id = ? ORDER BY tool_name`;
+    return await this.all(sql, [serverId]);
+  }
+
+  async updateMCPToolUsage(toolId) {
+    const sql = `UPDATE mcp_tools SET usage_count = usage_count + 1, last_used = CURRENT_TIMESTAMP WHERE id = ?`;
+    return await this.run(sql, [toolId]);
+  }
+
+  // MCP Sessions management
+  async createMCPSession(deviceId, serverName, sessionId) {
+    const sql = `
+      INSERT INTO mcp_sessions (device_id, server_name, session_id)
+      VALUES (?, ?, ?)
+    `;
+    return await this.run(sql, [deviceId, serverName, sessionId]);
+  }
+
+  async getMCPSessions(deviceId) {
+    const sql = `SELECT * FROM mcp_sessions WHERE device_id = ? AND status = 'active' ORDER BY last_activity DESC`;
+    return await this.all(sql, [deviceId]);
+  }
+
+  async updateMCPSessionActivity(sessionId) {
+    const sql = `UPDATE mcp_sessions SET last_activity = CURRENT_TIMESTAMP WHERE session_id = ?`;
+    return await this.run(sql, [sessionId]);
+  }
+
+  async closeMCPSession(sessionId) {
+    const sql = `UPDATE mcp_sessions SET status = 'closed' WHERE session_id = ?`;
+    return await this.run(sql, [sessionId]);
+  }
+
+  // MCP Logs management
+  async saveMCPLog(deviceId, serverName, level, message, metadata = null) {
+    const sql = `
+      INSERT INTO mcp_logs (device_id, server_name, level, message, metadata)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    return await this.run(sql, [deviceId, serverName, level, message, metadata ? JSON.stringify(metadata) : null]);
+  }
+
+  async getMCPLogs(deviceId, serverName = null, limit = 100) {
+    let sql, params;
+    if (serverName) {
+      sql = `SELECT * FROM mcp_logs WHERE device_id = ? AND server_name = ? ORDER BY timestamp DESC LIMIT ?`;
+      params = [deviceId, serverName, limit];
+    } else {
+      sql = `SELECT * FROM mcp_logs WHERE device_id = ? ORDER BY timestamp DESC LIMIT ?`;
+      params = [deviceId, limit];
+    }
+    return await this.all(sql, params);
+  }
+
   // Close database connection
   close() {
     if (this.db) {
-      this.db.close((err) => {
+      const db = this.db;
+      this.db = null; // Prevent double-close
+      db.close((err) => {
         if (err) {
           console.error('Error closing database:', err);
         } else {
