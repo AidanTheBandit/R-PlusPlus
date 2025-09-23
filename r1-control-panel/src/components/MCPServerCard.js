@@ -1,6 +1,6 @@
 import React from 'react';
 
-const MCPServerCard = ({ server, onToggle, onDelete }) => {
+const MCPServerCard = ({ server, deviceId, pinCode, onToggle, onDelete }) => {
   const getStatusClass = () => {
     if (server.running) return 'running';
     if (server.enabled) return 'stopped';
@@ -27,7 +27,12 @@ const MCPServerCard = ({ server, onToggle, onDelete }) => {
 
   const handleViewTools = async () => {
     try {
-      const response = await fetch(`/${server.deviceId || 'unknown'}/mcp/servers/${server.name}/tools`);
+      const headers = {};
+      if (pinCode) {
+        headers['Authorization'] = `Bearer ${pinCode}`;
+      }
+
+      const response = await fetch(`/${deviceId}/mcp/servers/${server.name}/tools`, { headers });
       if (response.ok) {
         const data = await response.json();
         const tools = data.tools || [];
@@ -55,9 +60,9 @@ const MCPServerCard = ({ server, onToggle, onDelete }) => {
             <head>
               <title>MCP Tools - ${server.name}</title>
               <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
+                body { font-family: Arial, sans-serif; padding: 20px; background: #282828; color: #ebdbb2; }
                 ul { list-style-type: none; padding: 0; }
-                li { padding: 10px; border: 1px solid #eee; margin-bottom: 5px; border-radius: 4px; }
+                li { padding: 10px; border: 1px solid #504945; margin-bottom: 5px; border-radius: 4px; background: #3c3836; }
               </style>
             </head>
             <body>${toolsHtml}</body>

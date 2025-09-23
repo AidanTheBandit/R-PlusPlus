@@ -89,21 +89,7 @@ app.get('/', (req, res) => {
 // Serve public static files for fallback (CSS, JS, images)
 app.use('/static', express.static(path.join(__dirname, '..', 'public')));
 
-// Catch-all handler: send back React's index.html file for any non-API routes
-app.get('*', (req, res) => {
-  // Don't interfere with API routes
-  if (req.path.startsWith('/api') || 
-      req.path.startsWith('/mcp') || 
-      req.path.startsWith('/health') || 
-      req.path.startsWith('/debug') ||
-      req.path.includes('/v1/') ||
-      req.path.startsWith('/creation') ||
-      req.path.startsWith('/static')) {
-    return res.status(404).json({ error: 'Not found' });
-  }
-  
-  res.sendFile(path.join(__dirname, '..', 'r1-control-panel', 'build', 'index.html'));
-});
+// Note: No catch-all route needed since React app is served at root with static files
 
 // Serve the device testing interface at /test
 app.get('/test', (req, res) => {

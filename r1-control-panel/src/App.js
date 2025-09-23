@@ -1,121 +1,140 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import Header from './components/Header';
+import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
 import MCPManager from './components/MCPManager';
-import DeviceManager from './components/DeviceManager';
-import DebugTools from './components/DebugTools';
 import './App.css';
 
 function App() {
   const [activeTab, setActiveTab] = useState('chat');
   const [socket, setSocket] = useState(null);
-  const [connectedDevices, setConnectedDevices] = useState(new Map());
-  const [serverStats, setServerStats] = useState({
-    connectedDevices: 0,
-    totalRequests: 0,
-    mcpServers: 0,
-    runningServers: 0
-  });
+  const [deviceId, setDeviceId] = useState('');
+  const [pinCode, setPinCode] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   useEffect(() => {
-    // Initialize socket connection
-    const newSocket = io();
-    setSocket(newSocket);
-
-    // Socket event handlers
-    newSocket.on('connect', () => {
-      console.log('Connected to R-API server');
-    });
-
-    newSocket.on('device_connected', (data) => {
-      setConnectedDevices(prev => {
-        const updated = new Map(prev);
-        updated.set(data.deviceId, {
-          deviceId: data.deviceId,
-          userAgent: data.userAgent,
-          connectedAt: data.connectedAt,
-          status: 'connected'
-        });
-        return updated;
-      });
-    });
-
-    newSocket.on('device_disconnected', (data) => {
-      setConnectedDevices(prev => {
-        const updated = new Map(prev);
-        updated.delete(data.deviceId);
-        return updated;
-      });
-    });
-
-    newSocket.on('mcp_event', (data) => {
-      console.log('MCP Event:', data);
-      // Handle MCP events for real-time updates
-    });
-
-    // Load initial data
-    loadServerStats();
-    loadConnectedDevices();
-
-    return () => {
-      newSocket.close();
-    };
+    // Check for saved credentials
+    const savedDeviceId = localStorage.getItem('r1-device-id');
+    const savedPinCode = localStorage.getItem('r1-pin-code');
+    
+    if (savedDeviceId) {
+      setDeviceId(savedDeviceId);
+      setPinCode(savedPinCode || '');
+      // Auto-authenticate if we have saved credentials
+      handleLogin(savedDeviceId, savedPinCode || '');
+    }
   }, []);
 
-  const loadServerStats = async () => {
+  const handleLogin = async (deviceIdInput, pinCodeInput) => {
+    setAuthError('');
+    
+    if (!deviceIdInput.trim()) {
+      setAuthError('Device ID is required');
+      return;
+    }
+
     try {
-      const response = await fetch('/api/mcp/overview');
+      // Test the device connection
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (pinCodeInput.trim()) {
+        headers['Authorization'] = `Bearer ${pinCodeInput}`;
+      }
+
+      const response = await fetch(`/${deviceIdInput}/v1/models`, {
+        headers: headers
+      });
+
       if (response.ok) {
-        const data = await response.json();
-        setServerStats({
-          connectedDevices: data.totalDevices || 0,
-          totalRequests: 0, // This would come from another endpoint
-          mcpServers: data.totalServers || 0,
-          runningServers: data.runningServers || 0
+        // Authentication successful
+        setDeviceId(deviceIdInput);
+        setPinCode(pinCodeInput);
+        setIsAuthenticated(true);
+        
+        // Save credentials
+        localStorage.setItem('r1-device-id', deviceIdInput);
+        if (pinCodeInput) {
+          localStorage.setItem('r1-pin-code', pinCodeInput);
+        } else {
+          localStorage.removeItem('r1-pin-code');
+        }
+
+        // Initialize socket connection
+        const newSocket = io();
+        setSocket(newSocket);
+
+        newSocket.on('connect', () => {
+          console.log('Connected to R-API server');
         });
+
+        newSocket.on('mcp_event', (data) => {
+          console.log('MCP Event:', data);
+        });
+
+      } else {
+        const error = await response.json();
+        setAuthError(error.error?.message || 'Authentication failed');
       }
     } catch (error) {
-      console.error('Failed to load server stats:', error);
+      setAuthError(`Connection failed: ${error.message}`);
     }
   };
 
-  const loadConnectedDevices = async () => {
-    try {
-      const response = await fetch('/api/devices');
-      if (response.ok) {
-        const data = await response.json();
-        const deviceMap = new Map();
-        data.devices.forEach(device => {
-          deviceMap.set(device.deviceId, device);
-        });
-        setConnectedDevices(deviceMap);
-      }
-    } catch (error) {
-      console.error('Failed to load connected devices:', error);
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setDeviceId('');
+    setPinCode('');
+    setAuthError('');
+    localStorage.removeItem('r1-device-id');
+    localStorage.removeItem('r1-pin-code');
+    
+    if (socket) {
+      socket.close();
+      setSocket(null);
     }
   };
 
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'chat':
-        return <ChatInterface socket={socket} connectedDevices={connectedDevices} />;
+        return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
       case 'mcp':
-        return <MCPManager socket={socket} connectedDevices={connectedDevices} />;
-      case 'devices':
-        return <DeviceManager socket={socket} connectedDevices={connectedDevices} />;
-      case 'debug':
-        return <DebugTools socket={socket} connectedDevices={connectedDevices} />;
+        return <MCPManager socket={socket} deviceId={deviceId} pinCode={pinCode} />;
       default:
-        return <ChatInterface socket={socket} connectedDevices={connectedDevices} />;
+        return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
     }
   };
 
+  if (!isAuthenticated) {
+    return (
+      <DeviceLogin
+        deviceId={deviceId}
+        pinCode={pinCode}
+        onDeviceIdChange={setDeviceId}
+        onPinCodeChange={setPinCode}
+        onLogin={handleLogin}
+        error={authError}
+      />
+    );
+  }
+
   return (
     <div className="App">
-      <Header serverStats={serverStats} />
       <div className="container">
+        <div className="device-header">
+          <div className="device-info">
+            <h1>R1 Control Panel</h1>
+            <div className="device-id">Device: {deviceId}</div>
+          </div>
+          <button className="logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+        
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="tab-content">
           {renderActiveTab()}

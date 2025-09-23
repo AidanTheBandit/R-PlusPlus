@@ -219,7 +219,9 @@ This will:
 3. Build the r1-control-panel interface  
 4. Start the R-API server
 
-Then visit `http://localhost:5482` for the full control panel with MCP management.
+Then visit `http://localhost:5482` for the secure, device-specific control panel with MCP management.
+
+**Note**: The control panel now requires device authentication - enter your R1 device ID and PIN to access your device securely.
 
 ## Usage Examples
 
