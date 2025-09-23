@@ -76,138 +76,370 @@ app.use('/creation', express.static(path.join(__dirname, '..', 'creation-react',
 
 // Serve the device testing interface at root (LAST)
 app.get('/', (req, res) => {
-  res.send(`
+  res.send(`<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R1 Device API Tester</title>
     <style>
+        :root {
+            --bg0: #282828;
+            --bg1: #3c3836;
+            --bg2: #504945;
+            --bg3: #665c54;
+            --bg4: #7c6f64;
+            --fg0: #fbf1c7;
+            --fg1: #ebdbb2;
+            --fg2: #d5c4a1;
+            --fg3: #bdae93;
+            --fg4: #a89984;
+            --red: #fb4934;
+            --green: #b8bb26;
+            --yellow: #fabd2f;
+            --blue: #83a598;
+            --purple: #d3869b;
+            --aqua: #8ec07c;
+            --orange: #fe8019;
+            --red-dim: #cc241d;
+            --green-dim: #98971a;
+            --yellow-dim: #d79921;
+            --blue-dim: #458588;
+            --purple-dim: #b16286;
+            --aqua-dim: #689d6a;
+            --orange-dim: #d65d0e;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Monaco', 'Menlo', monospace;
-            background: #1a1a1a;
-            color: #d4d4d4;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
+            background: linear-gradient(135deg, var(--bg0) 0%, var(--bg1) 100%);
+            color: var(--fg1);
             margin: 0;
             padding: 20px;
             min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
         }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(168, 153, 132, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(131, 165, 152, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            animation: pulse 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.3; }
+            to { opacity: 0.6; }
+        }
+
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
         }
+
         h1 {
-            color: #4ecdc4;
+            color: var(--yellow);
             text-align: center;
             margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 700;
+            text-shadow: 0 0 20px rgba(250, 189, 47, 0.5);
+            letter-spacing: 2px;
+            animation: glow 2s ease-in-out infinite alternate;
         }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(250, 189, 47, 0.5); }
+            to { text-shadow: 0 0 30px rgba(250, 189, 47, 0.8); }
+        }
+
         .device-input {
-            background: #2d2d2d;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+            border: 2px solid var(--yellow);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
         }
+
+        .device-input::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(250, 189, 47, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .device-input:hover::before {
+            left: 100%;
+        }
+
         .input-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
+            position: relative;
         }
+
         label {
             display: block;
-            margin-bottom: 5px;
-            color: #80ccff;
+            margin-bottom: 8px;
+            color: var(--aqua);
+            font-weight: 600;
+            font-size: 14px;
+            text-shadow: 0 0 5px rgba(142, 192, 124, 0.5);
+            letter-spacing: 0.5px;
         }
+
         input, textarea {
             width: 100%;
-            padding: 8px 12px;
-            background: #1a1a1a;
-            border: 1px solid #444;
-            border-radius: 4px;
-            color: #d4d4d4;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--bg0), var(--bg1));
+            border: 2px solid var(--bg3);
+            border-radius: 8px;
+            color: var(--fg1);
             font-family: inherit;
             font-size: 14px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
+
         input:focus, textarea:focus {
             outline: none;
-            border-color: #4ecdc4;
+            border-color: var(--yellow);
+            box-shadow: 0 0 12px rgba(250, 189, 47, 0.3);
+            transform: translateY(-1px);
         }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
         button {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
+            background: linear-gradient(135deg, var(--green-dim), var(--green));
+            color: var(--bg0);
+            border: 2px solid var(--green);
+            padding: 12px 24px;
+            border-radius: 8px;
             cursor: pointer;
             font-family: inherit;
             font-size: 14px;
-            margin-right: 10px;
+            font-weight: 600;
+            margin-right: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
         }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
         button:hover {
-            background: #218838;
+            background: linear-gradient(135deg, var(--green), var(--aqua));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
         }
+
         button:disabled {
-            background: #6c757d;
+            background: var(--bg3);
+            color: var(--fg4);
+            border-color: var(--bg4);
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
+
         .response {
-            background: #2d2d2d;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
+            background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+            border: 2px solid var(--blue);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 25px;
             white-space: pre-wrap;
             font-family: inherit;
-            max-height: 400px;
+            max-height: 500px;
             overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            position: relative;
         }
+
+        .response::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .response::-webkit-scrollbar-track {
+            background: var(--bg2);
+            border-radius: 4px;
+        }
+
+        .response::-webkit-scrollbar-thumb {
+            background: var(--blue);
+            border-radius: 4px;
+        }
+
+        .response::-webkit-scrollbar-thumb:hover {
+            background: var(--aqua);
+        }
+
         .status {
             text-align: center;
-            margin: 20px 0;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .status.success {
-            background: #155724;
-            color: #d4edda;
-            border: 1px solid #28a745;
-        }
-        .status.error {
-            background: #721c24;
-            color: #f8d7da;
-            border: 1px solid #dc3545;
-        }
-        .status.info {
-            background: #1a2a3a;
-            color: #80ccff;
-            border: 1px solid #4ecdc4;
-        }
-        .examples {
-            background: #2d2d2d;
-            border: 1px solid #444;
+            margin: 25px 0;
+            padding: 15px;
             border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
         }
+
+        .status::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .status.success {
+            background: linear-gradient(135deg, var(--green-dim), var(--green));
+            color: var(--bg0);
+            border-color: var(--green);
+            box-shadow: 0 0 15px rgba(184, 187, 38, 0.3);
+        }
+
+        .status.error {
+            background: linear-gradient(135deg, var(--red-dim), var(--red));
+            color: var(--fg0);
+            border-color: var(--red);
+            box-shadow: 0 0 15px rgba(251, 73, 52, 0.3);
+        }
+
+        .status.info {
+            background: linear-gradient(135deg, var(--blue-dim), var(--blue));
+            color: var(--fg0);
+            border-color: var(--blue);
+            box-shadow: 0 0 15px rgba(131, 165, 152, 0.3);
+        }
+
+        .examples {
+            background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+            border: 2px solid var(--orange);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
         .examples h3 {
-            color: #ffcc80;
+            color: var(--orange);
             margin-top: 0;
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(254, 128, 25, 0.5);
+            letter-spacing: 0.5px;
         }
+
         .example-code {
-            background: #1a1a1a;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
+            background: linear-gradient(135deg, var(--bg0), var(--bg1));
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
             font-family: inherit;
             overflow-x: auto;
+            border: 1px solid var(--bg3);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            position: relative;
         }
+
+        .example-code::before {
+            content: '$';
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            color: var(--green);
+            font-weight: bold;
+        }
+
+        .example-code pre {
+            margin: 0 0 0 20px;
+            color: var(--fg1);
+        }
+
         .loading {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 2px solid #444;
+            border: 3px solid var(--bg3);
             border-radius: 50%;
-            border-top-color: #4ecdc4;
+            border-top-color: var(--yellow);
             animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
         }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .device-input, .examples, .response {
+                padding: 20px;
+            }
+
+            button {
+                padding: 10px 20px;
+                font-size: 13px;
+                margin-right: 8px;
+                margin-bottom: 6px;
+            }
         }
     </style>
 </head>
@@ -222,7 +454,7 @@ app.get('/', (req, res) => {
 
             <h3>API Usage with PIN Authentication</h3>
             <div class="example-code">
-curl -X POST http://localhost:5482/device-red-fox-42/v1/chat/completions \\
+curl -X POST http://localhost:5482/red-fox-42/v1/chat/completions \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer 123456" \\
   -d '{
@@ -281,13 +513,17 @@ curl -X POST http://localhost:5482/device-red-fox-42/v1/chat/completions \\
                 return;
             }
 
-            if (!pinCode) {
-                showStatus('Please enter a PIN code', 'error');
+            if (!message) {
+                showStatus('Please enter a message', 'error');
                 return;
             }
 
-            if (!message) {
-                showStatus('Please enter a message', 'error');
+            // Check if PIN is required
+            const deviceInfo = await checkDeviceInfo(deviceId);
+            if (!deviceInfo) return;
+
+            if (deviceInfo.pinEnabled && !pinCode) {
+                showStatus('Please enter a PIN code', 'error');
                 return;
             }
 
@@ -297,12 +533,17 @@ curl -X POST http://localhost:5482/device-red-fox-42/v1/chat/completions \\
             button.disabled = true;
 
             try {
-                const response = await fetch(\`/device-\${deviceId}/v1/chat/completions\`, {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                if (deviceInfo.pinEnabled && pinCode) {
+                    headers['Authorization'] = \`Bearer \${pinCode}\`;
+                }
+
+                const response = await fetch(\`/\${deviceId}/v1/chat/completions\`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': \`Bearer \${pinCode}\`
-                    },
+                    headers: headers,
                     body: JSON.stringify({
                         messages: [{ role: 'user', content: message }],
                         model: 'r1-command',
@@ -336,16 +577,23 @@ curl -X POST http://localhost:5482/device-red-fox-42/v1/chat/completions \\
                 return;
             }
 
-            if (!pinCode) {
+            // Check if PIN is required
+            const deviceInfo = await checkDeviceInfo(deviceId);
+            if (!deviceInfo) return;
+
+            if (deviceInfo.pinEnabled && !pinCode) {
                 showStatus('Please enter a PIN code', 'error');
                 return;
             }
 
             try {
-                const response = await fetch(\`/device-\${deviceId}/v1/models\`, {
-                    headers: {
-                        'Authorization': \`Bearer \${pinCode}\`
-                    }
+                const headers = {};
+                if (deviceInfo.pinEnabled && pinCode) {
+                    headers['Authorization'] = \`Bearer \${pinCode}\`;
+                }
+
+                const response = await fetch(\`/\${deviceId}/v1/models\`, {
+                    headers: headers
                 });
                 const data = await response.json();
 
@@ -357,6 +605,21 @@ curl -X POST http://localhost:5482/device-red-fox-42/v1/chat/completions \\
                 }
             } catch (error) {
                 showStatus(\`Network error: \${error.message}\`, 'error');
+            }
+        }
+
+        async function checkDeviceInfo(deviceId) {
+            try {
+                const response = await fetch(\`/\${deviceId}/info\`);
+                if (response.ok) {
+                    return await response.json();
+                } else {
+                    showStatus('Device not found', 'error');
+                    return null;
+                }
+            } catch (error) {
+                showStatus('Failed to check device info', 'error');
+                return null;
             }
         }
 
@@ -377,6 +640,81 @@ curl -X POST http://localhost:5482/device-red-fox-42/v1/chat/completions \\
 </body>
 </html>
   `);
+});
+
+// PIN management endpoints
+app.post('/:deviceId/disable-pin', async (req, res) => {
+  const { deviceId } = req.params;
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: { message: 'Missing or invalid authorization header', type: 'auth_error' } });
+  }
+
+  const pinCode = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+  try {
+    // Verify the PIN matches
+    const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+    if (!deviceInfo || deviceInfo.pin_code !== pinCode) {
+      return res.status(403).json({ error: { message: 'Invalid PIN code', type: 'auth_error' } });
+    }
+
+    // Disable the PIN
+    await database.disableDevicePin(deviceId);
+
+    console.log(`🔓 PIN disabled for device: ${deviceId}`);
+    res.json({ success: true, message: 'PIN disabled successfully' });
+  } catch (error) {
+    console.error('Error disabling PIN:', error);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server_error' } });
+  }
+});
+
+app.post('/:deviceId/enable-pin', async (req, res) => {
+  const { deviceId } = req.params;
+  const { newPin } = req.body;
+
+  if (!newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+    return res.status(400).json({ error: { message: 'PIN must be exactly 6 digits', type: 'validation_error' } });
+  }
+
+  try {
+    // Update the PIN in database
+    await database.updateDevicePin(deviceId, newPin);
+
+    console.log(`🔐 PIN enabled for device: ${deviceId}`);
+    res.json({ success: true, message: 'PIN enabled successfully', pinCode: newPin });
+  } catch (error) {
+    console.error('Error enabling PIN:', error);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server_error' } });
+  }
+});
+
+app.post('/:deviceId/change-pin', async (req, res) => {
+  const { deviceId } = req.params;
+  const { currentPin, newPin } = req.body;
+
+  if (!currentPin || !newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+    return res.status(400).json({ error: { message: 'Invalid PIN format', type: 'validation_error' } });
+  }
+
+  try {
+    // Verify current PIN
+    const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+    if (!deviceInfo || deviceInfo.pin_code !== currentPin) {
+      return res.status(403).json({ error: { message: 'Invalid current PIN code', type: 'auth_error' } });
+    }
+
+    // Update the PIN
+    await database.updateDevicePin(deviceId, newPin);
+
+    console.log(`🔄 PIN changed for device: ${deviceId}`);
+    res.json({ success: true, message: 'PIN changed successfully', pinCode: newPin });
+  } catch (error) {
+    console.error('Error changing PIN:', error);
+    res.status(500).json({ error: { message: 'Internal server error', type: 'server_error' } });
+  }
 });
 
 // Setup socket handler

@@ -9,6 +9,8 @@ function App() {
   const [deviceInfo, setDeviceInfo] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('Initializing...')
   const [consoleLogs, setConsoleLogs] = useState([])
+  const [pinEnabled, setPinEnabled] = useState(true)
+  const [pinCode, setPinCode] = useState(null)
   const socketRef = useRef(null)
   const r1CreateRef = useRef(null)
   const consoleRef = useRef(null)
@@ -44,7 +46,7 @@ function App() {
           url: window.location.href,
           userAgent: navigator.userAgent,
           timestamp: new Date().toISOString(),
-          deviceId
+          deviceId: deviceId
         })
       }).catch(err => {
         console.warn('Failed to send error to server:', err)
@@ -143,6 +145,8 @@ function App() {
         pinCode: data.pinCode,
         pinEnabled: data.pinEnabled !== false && data.pinCode !== null
       })
+      setPinEnabled(data.pinEnabled !== false && data.pinCode !== null)
+      setPinCode(data.pinCode)
       setConnectionStatus(`Connected - Device: ${data.deviceId}`)
       addConsoleLog(`Connected with device ID: ${data.deviceId}`)
       if (data.pinCode) {
@@ -292,7 +296,8 @@ function App() {
       })
 
       if (response.ok) {
-        setDeviceInfo(prev => ({ ...prev, pinEnabled: false, pinCode: null }))
+        setDeviceInfo(prev => ({ ...prev, pinEnabled: false }))
+        setPinEnabled(false)
         addConsoleLog('PIN disabled successfully', 'info')
       } else {
         const error = await response.json()
@@ -304,9 +309,14 @@ function App() {
   }
 
   const handleEnablePin = async () => {
+    if (!deviceId) {
+      addConsoleLog('No device connected', 'warn')
+      return
+    }
+
     const newPin = prompt('Enter new 6-digit PIN code:')
     if (!newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
-      addConsoleLog('PIN must be exactly 6 digits', 'error')
+      addConsoleLog('Invalid PIN format. Must be exactly 6 digits.', 'error')
       return
     }
 
@@ -314,26 +324,28 @@ function App() {
       const response = await fetch(`/${deviceId}/enable-pin`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(deviceInfo?.pinCode && { 'Authorization': `Bearer ${deviceInfo.pinCode}` })
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ newPin })
       })
 
       if (response.ok) {
+        const data = await response.json()
         setDeviceInfo(prev => ({ ...prev, pinEnabled: true, pinCode: newPin }))
-        addConsoleLog(`PIN ${deviceInfo?.pinCode ? 'changed' : 'enabled'} successfully`, 'info')
+        setPinEnabled(true)
+        setPinCode(newPin)
+        addConsoleLog(`PIN enabled successfully: ${newPin}`, 'info')
       } else {
         const error = await response.json()
-        addConsoleLog(`Failed to ${deviceInfo?.pinCode ? 'change' : 'enable'} PIN: ${error.error}`, 'error')
+        addConsoleLog(`Failed to enable PIN: ${error.error}`, 'error')
       }
     } catch (error) {
-      addConsoleLog(`Error ${deviceInfo?.pinCode ? 'changing' : 'enabling'} PIN: ${error.message}`, 'error')
+      addConsoleLog(`Error enabling PIN: ${error.message}`, 'error')
     }
   }
 
   const handleChangePin = async () => {
-    if (!deviceInfo?.pinCode) {
+    if (!deviceId || !deviceInfo?.pinCode) {
       addConsoleLog('No current PIN to change', 'warn')
       return
     }
@@ -343,7 +355,7 @@ function App() {
 
     const newPin = prompt('Enter new 6-digit PIN code:')
     if (!newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
-      addConsoleLog('New PIN must be exactly 6 digits', 'error')
+      addConsoleLog('Invalid PIN format. Must be exactly 6 digits.', 'error')
       return
     }
 
@@ -358,7 +370,8 @@ function App() {
 
       if (response.ok) {
         setDeviceInfo(prev => ({ ...prev, pinCode: newPin }))
-        addConsoleLog('PIN changed successfully', 'info')
+        setPinCode(newPin)
+        addConsoleLog(`PIN changed successfully: ${newPin}`, 'info')
       } else {
         const error = await response.json()
         addConsoleLog(`Failed to change PIN: ${error.error}`, 'error')
@@ -412,53 +425,60 @@ function App() {
   return (
     <div className="app">
       <div className="header">
-        <h1>R1 Device Console</h1>
-        <div className={`status ${isConnected ? 'connected' : 'disconnected'}`}>
-          {connectionStatus}
+        <div className="header-top">
+          <h1>R1 Device Console</h1>
+          <div className={`status ${isConnected ? 'connected' : 'disconnected'}`}>
+            {connectionStatus}
+          </div>
         </div>
-        {deviceId && (
-          <div className="device-id">
-            Device ID: <code>{deviceId}</code>
+        <div className="header-info">
+          {deviceId && (
+            <div className="device-id">
+              Device ID: <code>{deviceId}</code>
+            </div>
+          )}
+          <div className="pin-controls">
+            {pinEnabled && pinCode && (
+              <div className="pin-info">
+                PIN: <code>{pinCode}</code>
+                <button
+                  className="disable-pin-btn"
+                  onClick={handleDisablePin}
+                  title="Disable PIN authentication"
+                >
+                  ✕
+                </button>
+                <button
+                  className="change-pin-btn"
+                  onClick={handleChangePin}
+                  title="Change PIN code"
+                >
+                  ⟲
+                </button>
+              </div>
+            )}
+            {(!pinEnabled || !pinCode) && (
+              <div className="pin-info">
+                <span className="pin-disabled">No PIN</span>
+                <button
+                  className="enable-pin-btn"
+                  onClick={handleEnablePin}
+                  title="Enable PIN authentication"
+                >
+                  +
+                </button>
+              </div>
+            )}
           </div>
-        )}
-        {deviceInfo?.pinCode && (
-          <div className="pin-info">
-            PIN Code: <code>{deviceInfo.pinCode}</code>
-            <button
-              className="disable-pin-btn"
-              onClick={handleDisablePin}
-              title="Disable PIN authentication for this device"
-            >
-              Disable PIN
-            </button>
-            <button
-              className="change-pin-btn"
-              onClick={handleChangePin}
-              title="Change PIN code"
-            >
-              Change PIN
-            </button>
-          </div>
-        )}
-        {deviceInfo && !deviceInfo.pinCode && (
-          <div className="pin-info">
-            <span className="pin-disabled">PIN Disabled</span>
-            <button
-              className="enable-pin-btn"
-              onClick={handleEnablePin}
-              title="Enable PIN authentication for this device"
-            >
-              Enable PIN
-            </button>
-          </div>
-        )}
-        <button
-          className="reconnect-btn"
-          onClick={handleReconnect}
-          disabled={isConnected}
-        >
-          {isConnected ? 'Connected' : 'Reconnect'}
-        </button>
+          <button
+            className="reconnect-btn"
+            onClick={handleReconnect}
+            disabled={isConnected}
+            title={isConnected ? 'Connected' : 'Reconnect to server'}
+          >
+            {isConnected ? '●' : '⟲'}
+          </button>
+        </div>
       </div>
 
       <div className="console-container">
