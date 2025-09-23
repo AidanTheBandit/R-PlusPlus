@@ -1,61 +1,276 @@
+/* Debug Tool - Gruvbox Dark Theme */
 .debug-tool {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+  background: var(--bg0, #1d2021);
+  color: var(--fg1, #ebdbb2);
 }
 
 .debug-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  margin-bottom: 8px;
-  background: #f0f0f0;
-  border-radius: 4px;
-  padding: 2px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 4px;
+  padding: 8px;
+  background: var(--bg1, #282828);
+  border-bottom: 1px solid var(--bg4, #504945);
 }
 
 .debug-tab {
-  flex: 1;
-  min-width: 60px;
-  padding: 6px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 6px;
   border: none;
-  background: transparent;
-  color: #666;
-  font-size: 10px;
-  border-radius: 3px;
+  background: var(--bg2, #32302f);
+  color: var(--fg3, #bdae93);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  text-align: center;
+  min-height: 36px;
+  border: 1px solid var(--bg4, #504945);
 }
 
 .debug-tab:hover {
-  background: #e0e0e0;
+  background: var(--bg3, #3c3836);
+  color: var(--fg1, #ebdbb2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .debug-tab.active {
-  background: #007bff;
-  color: white;
-  font-weight: bold;
+  background: var(--yellow, #fabd2f);
+  color: var(--bg0, #1d2021);
+  font-weight: 700;
+  border-color: var(--yellow, #fabd2f);
+  box-shadow: 0 0 0 2px rgba(250, 189, 47, 0.3);
 }
 
 .debug-content {
   flex: 1;
   overflow-y: auto;
+  padding: 12px;
+  background: var(--bg0, #1d2021);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Debug content styling */
+.debug-content h3 {
+  color: var(--orange, #fe8019);
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.debug-content h4 {
+  color: var(--blue, #83a598);
+  margin: 12px 0 6px 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.debug-content p {
+  margin-bottom: 8px;
+  color: var(--fg2, #d5c4a1);
+}
+
+.debug-content code {
+  background: var(--bg2, #32302f);
+  color: var(--green, #b8bb26);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 11px;
+  border: 1px solid var(--bg4, #504945);
+}
+
+.debug-content pre {
+  background: var(--bg1, #282828);
+  color: var(--fg1, #ebdbb2);
   padding: 8px;
-  background: #fafafa;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+  border: 1px solid var(--bg4, #504945);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.debug-content button {
+  background: var(--blue, #83a598);
+  color: var(--bg0, #1d2021);
+  border: none;
+  padding: 6px 12px;
   border-radius: 4px;
-  border: 1px solid #ddd;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 4px 4px 4px 0;
+}
+
+.debug-content button:hover {
+  background: var(--blue, #83a598);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.debug-content button:active {
+  transform: translateY(0);
+}
+
+.debug-content button.danger {
+  background: var(--red, #fb4934);
+  color: var(--fg0, #fbf1c7);
+}
+
+.debug-content button.success {
+  background: var(--green, #b8bb26);
+  color: var(--bg0, #1d2021);
+}
+
+.debug-content input, .debug-content textarea, .debug-content select {
+  background: var(--bg2, #32302f);
+  color: var(--fg1, #ebdbb2);
+  border: 1px solid var(--bg4, #504945);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+  width: 100%;
+  margin: 4px 0;
+}
+
+.debug-content input:focus, .debug-content textarea:focus, .debug-content select:focus {
+  outline: none;
+  border-color: var(--yellow, #fabd2f);
+  box-shadow: 0 0 0 2px rgba(250, 189, 47, 0.3);
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-indicator.success {
+  background: rgba(184, 187, 38, 0.2);
+  color: var(--green, #b8bb26);
+  border: 1px solid var(--green, #b8bb26);
+}
+
+.status-indicator.error {
+  background: rgba(251, 73, 52, 0.2);
+  color: var(--red, #fb4934);
+  border: 1px solid var(--red, #fb4934);
+}
+
+.status-indicator.warning {
+  background: rgba(254, 128, 25, 0.2);
+  color: var(--orange, #fe8019);
+  border: 1px solid var(--orange, #fe8019);
+}
+
+.status-indicator.info {
+  background: rgba(131, 165, 152, 0.2);
+  color: var(--blue, #83a598);
+  border: 1px solid var(--blue, #83a598);
+}
+
+/* Scrollbar styling */
+.debug-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.debug-content::-webkit-scrollbar-track {
+  background: var(--bg1, #282828);
+  border-radius: 3px;
+}
+
+.debug-content::-webkit-scrollbar-thumb {
+  background: var(--bg4, #504945);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.debug-content::-webkit-scrollbar-thumb:hover {
+  background: var(--fg4, #a89984);
 }
 
 /* Mobile optimizations */
-@media (max-width: 320px) {
+@media (max-width: 480px) {
+  .debug-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 3px;
+    padding: 6px;
+  }
+
   .debug-tab {
-    font-size: 9px;
-    padding: 4px 2px;
-    min-width: 50px;
+    font-size: 10px;
+    padding: 6px 4px;
+    min-height: 32px;
   }
 
   .debug-content {
+    padding: 8px;
+    font-size: 11px;
+  }
+
+  .debug-content h3 {
+    font-size: 13px;
+  }
+
+  .debug-content h4 {
+    font-size: 11px;
+  }
+
+  .debug-content button {
+    font-size: 10px;
+    padding: 5px 10px;
+  }
+
+  .debug-content input, .debug-content textarea, .debug-content select {
+    font-size: 10px;
+    padding: 5px 6px;
+  }
+}
+
+@media (max-width: 320px) {
+  .debug-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    gap: 2px;
     padding: 4px;
+  }
+
+  .debug-tab {
+    font-size: 9px;
+    padding: 4px 2px;
+    min-height: 28px;
+  }
+
+  .debug-content {
+    padding: 6px;
+    font-size: 10px;
+  }
+
+  .debug-content pre {
+    font-size: 9px;
+    padding: 6px;
+  }
+
+  .debug-content code {
+    font-size: 9px;
   }
 }

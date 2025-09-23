@@ -1,10 +1,50 @@
-/* Debug Tool Components */
-
-/* Hardware Debug */
-.hardware-debug .debug-section {
-  margin-bottom: 12px;
+/* Debug Tool Components - Gruvbox Dark Theme */
+:root {
+  --bg0: #1d2021;
+  --bg1: #282828;
+  --bg2: #32302f;
+  --bg3: #3c3836;
+  --bg4: #504945;
+  --fg0: #fbf1c7;
+  --fg1: #ebdbb2;
+  --fg2: #d5c4a1;
+  --fg3: #bdae93;
+  --fg4: #a89984;
+  --red: #fb4934;
+  --green: #b8bb26;
+  --yellow: #fabd2f;
+  --blue: #83a598;
+  --purple: #d3869b;
+  --aqua: #8ec07c;
+  --orange: #fe8019;
 }
 
+/* Common Section Styling */
+.debug-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg1);
+  border-radius: 8px;
+  border: 1px solid var(--bg4);
+}
+
+.debug-section h4 {
+  color: var(--orange);
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.debug-section h4::before {
+  content: '▶';
+  color: var(--yellow);
+  font-size: 10px;
+}
+
+/* Hardware Debug */
 .hardware-debug .accelerometer-controls,
 .hardware-debug .touch-buttons {
   display: flex;
@@ -14,17 +54,22 @@
 }
 
 .hardware-debug .accelerometer-display {
-  display: flex;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
   margin: 8px 0;
 }
 
 .hardware-debug .accel-value {
-  font-family: monospace;
-  font-size: 12px;
-  background: #f0f0f0;
-  padding: 4px 8px;
-  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  background: var(--bg2);
+  color: var(--aqua);
+  padding: 6px 8px;
+  border-radius: 6px;
+  text-align: center;
+  border: 1px solid var(--bg4);
+  font-weight: 600;
 }
 
 .hardware-debug .button-indicators {
@@ -34,16 +79,22 @@
 }
 
 .hardware-debug .button-indicator {
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
   font-size: 11px;
-  background: #e9ecef;
-  transition: background-color 0.2s;
+  background: var(--bg2);
+  color: var(--fg2);
+  border: 1px solid var(--bg4);
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .hardware-debug .button-indicator.pressed {
-  background: #d4edda;
-  color: #155724;
+  background: var(--green);
+  color: var(--bg0);
+  border-color: var(--green);
+  box-shadow: 0 0 8px rgba(184, 187, 38, 0.4);
+  transform: scale(1.02);
 }
 
 /* Camera Debug */
@@ -58,45 +109,71 @@
 .camera-debug .video-container {
   width: 100%;
   height: 120px;
-  background: #000;
-  border-radius: 4px;
+  background: var(--bg0);
+  border-radius: 8px;
+  border: 2px solid var(--bg4);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 8px 0;
+  position: relative;
+  overflow: hidden;
 }
 
 .camera-debug .video-placeholder {
-  color: #666;
+  color: var(--fg4);
   font-size: 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.camera-debug .video-placeholder::before {
+  content: '📷';
+  font-size: 24px;
+  opacity: 0.5;
 }
 
 .camera-debug .photo-history {
   max-height: 100px;
   overflow-y: auto;
+  background: var(--bg2);
+  border-radius: 6px;
+  padding: 4px;
 }
 
 .camera-debug .photo-entry {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
   margin-bottom: 4px;
+  transition: all 0.2s ease;
+}
+
+.camera-debug .photo-entry:hover {
+  background: var(--bg4);
+  transform: translateX(2px);
 }
 
 .camera-debug .photo-info {
   font-size: 10px;
-  color: #666;
+  color: var(--fg3);
   flex: 1;
+  font-weight: 500;
 }
 
 .camera-debug .photo-thumbnail {
   width: 40px;
   height: 30px;
   object-fit: cover;
-  border-radius: 2px;
+  border-radius: 4px;
+  border: 1px solid var(--bg4);
 }
 
 /* LLM Debug */
@@ -646,49 +723,70 @@
 
 /* Common Button Styles */
 .hw-btn, .cam-btn, .llm-btn, .storage-btn, .audio-btn, .perf-btn, .device-btn, .log-btn {
-  padding: 6px 8px;
+  padding: 6px 12px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-  background: #007bff;
-  color: white;
+  transition: all 0.2s ease;
+  background: var(--blue);
+  color: var(--bg0);
+  border: 1px solid var(--blue);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
 }
 
 .hw-btn:hover, .cam-btn:hover, .llm-btn:hover, .storage-btn:hover,
 .audio-btn:hover, .perf-btn:hover, .device-btn:hover, .log-btn:hover {
-  background: #0056b3;
+  background: var(--blue);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .hw-btn:disabled, .cam-btn:disabled, .llm-btn:disabled, .storage-btn:disabled,
 .audio-btn:disabled, .perf-btn:disabled, .device-btn:disabled, .log-btn:disabled {
-  background: #6c757d;
+  background: var(--bg4);
+  color: var(--fg4);
+  border-color: var(--bg4);
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .hw-btn.active, .cam-btn.active, .audio-btn.active, .perf-btn.active {
-  background: #28a745;
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--bg0);
 }
 
 .hw-btn.active:hover, .cam-btn.active:hover, .audio-btn.active:hover, .perf-btn.active:hover {
-  background: #218838;
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(184, 187, 38, 0.4);
 }
 
 .llm-btn.clear, .storage-btn.clear, .audio-btn.clear {
-  background: #dc3545;
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--fg0);
 }
 
 .llm-btn.clear:hover, .storage-btn.clear:hover, .audio-btn.clear:hover {
-  background: #c82333;
+  background: var(--red);
+  box-shadow: 0 0 8px rgba(251, 73, 52, 0.4);
 }
 
 .llm-btn.play {
-  background: #28a745;
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--bg0);
 }
 
 .llm-btn.play:hover {
-  background: #218838;
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(184, 187, 38, 0.4);
 }
 
 /* Common Event Log Styles */
@@ -753,5 +851,907 @@
   .device-info .hardware-grid,
   .device-info .capabilities-grid {
     grid-template-columns: 1fr;
+  }
+}
+/* 
+LLM Debug */
+.llm-debug .message-input {
+  margin-bottom: 12px;
+}
+
+.llm-debug textarea {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg2);
+  color: var(--fg1);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.llm-debug textarea:focus {
+  outline: none;
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 2px rgba(250, 189, 47, 0.3);
+}
+
+.llm-debug .message-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.llm-debug .message-controls label {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg2);
+  font-weight: 500;
+}
+
+.llm-debug .message-controls input[type="checkbox"] {
+  accent-color: var(--yellow);
+}
+
+.llm-debug .quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.llm-debug .message-history {
+  max-height: 120px;
+  overflow-y: auto;
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.llm-debug .message-entry {
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  border-left: 3px solid transparent;
+}
+
+.llm-debug .message-user {
+  background: var(--blue);
+  color: var(--bg0);
+  border-left-color: var(--blue);
+}
+
+.llm-debug .message-assistant {
+  background: var(--bg3);
+  color: var(--fg1);
+  border-left-color: var(--green);
+}
+
+.llm-debug .message-header {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+
+.llm-debug .message-type {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.llm-debug .message-time {
+  color: var(--fg4);
+  font-weight: 500;
+}
+
+.llm-debug .no-messages {
+  text-align: center;
+  color: var(--fg4);
+  font-style: italic;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.llm-debug .no-messages::before {
+  content: '💬';
+  font-size: 24px;
+  opacity: 0.5;
+}
+
+/* Storage Debug */
+.storage-debug .storage-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.storage-debug .add-item-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: var(--bg2);
+  border-radius: 6px;
+  border: 1px solid var(--bg4);
+}
+
+.storage-debug .add-item-form select,
+.storage-debug .add-item-form input,
+.storage-debug .add-item-form textarea {
+  padding: 6px 8px;
+  background: var(--bg3);
+  color: var(--fg1);
+  border: 1px solid var(--bg4);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.storage-debug .add-item-form select:focus,
+.storage-debug .add-item-form input:focus,
+.storage-debug .add-item-form textarea:focus {
+  outline: none;
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 2px rgba(250, 189, 47, 0.3);
+}
+
+.storage-debug .add-item-form textarea {
+  resize: vertical;
+  min-height: 40px;
+}
+
+.storage-debug .storage-items {
+  max-height: 100px;
+  overflow-y: auto;
+  background: var(--bg2);
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.storage-debug .storage-item {
+  padding: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  margin-bottom: 4px;
+  transition: all 0.2s ease;
+}
+
+.storage-debug .storage-item:hover {
+  background: var(--bg4);
+  transform: translateX(2px);
+}
+
+.storage-debug .item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.storage-debug .item-key {
+  font-weight: 600;
+  color: var(--purple);
+  font-size: 11px;
+}
+
+.storage-debug .remove-btn {
+  background: var(--red);
+  color: var(--fg0);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.storage-debug .remove-btn:hover {
+  background: var(--red);
+  transform: scale(1.1);
+  box-shadow: 0 0 6px rgba(251, 73, 52, 0.4);
+}
+
+.storage-debug .item-value {
+  font-family: inherit;
+  font-size: 10px;
+  background: var(--bg2);
+  color: var(--aqua);
+  padding: 4px 6px;
+  border-radius: 4px;
+  word-break: break-all;
+  border: 1px solid var(--bg4);
+  font-weight: 500;
+}
+
+.storage-debug .no-data {
+  text-align: center;
+  color: var(--fg4);
+  font-style: italic;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.storage-debug .no-data::before {
+  content: '💾';
+  font-size: 24px;
+  opacity: 0.5;
+}
+
+/* Audio Debug */
+.audio-debug .audio-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.audio-debug .microphone-level {
+  margin: 8px 0;
+  padding: 8px;
+  background: var(--bg2);
+  border-radius: 6px;
+  border: 1px solid var(--bg4);
+}
+
+.audio-debug .level-label {
+  font-size: 11px;
+  margin-bottom: 6px;
+  color: var(--orange);
+  font-weight: 600;
+}
+
+.audio-debug .level-bar {
+  width: 100%;
+  height: 12px;
+  background: var(--bg3);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--bg4);
+}
+
+.audio-debug .level-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--yellow), var(--red));
+  transition: width 0.1s ease;
+  border-radius: 5px;
+}
+
+.audio-debug .audio-history {
+  max-height: 80px;
+  overflow-y: auto;
+  background: var(--bg2);
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.audio-debug .audio-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: var(--bg3);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  margin-bottom: 4px;
+  transition: all 0.2s ease;
+}
+
+.audio-debug .audio-entry:hover {
+  background: var(--bg4);
+  transform: translateX(2px);
+}
+
+.audio-debug .audio-info {
+  font-size: 10px;
+  color: var(--fg3);
+  font-weight: 500;
+}
+
+.audio-debug .audio-btn.play {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--bg0);
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+.audio-debug .no-audio {
+  text-align: center;
+  color: var(--fg4);
+  font-style: italic;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.audio-debug .no-audio::before {
+  content: '🎵';
+  font-size: 24px;
+  opacity: 0.5;
+}
+
+/* Performance Debug */
+.performance-debug .performance-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.performance-debug .metrics-display {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.performance-debug .metric-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.performance-debug .metric-label {
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.performance-debug .metric-value {
+  font-weight: 700;
+  color: var(--aqua);
+  font-family: inherit;
+}
+
+.performance-debug .performance-indicators {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg2);
+  border-radius: 6px;
+  border: 1px solid var(--bg4);
+}
+
+.performance-debug .indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.performance-debug .indicator-label {
+  font-size: 11px;
+  min-width: 80px;
+  color: var(--fg2);
+  font-weight: 600;
+}
+
+.performance-debug .indicator-bar {
+  flex: 1;
+  height: 12px;
+  background: var(--bg3);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--bg4);
+}
+
+.performance-debug .indicator-fill {
+  height: 100%;
+  background: var(--green);
+  transition: width 0.3s ease;
+  border-radius: 5px;
+}
+
+.performance-debug .indicator-bar.good .indicator-fill {
+  background: var(--green);
+}
+
+.performance-debug .indicator-bar.warning .indicator-fill {
+  background: var(--yellow);
+}
+
+.performance-debug .indicator-bar.bad .indicator-fill {
+  background: var(--red);
+}
+
+.performance-debug .indicator-value {
+  font-size: 10px;
+  min-width: 40px;
+  text-align: right;
+  color: var(--fg3);
+  font-weight: 600;
+  font-family: inherit;
+}
+
+/* Device Info */
+.device-info .device-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.device-info .info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.device-info .info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.device-info .info-item.full-width {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.device-info .info-label {
+  font-weight: 600;
+  color: var(--purple);
+}
+
+.device-info .info-value {
+  font-weight: 600;
+  color: var(--fg1);
+  font-family: inherit;
+}
+
+.device-info .info-value.yes {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.device-info .info-value.no {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.device-info .api-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.device-info .api-tag {
+  background: var(--blue);
+  color: var(--bg0);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--blue);
+}
+
+.device-info .hardware-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.device-info .hardware-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.device-info .hardware-name {
+  font-weight: 600;
+  color: var(--orange);
+}
+
+.device-info .hardware-status.available {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.device-info .hardware-status.unavailable {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.device-info .capabilities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.device-info .capability-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  font-size: 10px;
+}
+
+.device-info .capability-name {
+  font-weight: 600;
+  color: var(--aqua);
+}
+
+.device-info .capability-status.supported {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.device-info .capability-status.unsupported {
+  color: var(--red);
+  font-weight: 700;
+}
+
+/* Logs Panel */
+.logs-panel .log-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: var(--bg2);
+  border-radius: 6px;
+  border: 1px solid var(--bg4);
+}
+
+.logs-panel .log-controls select {
+  padding: 4px 6px;
+  background: var(--bg3);
+  color: var(--fg1);
+  border: 1px solid var(--bg4);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.logs-panel .auto-scroll {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg2);
+  font-weight: 500;
+}
+
+.logs-panel .auto-scroll input[type="checkbox"] {
+  accent-color: var(--yellow);
+}
+
+.logs-panel .log-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.logs-panel .stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.logs-panel .stat-label {
+  font-weight: 600;
+  color: var(--fg3);
+}
+
+.logs-panel .stat-value {
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.logs-panel .stat-value.error {
+  color: var(--red);
+}
+
+.logs-panel .stat-value.warning {
+  color: var(--yellow);
+}
+
+.logs-panel .stat-value.info {
+  color: var(--blue);
+}
+
+.logs-panel .logs-container {
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  height: 150px;
+  overflow: hidden;
+}
+
+.logs-panel .logs-display {
+  height: 100%;
+  overflow-y: auto;
+  padding: 6px;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.logs-panel .log-entry {
+  margin-bottom: 2px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.logs-panel .log-entry:hover {
+  background: var(--bg3);
+}
+
+.logs-panel .log-info {
+  background: rgba(131, 165, 152, 0.1);
+  color: var(--blue);
+  border-left-color: var(--blue);
+}
+
+.logs-panel .log-warn {
+  background: rgba(250, 189, 47, 0.1);
+  color: var(--yellow);
+  border-left-color: var(--yellow);
+}
+
+.logs-panel .log-error {
+  background: rgba(251, 73, 52, 0.1);
+  color: var(--red);
+  border-left-color: var(--red);
+}
+
+.logs-panel .log-debug {
+  background: rgba(189, 174, 147, 0.1);
+  color: var(--fg3);
+  border-left-color: var(--fg4);
+}
+
+.logs-panel .log-source-console {
+  border-left-color: var(--blue);
+}
+
+.logs-panel .log-source-server {
+  border-left-color: var(--green);
+}
+
+.logs-panel .log-source-system {
+  border-left-color: var(--purple);
+}
+
+.logs-panel .log-source-test {
+  border-left-color: var(--orange);
+}
+
+.logs-panel .log-timestamp {
+  color: var(--fg4);
+  margin-right: 6px;
+  font-weight: 500;
+}
+
+.logs-panel .log-level {
+  font-weight: 700;
+  margin-right: 6px;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+
+.logs-panel .log-source {
+  color: var(--fg4);
+  margin-right: 6px;
+  font-weight: 500;
+}
+
+.logs-panel .log-message {
+  word-break: break-word;
+  color: var(--fg1);
+}
+
+/* Common Event Log Styles */
+.event-log {
+  max-height: 80px;
+  overflow-y: auto;
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  padding: 6px;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.event-entry {
+  margin-bottom: 3px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.event-entry:hover {
+  background: var(--bg3);
+}
+
+.event-info {
+  background: rgba(131, 165, 152, 0.1);
+  color: var(--blue);
+  border-left-color: var(--blue);
+}
+
+.event-warn {
+  background: rgba(254, 128, 25, 0.1);
+  color: var(--orange);
+  border-left-color: var(--orange);
+}
+
+.event-error {
+  background: rgba(251, 73, 52, 0.1);
+  color: var(--red);
+  border-left-color: var(--red);
+}
+
+.event-success {
+  background: rgba(184, 187, 38, 0.1);
+  color: var(--green);
+  border-left-color: var(--green);
+}
+
+.event-response {
+  background: rgba(211, 134, 155, 0.1);
+  color: var(--purple);
+  border-left-color: var(--purple);
+}
+
+/* Scrollbar styling for all components */
+.event-log::-webkit-scrollbar,
+.audio-debug .audio-history::-webkit-scrollbar,
+.camera-debug .photo-history::-webkit-scrollbar,
+.storage-debug .storage-items::-webkit-scrollbar,
+.llm-debug .message-history::-webkit-scrollbar,
+.logs-panel .logs-display::-webkit-scrollbar {
+  width: 4px;
+}
+
+.event-log::-webkit-scrollbar-track,
+.audio-debug .audio-history::-webkit-scrollbar-track,
+.camera-debug .photo-history::-webkit-scrollbar-track,
+.storage-debug .storage-items::-webkit-scrollbar-track,
+.llm-debug .message-history::-webkit-scrollbar-track,
+.logs-panel .logs-display::-webkit-scrollbar-track {
+  background: var(--bg1);
+  border-radius: 2px;
+}
+
+.event-log::-webkit-scrollbar-thumb,
+.audio-debug .audio-history::-webkit-scrollbar-thumb,
+.camera-debug .photo-history::-webkit-scrollbar-thumb,
+.storage-debug .storage-items::-webkit-scrollbar-thumb,
+.llm-debug .message-history::-webkit-scrollbar-thumb,
+.logs-panel .logs-display::-webkit-scrollbar-thumb {
+  background: var(--bg4);
+  border-radius: 2px;
+  transition: background 0.2s ease;
+}
+
+.event-log::-webkit-scrollbar-thumb:hover,
+.audio-debug .audio-history::-webkit-scrollbar-thumb:hover,
+.camera-debug .photo-history::-webkit-scrollbar-thumb:hover,
+.storage-debug .storage-items::-webkit-scrollbar-thumb:hover,
+.llm-debug .message-history::-webkit-scrollbar-thumb:hover,
+.logs-panel .logs-display::-webkit-scrollbar-thumb:hover {
+  background: var(--fg4);
+}
+
+/* Mobile optimizations */
+@media (max-width: 480px) {
+  .debug-section {
+    padding: 8px;
+    margin-bottom: 12px;
+  }
+
+  .debug-section h4 {
+    font-size: 12px;
+  }
+
+  .hw-btn, .cam-btn, .llm-btn, .storage-btn, .audio-btn, .perf-btn, .device-btn, .log-btn {
+    font-size: 10px;
+    padding: 5px 8px;
+    min-height: 24px;
+  }
+
+  .hardware-debug .accelerometer-display {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .performance-debug .metrics-display {
+    grid-template-columns: 1fr;
+  }
+
+  .device-info .info-grid,
+  .device-info .hardware-grid,
+  .device-info .capabilities-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .logs-panel .logs-container {
+    height: 120px;
+  }
+}
+
+@media (max-width: 320px) {
+  .debug-section {
+    padding: 6px;
+    margin-bottom: 8px;
+  }
+
+  .debug-section h4 {
+    font-size: 11px;
+  }
+
+  .hw-btn, .cam-btn, .llm-btn, .storage-btn, .audio-btn, .perf-btn, .device-btn, .log-btn {
+    font-size: 9px;
+    padding: 4px 6px;
+    min-height: 22px;
+  }
+
+  .hardware-debug .accel-value {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+
+  .performance-debug .indicator-label {
+    min-width: 60px;
+    font-size: 10px;
+  }
+
+  .logs-panel .logs-container {
+    height: 100px;
   }
 }
