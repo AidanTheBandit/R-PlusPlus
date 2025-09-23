@@ -13,6 +13,25 @@ const nouns = [
   'sun', 'cloud', 'rain', 'snow', 'wind', 'fire', 'ice', 'leaf'
 ];
 
+// Blacklisted device IDs to prevent accidental assignment
+const BLACKLISTED_IDS = [
+  'red-fox-42',
+  'red-fox-7',
+  'red-fox-15',
+  'red-fox-1',
+  'red-fox-2',
+  'red-fox-3',
+  'red-fox-4',
+  'red-fox-5',
+  'red-fox-6',
+  'red-fox-8',
+  'red-fox-9',
+  'red-fox-10',
+  // Add more variations to be safe
+  'blue-wolf-7',
+  'quick-bird-15'
+];
+
 class DeviceIdManager {
   constructor(database = null) {
     this.database = database;
@@ -22,10 +41,25 @@ class DeviceIdManager {
 
   // Generate a short, memorable device ID
   generateDeviceId() {
-    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const number = Math.floor(Math.random() * 99) + 1; // 1-99
-    return `${adjective}-${noun}-${number}`;
+    let deviceId;
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    do {
+      const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+      const noun = nouns[Math.floor(Math.random() * nouns.length)];
+      const number = Math.floor(Math.random() * 99) + 1; // 1-99
+      deviceId = `${adjective}-${noun}-${number}`;
+      attempts++;
+      
+      if (attempts >= maxAttempts) {
+        // Fallback to timestamp-based ID if we can't generate a non-blacklisted one
+        deviceId = `device-${Date.now().toString(36)}`;
+        break;
+      }
+    } while (BLACKLISTED_IDS.includes(deviceId));
+    
+    return deviceId;
   }
 
   // Generate a 6-digit PIN code

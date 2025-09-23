@@ -1,0 +1,350 @@
+// MCP (Model Context Protocol) API routes
+const express = require('express');
+const { MCPManager } = require('../utils/mcp-manager');
+
+function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
+  
+  // Get all MCP servers for a device
+  app.get('/:deviceId/mcp/servers', async (req, res) => {
+    const { deviceId } = req.params;
+    
+    try {
+      // Verify device exists
+      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+      if (!deviceInfo) {
+        return res.status(404).json({ 
+          error: { message: 'Device not found', type: 'device_error' } 
+        });
+      }
+
+      const servers = await mcpManager.getDeviceServers(deviceId);
+      res.json({ servers });
+    } catch (error) {
+      console.error('Error getting MCP servers:', error);
+      res.status(500).json({ 
+        error: { message: 'Internal server error', type: 'server_error' } 
+      });
+    }
+  });
+
+  // Create or update MCP server
+  app.post('/:deviceId/mcp/servers', async (req, res) => {
+    const { deviceId } = req.params;
+    const { serverName, config } = req.body;
+    
+    try {
+      // Verify device exists
+      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+      if (!deviceInfo) {
+        return res.status(404).json({ 
+          error: { message: 'Device not found', type: 'device_error' } 
+        });
+      }
+
+      // Validate required fields
+      if (!serverName || !config) {
+        return res.status(400).json({ 
+          error: { message: 'Server name and config are required', type: 'validation_error' } 
+        });
+      }
+
+      // Validate config structure
+      if (!config.command) {
+        return res.status(400).json({ 
+          error: { message: 'Server command is required', type: 'validation_error' } 
+        });
+      }
+
+      const result = await mcpManager.initializeServer(deviceId, serverName, config);
+      
+      // Notify connected R1 device
+      const socket = connectedR1s.get(deviceId);
+      if (socket) {
+        socket.emit('mcp_server_updated', { serverName, config });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error creating MCP server:', error);
+      res.status(500).json({ 
+        error: { message: error.message, type: 'server_error' } 
+      });
+    }
+  });
+
+  // Get specific MCP server
+  app.get('/:deviceId/mcp/servers/:serverName', async (req, res) => {
+    const { deviceId, serverName } = req.params;
+    
+    try {
+      const status = await mcpManager.getServerStatus(deviceId, serverName);
+      if (!status.config) {
+        return res.status(404).json({ 
+          error: { message: 'Server not found', type: 'server_error' } 
+        });
+      }
+      
+      res.json(status);
+    } catch (error) {
+      console.error('Error getting MCP server:', error);
+      res.status(500).json({ 
+        error: { message: 'Internal server error', type: 'server_error' } 
+      });
+    }
+  });
+
+  // Delete MCP server
+  app.delete('/:deviceId/mcp/servers/:serverName', async (req, res) => {
+    const { deviceId, serverName } = req.params;
+    
+    try {
+      // Stop server process
+      await mcpManager.stopServerProcess(deviceId, serverName);
+      
+      // Delete from database
+      await mcpManager.database.deleteMCPServer(deviceId, serverName);
+      
+      // Notify connected R1 device
+      const socket = connectedR1s.get(deviceId);
+      if (socket) {
+        socket.emit('mcp_server_deleted', { serverName });
+      }
+
+      res.json({ success: true, message: 'Server deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting MCP server:', error);
+      res.status(500).json({ 
+        error: { message: error.message, type: 'server_error' } 
+      });
+    }
+  });
+
+  // Start/stop MCP server
+  app.post('/:deviceId/mcp/servers/:serverName/toggle', async (req, res) => {
+    const { deviceId, serverName } = req.params;
+    const { enabled } = req.body;
+    
+    try {
+      const serverConfig = await mcpManager.database.getMCPServer(deviceId, serverName);
+      if (!serverConfig) {
+        return res.status(404).json({ 
+          error: { message: 'Server not found', type: 'server_error' } 
+        });
+      }
+
+      // Update database
+      await mcpManager.database.updateMCPServerStatus(deviceId, serverName, enabled);
+      
+      // Start or stop process
+      if (enabled) {
+        const config = {
+          command: serverConfig.command,
+          args: serverConfig.args ? JSON.parse(serverConfig.args) : [],
+          env: serverConfig.env ? JSON.parse(serverConfig.env) : {},
+          enabled: true
+        };
+        await mcpManager.startServerProcess(deviceId, serverName, config);
+      } else {
+        await mcpManager.stopServerProcess(deviceId, serverName);
+      }
+
+      // Notify connected R1 device
+      const socket = connectedR1s.get(deviceId);
+      if (socket) {
+        socket.emit('mcp_server_toggled', { serverName, enabled });
+      }
+
+      res.json({ success: true, enabled });
+    } catch (error) {
+      console.error('Error toggling MCP server:', error);
+      res.status(500).json({ 
+        error: { message: error.message, type: 'server_error' } 
+      });
+    }
+  });
+
+  // Get MCP tools for a server
+  app.get('/:deviceId/mcp/servers/:serverName/tools', async (req, res) => {
+    const { deviceId, serverName } = req.params;
+    
+    try {
+      const serverConfig = await mcpManager.database.getMCPServer(deviceId, serverName);
+      if (!serverConfig) {
+        return res.status(404).json({ 
+          error: { message: 'Server not found', type: 'server_error' } 
+        });
+      }
+
+      const tools = await mcpManager.database.getMCPTools(serverConfig.id);
+      res.json({ tools });
+    } catch (error) {
+      console.error('Error getting MCP tools:', error);
+      res.status(500).json({ 
+        error: { message: 'Internal server error', type: 'server_error' } 
+      });
+    }
+  });
+
+  // Call MCP tool
+  app.post('/:deviceId/mcp/servers/:serverName/tools/:toolName/call', async (req, res) => {
+    const { deviceId, serverName, toolName } = req.params;
+    const { arguments: toolArgs } = req.body;
+    
+    try {
+      const message = {
+        jsonrpc: '2.0',
+        id: mcpManager.generateId(),
+        method: 'tools/call',
+        params: {
+          name: toolName,
+          arguments: toolArgs || {}
+        }
+      };
+
+      await mcpManager.handleToolCall(deviceId, serverName, message);
+      
+      res.json({ success: true, message: 'Tool call initiated' });
+    } catch (error) {
+      console.error('Error calling MCP tool:', error);
+      res.status(500).json({ 
+        error: { message: error.message, type: 'server_error' } 
+      });
+    }
+  });
+
+  // Get MCP logs
+  app.get('/:deviceId/mcp/logs', async (req, res) => {
+    const { deviceId } = req.params;
+    const { serverName, limit = 100 } = req.query;
+    
+    try {
+      const logs = await mcpManager.database.getMCPLogs(deviceId, serverName, parseInt(limit));
+      res.json({ logs });
+    } catch (error) {
+      console.error('Error getting MCP logs:', error);
+      res.status(500).json({ 
+        error: { message: 'Internal server error', type: 'server_error' } 
+      });
+    }
+  });
+
+  // Create MCP session
+  app.post('/:deviceId/mcp/sessions', async (req, res) => {
+    const { deviceId } = req.params;
+    const { serverName } = req.body;
+    
+    try {
+      if (!serverName) {
+        return res.status(400).json({ 
+          error: { message: 'Server name is required', type: 'validation_error' } 
+        });
+      }
+
+      const sessionId = await mcpManager.createSession(deviceId, serverName);
+      res.json({ sessionId });
+    } catch (error) {
+      console.error('Error creating MCP session:', error);
+      res.status(500).json({ 
+        error: { message: error.message, type: 'server_error' } 
+      });
+    }
+  });
+
+  // Get MCP sessions
+  app.get('/:deviceId/mcp/sessions', async (req, res) => {
+    const { deviceId } = req.params;
+    
+    try {
+      const sessions = await mcpManager.database.getMCPSessions(deviceId);
+      res.json({ sessions });
+    } catch (error) {
+      console.error('Error getting MCP sessions:', error);
+      res.status(500).json({ 
+        error: { message: 'Internal server error', type: 'server_error' } 
+      });
+    }
+  });
+
+  // Close MCP session
+  app.delete('/:deviceId/mcp/sessions/:sessionId', async (req, res) => {
+    const { sessionId } = req.params;
+    
+    try {
+      await mcpManager.closeSession(sessionId);
+      res.json({ success: true, message: 'Session closed successfully' });
+    } catch (error) {
+      console.error('Error closing MCP session:', error);
+      res.status(500).json({ 
+        error: { message: error.message, type: 'server_error' } 
+      });
+    }
+  });
+
+  // Get MCP server templates/presets (root level - no device required)
+  app.get('/mcp/templates', (req, res) => {
+    const templates = [
+      {
+        name: 'filesystem',
+        displayName: 'File System Access',
+        description: 'Access and manipulate files and directories',
+        command: 'uvx',
+        args: ['mcp-server-filesystem'],
+        env: {},
+        autoApprove: [],
+        category: 'system'
+      },
+      {
+        name: 'web-search',
+        displayName: 'Web Search',
+        description: 'Search the web using various search engines',
+        command: 'uvx',
+        args: ['mcp-server-web-search'],
+        env: {},
+        autoApprove: ['search'],
+        category: 'web'
+      },
+      {
+        name: 'github',
+        displayName: 'GitHub Integration',
+        description: 'Interact with GitHub repositories and issues',
+        command: 'uvx',
+        args: ['mcp-server-github'],
+        env: {
+          GITHUB_TOKEN: 'your-github-token'
+        },
+        autoApprove: [],
+        category: 'development'
+      },
+      {
+        name: 'sqlite',
+        displayName: 'SQLite Database',
+        description: 'Query and manipulate SQLite databases',
+        command: 'uvx',
+        args: ['mcp-server-sqlite'],
+        env: {},
+        autoApprove: [],
+        category: 'database'
+      },
+      {
+        name: 'aws-docs',
+        displayName: 'AWS Documentation',
+        description: 'Search and access AWS documentation',
+        command: 'uvx',
+        args: ['awslabs.aws-documentation-mcp-server@latest'],
+        env: {
+          FASTMCP_LOG_LEVEL: 'ERROR'
+        },
+        autoApprove: ['search_docs'],
+        category: 'cloud'
+      }
+    ];
+
+    res.json({ templates });
+  });
+
+
+
+  console.log('MCP routes initialized');
+}
+
+module.exports = { setupMCPRoutes };

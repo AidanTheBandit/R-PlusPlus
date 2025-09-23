@@ -1,7 +1,7 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 const { DeviceIdManager } = require('../utils/device-id-manager');
 
-function setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager = null) {
+function setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager = null, mcpManager = null) {
   // Initialize device ID manager if not provided
   if (!deviceIdManager) {
     deviceIdManager = new DeviceIdManager();
@@ -44,6 +44,13 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
       console.log(`R1 device disconnected: ${deviceId}, socket: ${socket.id}`);
       connectedR1s.delete(deviceId);
       deviceIdManager.unregisterDevice(socket.id);
+
+      // Shutdown MCP servers for this device
+      if (mcpManager) {
+        mcpManager.shutdownDeviceServers(deviceId).catch(error => {
+          console.error(`Error shutting down MCP servers for ${deviceId}:`, error);
+        });
+      }
 
       // Broadcast device disconnection to all clients
       socket.broadcast.emit('device_disconnected', {
@@ -132,6 +139,56 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
         type: 'logs',
         deviceId: data.deviceId,
         data: data.log,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    // MCP-specific event handlers
+    socket.on('mcp_tool_call', async (data) => {
+      console.log(`MCP tool call from ${deviceId}:`, data);
+      
+      if (mcpManager) {
+        try {
+          const { serverName, toolName, arguments: toolArgs, requestId } = data;
+          
+          // Handle the tool call
+          const message = {
+            jsonrpc: '2.0',
+            id: requestId || mcpManager.generateId(),
+            method: 'tools/call',
+            params: {
+              name: toolName,
+              arguments: toolArgs || {}
+            }
+          };
+
+          await mcpManager.handleToolCall(deviceId, serverName, message);
+          
+          // Broadcast tool call event
+          socket.broadcast.emit('mcp_event', {
+            type: 'tool_call',
+            deviceId,
+            serverName,
+            toolName,
+            timestamp: new Date().toISOString()
+          });
+        } catch (error) {
+          console.error(`Error handling MCP tool call from ${deviceId}:`, error);
+          socket.emit('mcp_error', {
+            error: error.message,
+            serverName: data.serverName,
+            toolName: data.toolName
+          });
+        }
+      }
+    });
+
+    socket.on('mcp_server_status', (data) => {
+      console.log(`MCP server status from ${deviceId}:`, data);
+      socket.broadcast.emit('mcp_event', {
+        type: 'server_status',
+        deviceId,
+        data,
         timestamp: new Date().toISOString()
       });
     });
