@@ -10,6 +10,7 @@ const { setupMagicCamRoutes } = require('./routes/magic-cam');
 const { setupHealthRoutes } = require('./routes/health');
 const { setupDebugRoutes } = require('./routes/debug');
 const { setupSocketHandler } = require('./socket/socket-handler');
+const { DeviceIdManager } = require('./utils/device-id-manager');
 const PluginManager = require('./plugins/plugin-manager');
 
 const app = express();
@@ -34,6 +35,9 @@ const debugStreams = new Map(); // deviceId -> debug data history
 const deviceLogs = new Map(); // deviceId -> logs array
 const debugDataStore = new Map(); // deviceId -> debug data
 const performanceMetrics = new Map(); // deviceId -> metrics array
+
+// Device ID manager for persistent device identification
+const deviceIdManager = new DeviceIdManager();
 
 // Middleware
 app.use(cors());
@@ -68,13 +72,13 @@ app.get('/', (req, res) => {
 });
 
 // Setup routes
-setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap);
+setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager);
 setupMagicCamRoutes(app, connectedR1s);
 setupHealthRoutes(app, connectedR1s);
 setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugDataStore, performanceMetrics);
 
 // Setup socket handler
-setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics);
+setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager);
 
 // Plugin system
 const pluginManager = new PluginManager();
@@ -88,7 +92,8 @@ const sharedState = {
   debugStreams,
   deviceLogs,
   debugDataStore,
-  performanceMetrics
+  performanceMetrics,
+  deviceIdManager
 };
 
 pluginManager.initPlugins(app, io, sharedState);

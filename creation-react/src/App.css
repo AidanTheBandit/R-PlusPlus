@@ -2,59 +2,74 @@
   width: 100vw;
   height: 100vh;
   display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+  color: #d4d4d4;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.header {
+  background: #2d2d2d;
+  padding: 12px 16px;
+  border-bottom: 1px solid #444;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  background: #f5f5f5;
-  padding: 10px;
-  font-size: 14px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.container {
-  width: 100%;
-  max-width: 240px; /* R1 screen width */
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  text-align: center;
-}
-
-h2 {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  color: #333;
-}
-
-.status {
-  margin: 12px 0 16px 0;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 14px;
+.header h1 {
+  margin: 0;
+  font-size: 16px;
+  color: #ffffff;
   font-weight: bold;
 }
 
+.status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
 .status.connected {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: #155724;
+  color: #d4edda;
+  border: 1px solid #28a745;
 }
 
 .status.disconnected {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: #721c24;
+  color: #f8d7da;
+  border: 1px solid #dc3545;
+}
+
+.device-id {
+  font-size: 11px;
+  color: #4ecdc4;
+}
+
+.device-id code {
+  background: #1a2a3a;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: inherit;
+  color: #80ccff;
 }
 
 .reconnect-btn {
   background: #007bff;
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
   cursor: pointer;
-  width: 100%;
-  margin-bottom: 16px;
+  transition: background-color 0.2s;
 }
 
 .reconnect-btn:hover:not(:disabled) {
@@ -66,144 +81,159 @@ h2 {
   cursor: not-allowed;
 }
 
-/* Camera Controls */
-.camera-controls {
-  margin: 16px 0;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #dee2e6;
-}
-
-.camera-controls h3 {
-  margin: 0 0 12px 0;
-  font-size: 16px;
-  color: #333;
-}
-
-.camera-buttons {
+.console-container {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.camera-btn {
-  background: #28a745;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.camera-btn:hover:not(:disabled) {
-  background: #218838;
-}
-
-.camera-btn:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-}
-
-.camera-btn.active {
-  background: #dc3545;
-}
-
-.camera-btn.active:hover:not(:disabled) {
-  background: #c82333;
-}
-
-.camera-status {
-  font-size: 12px;
-  color: #666;
-  text-align: center;
-}
-
-.debug-panel {
-  background: #1a1a1a;
-  color: #d4d4d4;
-  border-radius: 6px;
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 11px;
-  max-height: 200px;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
-.debug-header {
-  padding: 8px 12px;
+.console-header {
   background: #2d2d2d;
-  border-radius: 6px 6px 0 0;
-  font-weight: bold;
+  padding: 8px 16px;
   border-bottom: 1px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.debug-status {
-  color: #4ecdc4;
+.console-header h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #ffffff;
 }
 
-.debug-log {
+.log-count {
+  font-size: 11px;
+  color: #888;
+  background: #1a1a1a;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.console {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 12px;
-  max-height: 180px;
+  padding: 12px 16px;
+  background: #1a1a1a;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
-.debug-entry {
+.console-line {
   margin: 2px 0;
-  padding: 2px 4px;
+  padding: 4px 8px;
   border-radius: 3px;
   word-wrap: break-word;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 
-.debug-info {
+.console-line .timestamp {
+  color: #888;
+  font-size: 10px;
+  min-width: 70px;
+  flex-shrink: 0;
+}
+
+.console-line .level {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 9px;
+  min-width: 40px;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.console-line.info .level {
   background: #1a2a3a;
   color: #80ccff;
 }
 
-.debug-log {
+.console-line.log .level {
   background: #2d2d2d;
+  color: #d4d4d4;
 }
 
-.debug-warn {
+.console-line.warn .level {
   background: #3a2a1a;
   color: #ffcc80;
 }
 
-.debug-error {
+.console-line.error .level {
   background: #2a1a1a;
   color: #ff8080;
 }
 
+.console-line .message {
+  flex: 1;
+  color: #d4d4d4;
+}
+
+.console-placeholder {
+  color: #666;
+  text-align: center;
+  padding: 40px 20px;
+  font-style: italic;
+}
+
 /* Mobile optimizations for R1 */
 @media (max-width: 320px) {
-  .app {
-    padding: 5px;
+  .header {
+    padding: 8px 12px;
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .container {
-    padding: 12px;
-  }
-
-  h2 {
-    font-size: 16px;
+  .header h1 {
+    font-size: 14px;
+    text-align: center;
   }
 
   .status {
-    font-size: 12px;
-    padding: 6px 8px;
+    text-align: center;
+    font-size: 10px;
+  }
+
+  .device-id {
+    text-align: center;
+    font-size: 10px;
   }
 
   .reconnect-btn {
+    align-self: center;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .console-header {
     padding: 6px 12px;
+  }
+
+  .console-header h3 {
     font-size: 12px;
   }
 
-  .debug-panel {
+  .console {
+    padding: 8px 12px;
     font-size: 10px;
+  }
+
+  .console-line {
+    padding: 2px 6px;
+  }
+
+  .console-line .timestamp {
+    min-width: 60px;
+    font-size: 9px;
+  }
+
+  .console-line .level {
+    min-width: 35px;
+    font-size: 8px;
   }
 }

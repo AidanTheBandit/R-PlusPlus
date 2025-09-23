@@ -1,9 +1,16 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
+const { DeviceIdManager } = require('../utils/device-id-manager');
 
-function setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics) {
+function setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager = null) {
+  // Initialize device ID manager if not provided
+  if (!deviceIdManager) {
+    deviceIdManager = new DeviceIdManager();
+  }
+
   // Socket.IO connection handling
   io.on('connection', (socket) => {
-    const deviceId = `r1-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Get or create persistent device ID
+    const deviceId = deviceIdManager.registerDevice(socket.id);
     connectedR1s.set(deviceId, socket);
 
     console.log(`R1 device connected: ${deviceId}`);
@@ -16,7 +23,7 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
       connectedAt: new Date().toISOString()
     });
 
-    // Send welcome message
+    // Send welcome message with device ID
     socket.emit('connected', {
       deviceId: deviceId,
       message: 'Connected to R-API server'
@@ -26,6 +33,7 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
     socket.on('disconnect', () => {
       console.log(`R1 device disconnected: ${deviceId}`);
       connectedR1s.delete(deviceId);
+      deviceIdManager.unregisterDevice(socket.id);
 
       // Broadcast device disconnection to all clients
       socket.broadcast.emit('device_disconnected', {
