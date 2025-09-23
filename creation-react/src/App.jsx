@@ -90,6 +90,11 @@ function App() {
       setConnectionStatus('Disconnected')
       setDeviceId(null)
 
+      // Clear stored deviceId
+      if (socketRef.current) {
+        socketRef.current._deviceId = null
+      }
+
       // Clear any pending request data on disconnect
       if (socketRef.current._pendingRequestId) {
         socketRef.current._pendingRequestId = null
@@ -127,19 +132,15 @@ function App() {
       addConsoleLog(`🏓 Pong received, latency: ${latency}ms`)
     })
 
-    // Add heartbeat/ping mechanism
-    const heartbeatInterval = setInterval(() => {
-      if (socketRef.current && socketRef.current.connected) {
-        socketRef.current.emit('ping', { timestamp: Date.now(), deviceId })
-      }
-    }, 30000) // Ping every 30 seconds
-
-    // Store the interval so we can clear it on disconnect
-    socketRef.current._heartbeatInterval = heartbeatInterval
+    // Add heartbeat/ping mechanism - will be set up after device connection
+    socketRef.current._heartbeatInterval = null
 
     // Application events
     socketRef.current.on('connected', (data) => {
       setDeviceId(data.deviceId)
+      // Store deviceId in socket ref for reliable access
+      socketRef.current._deviceId = data.deviceId
+
       setDeviceInfo({
         pinCode: data.pinCode,
         pinEnabled: data.pinEnabled !== false && data.pinCode !== null
@@ -148,23 +149,63 @@ function App() {
       addConsoleLog(`Connected with device ID: ${data.deviceId}`)
       addConsoleLog(`Received PIN from socket: ${data.pinCode}`, 'info')
 
+      // Set up heartbeat/ping mechanism with the actual device ID
+      if (socketRef.current._heartbeatInterval) {
+        clearInterval(socketRef.current._heartbeatInterval)
+      }
+
+      socketRef.current._heartbeatInterval = setInterval(() => {
+        if (socketRef.current && socketRef.current.connected && socketRef.current._deviceId) {
+          socketRef.current.emit('ping', {
+            timestamp: Date.now(),
+            deviceId: socketRef.current._deviceId
+          })
+          // Only log ping occasionally to avoid spam
+          if (Math.random() < 0.1) { // 10% chance to log
+            addConsoleLog(`🏓 Ping sent for device: ${socketRef.current._deviceId}`, 'info')
+          }
+        }
+      }, 30000) // Ping every 30 seconds
+
       // Automatically refresh device info to get the latest PIN from server
       setTimeout(() => {
         if (data.deviceId) {
           refreshDeviceInfoDirect(data.deviceId)
         }
       }, 1000)
+
+      // Send a test ping immediately to ensure device is properly registered
+      setTimeout(() => {
+        if (socketRef.current && socketRef.current.connected && socketRef.current._deviceId) {
+          socketRef.current.emit('ping', {
+            timestamp: Date.now(),
+            deviceId: socketRef.current._deviceId
+          })
+          addConsoleLog(`🏓 Initial ping sent for device: ${socketRef.current._deviceId}`, 'info')
+        }
+      }, 2000)
+
+      // Check if PIN is required for chat completions
+      if (!data.pinCode) {
+        addConsoleLog(`⚠️ Device has no PIN set - this might be required for chat completions`, 'warn')
+        addConsoleLog(`💡 Try enabling a PIN to see if chat completions work`, 'info')
+      }
+
+      // Device should now be properly registered for chat completions
     })
 
     // Handle incoming chat completion requests
     socketRef.current.on('chat_completion', (data) => {
       addConsoleLog(`📥 Received chat completion request: ${data.message?.substring(0, 50)}...`)
+      addConsoleLog(`📥 Request data: ${JSON.stringify(data).substring(0, 200)}...`)
 
       if (r1CreateRef.current && r1CreateRef.current.messaging) {
         try {
           // Store requestId for response
           const currentRequestId = data.requestId || data.data?.requestId
           const messageToSend = data.message || data.data?.message
+
+          addConsoleLog(`📤 Processing request ${currentRequestId} for device ${socketRef.current._deviceId}`)
 
           // Use R1 SDK messaging API to send message to LLM
           r1CreateRef.current.messaging.sendMessage(messageToSend, {
@@ -184,7 +225,7 @@ function App() {
           socketRef.current.emit('error', {
             requestId: data.requestId || data.data?.requestId,
             error: `R1 SDK messaging error: ${error.message}`,
-            deviceId
+            deviceId: socketRef.current._deviceId
           })
           sendErrorToServer('error', `R1 SDK messaging failed: ${error.message}`)
         }
@@ -193,9 +234,18 @@ function App() {
         socketRef.current.emit('error', {
           requestId: data.requestId || data.data?.requestId,
           error: 'R1 SDK messaging not available - this app must run on R1 device',
-          deviceId
+          deviceId: socketRef.current._deviceId
         })
       }
+    })
+
+    // Handle server errors/notifications
+    socketRef.current.on('error', (data) => {
+      addConsoleLog(`❌ Server error: ${JSON.stringify(data)}`, 'error')
+    })
+
+    socketRef.current.on('notification', (data) => {
+      addConsoleLog(`📢 Server notification: ${JSON.stringify(data)}`, 'info')
     })
 
     // Handle device connection/disconnection broadcasts
@@ -242,15 +292,16 @@ function App() {
 
           // Send response via socket (server will handle requestId matching)
           if (socketRef.current && socketRef.current.connected) {
+            const currentDeviceId = socketRef.current._deviceId || deviceId
             socketRef.current.emit('response', {
               requestId: socketRef.current._pendingRequestId,
               response: responseText,
               originalMessage: socketRef.current._originalMessage,
               model: 'r1-llm',
               timestamp: new Date().toISOString(),
-              deviceId
+              deviceId: currentDeviceId
             })
-            addConsoleLog(`📤 Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId})`)
+            addConsoleLog(`📤 Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId}, deviceId: ${currentDeviceId})`)
 
             // Clear the pending request data
             socketRef.current._pendingRequestId = null
@@ -313,6 +364,146 @@ function App() {
       return
     }
     await refreshDeviceInfoDirect(deviceId)
+  }
+
+  const checkDeviceStatus = async () => {
+    if (!deviceId) {
+      addConsoleLog('No device ID to check', 'warn')
+      return
+    }
+
+    try {
+      addConsoleLog(`🔍 Checking device status for: ${deviceId}`, 'info')
+      const response = await fetch(`/${deviceId}/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        addConsoleLog(`📊 Device status: ${JSON.stringify(data)}`, 'info')
+      } else {
+        addConsoleLog(`❌ Device status check failed: ${response.status}`, 'error')
+      }
+    } catch (error) {
+      addConsoleLog(`❌ Error checking device status: ${error.message}`, 'error')
+    }
+  }
+
+  const syncDeviceData = async (targetDeviceId) => {
+    try {
+      addConsoleLog(`🔄 Syncing device data for: ${targetDeviceId}`, 'info')
+
+      // Send device sync request to server
+      const response = await fetch(`/${targetDeviceId}/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          socketId: socketRef.current?.id,
+          timestamp: new Date().toISOString(),
+          clientInfo: {
+            userAgent: navigator.userAgent,
+            url: window.location.href
+          }
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        addConsoleLog(`✅ Device sync successful: ${JSON.stringify(data)}`, 'info')
+
+        // Update local device info with server data
+        if (data.pinCode !== deviceInfo?.pinCode) {
+          addConsoleLog(`🔄 PIN updated from server: ${data.pinCode}`, 'info')
+          setDeviceInfo(prev => ({
+            ...prev,
+            pinCode: data.pinCode,
+            pinEnabled: data.pinEnabled !== false && data.pinCode !== null
+          }))
+        }
+      } else {
+        addConsoleLog(`❌ Device sync failed: ${response.status}`, 'error')
+      }
+    } catch (error) {
+      addConsoleLog(`❌ Error syncing device data: ${error.message}`, 'error')
+    }
+  }
+
+  const testChatCompletion = async () => {
+    if (!deviceId) {
+      addConsoleLog('No device ID to test', 'warn')
+      return
+    }
+
+    try {
+      addConsoleLog(`🧪 Testing chat completion for device: ${deviceId}`, 'info')
+
+      const testMessage = "Test message from R1 console"
+      const response = await fetch('/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(deviceInfo?.pinCode && { 'Authorization': `Bearer ${deviceInfo.pinCode}` })
+        },
+        body: JSON.stringify({
+          model: 'r1-command',
+          messages: [{ role: 'user', content: testMessage }],
+          temperature: 0.7,
+          max_tokens: 150,
+          deviceId: deviceId
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        addConsoleLog(`✅ Chat completion test successful: ${JSON.stringify(data).substring(0, 200)}...`, 'info')
+      } else {
+        const errorText = await response.text()
+        addConsoleLog(`❌ Chat completion test failed: ${response.status} - ${errorText}`, 'error')
+
+        // If device not found, try to sync and retry
+        if (errorText.includes('not found') || errorText.includes('not connected')) {
+          addConsoleLog(`🔄 Device not found - attempting sync and retry`, 'warn')
+          await syncDeviceData(deviceId)
+
+          // Retry after sync
+          setTimeout(async () => {
+            try {
+              const retryResponse = await fetch('/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(deviceInfo?.pinCode && { 'Authorization': `Bearer ${deviceInfo.pinCode}` })
+                },
+                body: JSON.stringify({
+                  model: 'r1-command',
+                  messages: [{ role: 'user', content: testMessage }],
+                  temperature: 0.7,
+                  max_tokens: 150,
+                  deviceId: deviceId
+                })
+              })
+
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json()
+                addConsoleLog(`✅ Chat completion retry successful: ${JSON.stringify(retryData).substring(0, 200)}...`, 'info')
+              } else {
+                const retryError = await retryResponse.text()
+                addConsoleLog(`❌ Chat completion retry failed: ${retryResponse.status} - ${retryError}`, 'error')
+              }
+            } catch (retryErr) {
+              addConsoleLog(`❌ Error in retry: ${retryErr.message}`, 'error')
+            }
+          }, 2000)
+        }
+      }
+    } catch (error) {
+      addConsoleLog(`❌ Error testing chat completion: ${error.message}`, 'error')
+    }
   }
 
   const handleDisablePin = async () => {
@@ -565,6 +756,28 @@ function App() {
               title="Refresh device info"
             >
               <span>🔄</span>
+            </button>
+          )}
+
+          {deviceId && (
+            <button
+              className="status-btn"
+              onClick={checkDeviceStatus}
+              title="Check device status"
+            >
+              <span>📊</span>
+            </button>
+          )}
+
+
+
+          {deviceId && (
+            <button
+              className="test-btn"
+              onClick={testChatCompletion}
+              title="Test chat completion"
+            >
+              <span>🧪</span>
             </button>
           )}
 

@@ -267,6 +267,52 @@ body {
   transform: scale(1.05) rotate(90deg);
 }
 
+.status-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--purple);
+  background: var(--bg2);
+  color: var(--purple);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.status-btn:hover {
+  background: var(--purple);
+  color: var(--bg0);
+  transform: scale(1.05);
+}
+
+.test-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--orange);
+  background: var(--bg2);
+  color: var(--orange);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+
+
+.test-btn:hover {
+  background: var(--orange);
+  color: var(--bg0);
+  transform: scale(1.05);
+}
+
 .reconnect-btn {
   width: 32px;
   height: 32px;
@@ -503,12 +549,25 @@ body {
   }
   
   .status-right {
-    gap: var(--space-xs);
+    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   
   .device-badge, .pin-badge {
     font-size: 10px;
     padding: 2px var(--space-xs);
+  }
+
+  .refresh-btn, .status-btn, .test-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+
+  .reconnect-btn {
+    width: 28px;
+    height: 28px;
   }
   
 
