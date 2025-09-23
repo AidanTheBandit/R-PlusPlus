@@ -1,7 +1,6 @@
-// Magic Cam control routes
-
 function setupMagicCamRoutes(app, connectedR1s) {
   // Magic Cam control endpoints
+
   app.post('/magic-cam/start', (req, res) => {
     try {
       const { facingMode = 'user' } = req.body;
@@ -102,6 +101,4 @@ function setupMagicCamRoutes(app, connectedR1s) {
   });
 }
 
-module.exports = {
-  setupMagicCamRoutes
-};
+module.exports = { setupMagicCamRoutes };

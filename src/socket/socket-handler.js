@@ -1,8 +1,7 @@
-// Socket.IO connection handling
-
 const { sendOpenAIResponse } = require('../utils/response-utils');
 
 function setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics) {
+  // Socket.IO connection handling
   io.on('connection', (socket) => {
     const deviceId = `r1-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     connectedR1s.set(deviceId, socket);
@@ -211,9 +210,13 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
         });
       }
     });
+
+    socket.on('disconnect', () => {
+      connectedR1s.delete(deviceId);
+      console.log(`R1 device disconnected: ${deviceId}`);
+      console.log(`Total connected devices: ${connectedR1s.size}`);
+    });
   });
 }
 
-module.exports = {
-  setupSocketHandler
-};
+module.exports = { setupSocketHandler };

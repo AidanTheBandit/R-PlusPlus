@@ -99,6 +99,4 @@ function sendOpenAIResponse(clientRes, response, originalMessage, model, stream 
   console.log(`📤 Sending ${stream ? 'streaming' : 'normal'} OpenAI response to client:`, (response || 'No response from R1').substring(0, 100));
 }
 
-module.exports = {
-  sendOpenAIResponse
-};
+module.exports = { sendOpenAIResponse };
