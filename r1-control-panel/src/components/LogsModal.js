@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const LogsModal = ({ deviceId, onClose }) => {
+const LogsModal = ({ deviceId, pinCode, onClose }) => {
   const [logs, setLogs] = useState([]);
   const [serverFilter, setServerFilter] = useState('');
   const [servers, setServers] = useState([]);
@@ -10,11 +10,11 @@ const LogsModal = ({ deviceId, onClose }) => {
   useEffect(() => {
     loadServers();
     loadLogs();
-  }, [deviceId]);
+  }, [deviceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadLogs();
-  }, [serverFilter]);
+  }, [serverFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     scrollToBottom();
@@ -26,7 +26,12 @@ const LogsModal = ({ deviceId, onClose }) => {
 
   const loadServers = async () => {
     try {
-      const response = await fetch(`/${deviceId}/mcp/servers`);
+      const headers = {};
+      if (pinCode) {
+        headers['Authorization'] = `Bearer ${pinCode}`;
+      }
+
+      const response = await fetch(`/${deviceId}/mcp/servers`, { headers });
       if (response.ok) {
         const data = await response.json();
         setServers(data.servers || []);
@@ -44,7 +49,12 @@ const LogsModal = ({ deviceId, onClose }) => {
         url += `&serverName=${encodeURIComponent(serverFilter)}`;
       }
 
-      const response = await fetch(url);
+      const headers = {};
+      if (pinCode) {
+        headers['Authorization'] = `Bearer ${pinCode}`;
+      }
+
+      const response = await fetch(url, { headers });
       if (response.ok) {
         const data = await response.json();
         setLogs(data.logs || []);
