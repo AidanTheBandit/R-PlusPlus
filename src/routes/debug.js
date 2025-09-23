@@ -1,5 +1,3 @@
-// Debug routes
-
 function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugDataStore, performanceMetrics) {
   // Debug data collection endpoints
 
@@ -7,27 +5,26 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/hardware-event', (req, res) => {
     try {
       const { deviceId, event } = req.body;
-
+      
       if (!deviceId || !event) {
         return res.status(400).json({ error: 'Missing deviceId or event data' });
       }
-
-      // Store hardware event
+      
       if (!debugDataStore.has(deviceId)) {
         debugDataStore.set(deviceId, { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] });
       }
-
+      
       const deviceData = debugDataStore.get(deviceId);
       deviceData.hardware.push({
         ...event,
         serverTimestamp: new Date().toISOString()
       });
-
+      
       // Keep only last 100 hardware events per device
       if (deviceData.hardware.length > 100) {
         deviceData.hardware = deviceData.hardware.slice(-100);
       }
-
+      
       console.log(`Hardware event from ${deviceId}: ${event.type}`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -40,25 +37,25 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/camera-event', (req, res) => {
     try {
       const { deviceId, event } = req.body;
-
+      
       if (!deviceId || !event) {
         return res.status(400).json({ error: 'Missing deviceId or event data' });
       }
-
+      
       if (!debugDataStore.has(deviceId)) {
         debugDataStore.set(deviceId, { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] });
       }
-
+      
       const deviceData = debugDataStore.get(deviceId);
       deviceData.camera.push({
         ...event,
         serverTimestamp: new Date().toISOString()
       });
-
+      
       if (deviceData.camera.length > 50) {
         deviceData.camera = deviceData.camera.slice(-50);
       }
-
+      
       console.log(`Camera event from ${deviceId}: ${event.type}`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -71,25 +68,25 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/llm-event', (req, res) => {
     try {
       const { deviceId, event } = req.body;
-
+      
       if (!deviceId || !event) {
         return res.status(400).json({ error: 'Missing deviceId or event data' });
       }
-
+      
       if (!debugDataStore.has(deviceId)) {
         debugDataStore.set(deviceId, { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] });
       }
-
+      
       const deviceData = debugDataStore.get(deviceId);
       deviceData.llm.push({
         ...event,
         serverTimestamp: new Date().toISOString()
       });
-
+      
       if (deviceData.llm.length > 50) {
         deviceData.llm = deviceData.llm.slice(-50);
       }
-
+      
       console.log(`LLM event from ${deviceId}: ${event.type}`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -102,25 +99,25 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/storage-event', (req, res) => {
     try {
       const { deviceId, event } = req.body;
-
+      
       if (!deviceId || !event) {
         return res.status(400).json({ error: 'Missing deviceId or event data' });
       }
-
+      
       if (!debugDataStore.has(deviceId)) {
         debugDataStore.set(deviceId, { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] });
       }
-
+      
       const deviceData = debugDataStore.get(deviceId);
       deviceData.storage.push({
         ...event,
         serverTimestamp: new Date().toISOString()
       });
-
+      
       if (deviceData.storage.length > 50) {
         deviceData.storage = deviceData.storage.slice(-50);
       }
-
+      
       console.log(`Storage event from ${deviceId}: ${event.type}`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -133,25 +130,25 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/audio-event', (req, res) => {
     try {
       const { deviceId, event } = req.body;
-
+      
       if (!deviceId || !event) {
         return res.status(400).json({ error: 'Missing deviceId or event data' });
       }
-
+      
       if (!debugDataStore.has(deviceId)) {
         debugDataStore.set(deviceId, { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] });
       }
-
+      
       const deviceData = debugDataStore.get(deviceId);
       deviceData.audio.push({
         ...event,
         serverTimestamp: new Date().toISOString()
       });
-
+      
       if (deviceData.audio.length > 50) {
         deviceData.audio = deviceData.audio.slice(-50);
       }
-
+      
       console.log(`Audio event from ${deviceId}: ${event.type}`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -164,25 +161,25 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/performance-event', (req, res) => {
     try {
       const { deviceId, event } = req.body;
-
+      
       if (!deviceId || !event) {
         return res.status(400).json({ error: 'Missing deviceId or event data' });
       }
-
+      
       if (!debugDataStore.has(deviceId)) {
         debugDataStore.set(deviceId, { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] });
       }
-
+      
       const deviceData = debugDataStore.get(deviceId);
       deviceData.performance.push({
         ...event,
         serverTimestamp: new Date().toISOString()
       });
-
+      
       if (deviceData.performance.length > 50) {
         deviceData.performance = deviceData.performance.slice(-50);
       }
-
+      
       console.log(`Performance event from ${deviceId}: ${event.type}`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -195,25 +192,25 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/device-event', (req, res) => {
     try {
       const { deviceId, event } = req.body;
-
+      
       if (!deviceId || !event) {
         return res.status(400).json({ error: 'Missing deviceId or event data' });
       }
-
+      
       if (!debugDataStore.has(deviceId)) {
         debugDataStore.set(deviceId, { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] });
       }
-
+      
       const deviceData = debugDataStore.get(deviceId);
       deviceData.device.push({
         ...event,
         serverTimestamp: new Date().toISOString()
       });
-
+      
       if (deviceData.device.length > 20) {
         deviceData.device = deviceData.device.slice(-20);
       }
-
+      
       console.log(`Device event from ${deviceId}: ${event.type}`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -226,26 +223,26 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/client-log', (req, res) => {
     try {
       const { deviceId, log } = req.body;
-
+      
       if (!deviceId || !log) {
         return res.status(400).json({ error: 'Missing deviceId or log data' });
       }
-
+      
       if (!deviceLogs.has(deviceId)) {
         deviceLogs.set(deviceId, []);
       }
-
+      
       const logs = deviceLogs.get(deviceId);
       logs.push({
         ...log,
         serverTimestamp: new Date().toISOString()
       });
-
+      
       // Keep only last 500 logs per device
       if (logs.length > 500) {
         logs.splice(0, logs.length - 500);
       }
-
+      
       console.log(`Client log from ${deviceId}: [${log.level}] ${log.message.substring(0, 50)}...`);
       res.json({ status: 'logged' });
     } catch (error) {
@@ -259,7 +256,7 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
     try {
       const { deviceId } = req.params;
       const data = debugDataStore.get(deviceId) || { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] };
-
+      
       res.json({
         deviceId,
         data,
@@ -276,7 +273,7 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
     try {
       const { deviceId } = req.params;
       const logs = deviceLogs.get(deviceId) || [];
-
+      
       res.json({
         deviceId,
         logs,
@@ -295,7 +292,7 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
       const devices = Array.from(connectedR1s.keys()).map(deviceId => {
         const data = debugDataStore.get(deviceId);
         const logs = deviceLogs.get(deviceId);
-
+        
         return {
           deviceId,
           connected: true,
@@ -320,7 +317,7 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
           ) : null
         };
       });
-
+      
       res.json({
         devices,
         totalDevices: devices.length,
@@ -336,10 +333,10 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/clear/:deviceId', (req, res) => {
     try {
       const { deviceId } = req.params;
-
+      
       debugDataStore.delete(deviceId);
       deviceLogs.delete(deviceId);
-
+      
       console.log(`Cleared debug data for device: ${deviceId}`);
       res.json({ status: 'cleared', deviceId });
     } catch (error) {
@@ -352,28 +349,28 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/system-info', (req, res) => {
     try {
       const { deviceId, systemInfo } = req.body;
-
+      
       if (!deviceId || !systemInfo) {
         return res.status(400).json({ error: 'Missing deviceId or systemInfo' });
       }
-
+      
       // Store system info in performance metrics
       if (!performanceMetrics.has(deviceId)) {
         performanceMetrics.set(deviceId, []);
       }
-
+      
       const metrics = performanceMetrics.get(deviceId);
       metrics.push({
         type: 'system_info',
         data: systemInfo,
         timestamp: new Date().toISOString()
       });
-
+      
       // Keep only last 10 system info entries
       if (metrics.length > 10) {
         metrics.splice(0, metrics.length - 10);
       }
-
+      
       console.log(`System info received from ${deviceId}`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -386,16 +383,15 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/photo-captured', (req, res) => {
     try {
       const { deviceId, photo, timestamp } = req.body;
-
+      
       if (!deviceId || !photo) {
         return res.status(400).json({ error: 'Missing deviceId or photo data' });
       }
-
-      // Store photo info in camera data
+      
       if (!debugDataStore.has(deviceId)) {
         debugDataStore.set(deviceId, { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] });
       }
-
+      
       const deviceData = debugDataStore.get(deviceId);
       deviceData.camera.push({
         type: 'photo_captured',
@@ -403,11 +399,11 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
         timestamp: timestamp || new Date().toISOString(),
         serverTimestamp: new Date().toISOString()
       });
-
+      
       if (deviceData.camera.length > 20) {
         deviceData.camera = deviceData.camera.slice(-20);
       }
-
+      
       console.log(`Photo captured from ${deviceId}, size: ${photo.length} bytes`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -420,15 +416,15 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
   app.post('/debug/audio-captured', (req, res) => {
     try {
       const { deviceId, audio, timestamp } = req.body;
-
+      
       if (!deviceId || !audio) {
         return res.status(400).json({ error: 'Missing deviceId or audio data' });
       }
-
+      
       if (!debugDataStore.has(deviceId)) {
         debugDataStore.set(deviceId, { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] });
       }
-
+      
       const deviceData = debugDataStore.get(deviceId);
       deviceData.audio.push({
         type: 'audio_captured',
@@ -436,11 +432,11 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
         timestamp: timestamp || new Date().toISOString(),
         serverTimestamp: new Date().toISOString()
       });
-
+      
       if (deviceData.audio.length > 20) {
         deviceData.audio = deviceData.audio.slice(-20);
       }
-
+      
       console.log(`Audio captured from ${deviceId}, size: ${audio.length} bytes`);
       res.json({ status: 'stored' });
     } catch (error) {
@@ -449,92 +445,23 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
     }
   });
 
-  // Debug data streaming endpoints
-  app.post('/debug/stream/:type', (req, res) => {
+  // Error logging endpoint for R1 browser debugging
+  app.post('/errors', (req, res) => {
     try {
-      const { type } = req.params;
-      const { deviceId, data, timestamp } = req.body;
-
-      if (!deviceId) {
-        return res.status(400).json({ error: 'deviceId required' });
+      const { level, message, stack, url, userAgent, timestamp, deviceId } = req.body;
+      
+      console.log(`[R1 ERROR ${level.toUpperCase()}] ${deviceId || 'unknown'}: ${message}`);
+      if (stack) {
+        console.log(`Stack trace: ${stack}`);
       }
-
-      // Store debug data
-      if (!debugStreams.has(deviceId)) {
-        debugStreams.set(deviceId, {
-          hardware: [],
-          camera: [],
-          llm: [],
-          storage: [],
-          audio: [],
-          performance: [],
-          device: [],
-          logs: []
-        });
-      }
-
-      const deviceStreams = debugStreams.get(deviceId);
-      if (deviceStreams[type]) {
-        // Keep last 100 entries per type
-        deviceStreams[type].push({
-          data,
-          timestamp: timestamp || new Date().toISOString(),
-          id: Date.now()
-        });
-
-        if (deviceStreams[type].length > 100) {
-          deviceStreams[type].shift();
-        }
-      }
-
-      // Broadcast to all connected clients (not the device itself)
-      // This would need io reference, but for now skip
-      res.json({ status: 'streamed', type, deviceId });
+      console.log(`URL: ${url}, User-Agent: ${userAgent}, Time: ${timestamp}`);
+      
+      res.json({ status: 'logged' });
     } catch (error) {
-      console.error('Error streaming debug data:', error);
-      res.status(500).json({ error: 'Failed to stream debug data' });
-    }
-  });
-
-  // Get debug data history
-  app.get('/debug/history/:deviceId', (req, res) => {
-    try {
-      const { deviceId } = req.params;
-      const { type, limit = 50 } = req.query;
-
-      if (!debugStreams.has(deviceId)) {
-        return res.json({ data: [] });
-      }
-
-      const deviceStreams = debugStreams.get(deviceId);
-
-      if (type) {
-        const data = deviceStreams[type] || [];
-        res.json({
-          data: data.slice(-limit),
-          type,
-          deviceId,
-          count: data.length
-        });
-      } else {
-        // Return all types
-        const result = {};
-        Object.keys(deviceStreams).forEach(streamType => {
-          result[streamType] = deviceStreams[streamType].slice(-limit);
-        });
-        res.json({
-          data: result,
-          deviceId,
-          types: Object.keys(deviceStreams)
-        });
-      }
-    } catch (error) {
-      console.error('Error getting debug history:', error);
-      res.status(500).json({ error: 'Failed to get debug history' });
+      console.error('Error logging failed:', error);
+      res.status(500).json({ error: 'Failed to log error' });
     }
   });
 }
 
-module.exports = {
-  setupDebugRoutes
-};
+module.exports = { setupDebugRoutes };

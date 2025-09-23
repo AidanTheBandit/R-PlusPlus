@@ -1,11 +1,6 @@
-// OpenAI-compatible API routes
-
 const { sendOpenAIResponse } = require('../utils/response-utils');
 
 function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap) {
-  // Store conversation history (simple in-memory storage)
-  // Store pending chat completion requests
-
   // OpenAI-compatible API endpoints
   app.post('/v1/chat/completions', async (req, res) => {
     try {
@@ -120,6 +115,4 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
   });
 }
 
-module.exports = {
-  setupOpenAIRoutes
-};
+module.exports = { setupOpenAIRoutes };

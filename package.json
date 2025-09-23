@@ -4,8 +4,8 @@
   "description": "Interface with your R1 remotely via wss and a rest api",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
     "build-creation": "cd creation-react && npm run build",
     "dev-creation": "cd creation-react && npm run dev",
     "test": "echo \"Error: no test specified\" && exit 1"

@@ -1,5 +1,3 @@
-// Health and utility routes
-
 function setupHealthRoutes(app, connectedR1s) {
   // Health check endpoint
   app.get('/health', (req, res) => {
@@ -48,6 +46,4 @@ function setupHealthRoutes(app, connectedR1s) {
   });
 }
 
-module.exports = {
-  setupHealthRoutes
-};
+module.exports = { setupHealthRoutes };
