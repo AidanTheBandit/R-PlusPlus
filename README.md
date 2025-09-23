@@ -19,35 +19,51 @@ R-API provides a bridge between the R1 device and external applications through:
 - ✅ Streaming response support
 - ✅ Comprehensive debug and analytics tools
 
-## Quick Start
+## Configuration
 
-### 1. Install Dependencies
+### Environment Variables
+
+- `PORT`: Server port (default: 5482)
+- `DISABLE_PIN`: Set to `true` to disable PIN code authentication (default: false)
+
+### Disabling PIN Codes
+
+By default, each R1 device gets a unique 6-digit PIN code that must be used for API authentication. To disable PIN authentication:
+
 ```bash
-npm install
+DISABLE_PIN=true npm start
 ```
 
-### 2. Start the Server
+When PIN codes are disabled, API endpoints can be accessed without authentication.
+
+### Device Identification
+
+R1 devices are automatically assigned persistent IDs based on their user agent and IP address. Device IDs follow the format: `{adjective}-{noun}-{number}` (e.g., `red-fox-42`).
+
+## API Authentication
+
+### PIN Code Authentication
+
+When PIN codes are enabled (default), include the PIN code in API requests:
+
 ```bash
-npm start
-# Server runs on http://localhost:5482
+curl -X POST http://localhost:5482/device-red-fox-42/v1/chat/completions \
+  -H "Authorization: Bearer 123456" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "Hello R1!"}],
+    "model": "r1-command"
+  }'
 ```
 
-### 3. Access the R1 Creation
-Open your R1 device and navigate to:
-```
-http://localhost:5482/
-```
-
-### 4. Test the API
-```bash
-node src/tests/test-api.js
-```
+The PIN code is displayed on the R1 device's console when it connects.
 
 ## API Endpoints
 
-### Chat Completions (OpenAI Compatible)
+### Device-Specific Chat Completions
 ```http
-POST /v1/chat/completions
+POST /device-{deviceId}/v1/chat/completions
+Authorization: Bearer {pin-code}  # Required unless DISABLE_PIN=true
 Content-Type: application/json
 
 {
@@ -64,9 +80,10 @@ Content-Type: application/json
 }
 ```
 
-### Available Models
+### Device-Specific Models
 ```http
-GET /v1/models
+GET /device-{deviceId}/v1/models
+Authorization: Bearer {pin-code}  # Required unless DISABLE_PIN=true
 ```
 
 ### Health Check
@@ -178,9 +195,10 @@ docs/                       # Documentation
 ```python
 import openai
 
+# Replace 'your-device-id' and 'your-pin-code' with actual values
 client = openai.OpenAI(
-    base_url="http://localhost:5482/v1",
-    api_key="not-needed"  # API key not required
+    base_url="http://localhost:5482/device-your-device-id/v1",
+    api_key="your-pin-code"  # PIN code as API key
 )
 
 response = client.chat.completions.create(
@@ -188,17 +206,19 @@ response = client.chat.completions.create(
     messages=[
         {"role": "user", "content": "Hello R1!"}
     ],
-    stream=True  # Enable streaming
+    stream=True
 )
 ```
 
 ### Direct HTTP Request
 ```bash
-curl -X POST http://localhost:5482/v1/chat/completions \
+# Replace 'your-device-id' and '123456' with actual values
+curl -X POST http://localhost:5482/device-your-device-id/v1/chat/completions \
+  -H "Authorization: Bearer 123456" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "r1-command",
     "messages": [{"role": "user", "content": "Status check"}],
+    "model": "r1-command",
     "temperature": 0.7,
     "stream": true
   }'

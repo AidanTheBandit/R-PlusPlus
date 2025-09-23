@@ -1,19 +1,212 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 
 function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager) {
-  // OpenAI-compatible API endpoints
-  app.post('/v1/chat/completions', async (req, res) => {
-    await handleChatCompletion(req, res, null); // null means broadcast to all devices
-  });
-
-  // Device-specific endpoints: /device-{deviceId}/v1/chat/completions
+  // Device-specific endpoints: /device-{deviceId}/v1/chat/completions (legacy format)
   app.post('/device-:deviceId/v1/chat/completions', async (req, res) => {
     const { deviceId } = req.params;
     await handleChatCompletion(req, res, deviceId);
   });
 
-  // Models endpoint (OpenAI compatible)
-  app.get('/v1/models', (req, res) => {
+  // Device-specific endpoints: /{deviceId}/v1/chat/completions (new format)
+  app.post('/:deviceId/v1/chat/completions', async (req, res) => {
+    const { deviceId } = req.params;
+    await handleChatCompletion(req, res, deviceId);
+  });
+
+  // Device-specific models endpoint (legacy format)
+  app.get('/device-:deviceId/v1/models', async (req, res) => {
+    const { deviceId } = req.params;
+    await handleModelsRequest(req, res, deviceId);
+  });
+
+  // Device-specific models endpoint (new format)
+  app.get('/:deviceId/v1/models', async (req, res) => {
+    const { deviceId } = req.params;
+    await handleModelsRequest(req, res, deviceId);
+  });
+
+    // Device management endpoints
+  app.post('/:deviceId/disable-pin', async (req, res) => {
+    const { deviceId } = req.params;
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: { message: 'Missing or invalid authorization header', type: 'auth_error' } });
+    }
+
+    const pinCode = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    try {
+      // Verify the PIN matches
+      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+      if (!deviceInfo || deviceInfo.pin_code !== pinCode) {
+        return res.status(403).json({ error: { message: 'Invalid PIN code', type: 'auth_error' } });
+      }
+
+      // Disable the PIN
+      await deviceIdManager.database.disableDevicePin(deviceId);
+
+      // Update in-memory state
+      const deviceData = deviceIdManager.deviceIds.get(deviceId);
+      if (deviceData) {
+        deviceData.pinCode = null;
+      }
+
+      console.log(`🔓 PIN disabled for device: ${deviceId}`);
+      res.json({ success: true, message: 'PIN disabled successfully' });
+    } catch (error) {
+      console.error('Error disabling PIN:', error);
+      res.status(500).json({ error: { message: 'Internal server error', type: 'server_error' } });
+    }
+  });
+
+  app.post('/:deviceId/enable-pin', async (req, res) => {
+    const { deviceId } = req.params;
+    const { newPin } = req.body;
+
+    if (!newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+      return res.status(400).json({ error: { message: 'PIN must be exactly 6 digits', type: 'validation_error' } });
+    }
+
+    try {
+      // Check if device exists
+      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+      if (!deviceInfo) {
+        return res.status(404).json({ error: { message: 'Device not found', type: 'not_found' } });
+      }
+
+      // If PIN is currently enabled, require current PIN for authentication
+      if (deviceInfo.pin_code) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return res.status(401).json({ error: { message: 'Current PIN required to change PIN', type: 'auth_error' } });
+        }
+
+        const currentPin = authHeader.substring(7);
+        if (currentPin !== deviceInfo.pin_code) {
+          return res.status(403).json({ error: { message: 'Invalid current PIN code', type: 'auth_error' } });
+        }
+      }
+
+      // Enable/update the PIN
+      await deviceIdManager.database.updateDevicePin(deviceId, newPin);
+
+      // Update in-memory state
+      const deviceData = deviceIdManager.deviceIds.get(deviceId);
+      if (deviceData) {
+        deviceData.pinCode = newPin;
+      }
+
+      console.log(`🔐 PIN ${deviceInfo.pin_code ? 'changed' : 'enabled'} for device: ${deviceId}`);
+      res.json({ success: true, message: `PIN ${deviceInfo.pin_code ? 'changed' : 'enabled'} successfully` });
+    } catch (error) {
+      console.error('Error enabling/changing PIN:', error);
+      res.status(500).json({ error: { message: 'Internal server error', type: 'server_error' } });
+    }
+  });
+
+  app.post('/:deviceId/change-pin', async (req, res) => {
+    const { deviceId } = req.params;
+    const { currentPin, newPin } = req.body;
+
+    if (!currentPin || !newPin) {
+      return res.status(400).json({ error: { message: 'Both current and new PIN required', type: 'validation_error' } });
+    }
+
+    if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+      return res.status(400).json({ error: { message: 'New PIN must be exactly 6 digits', type: 'validation_error' } });
+    }
+
+    try {
+      // Verify current PIN
+      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+      if (!deviceInfo || deviceInfo.pin_code !== currentPin) {
+        return res.status(403).json({ error: { message: 'Invalid current PIN code', type: 'auth_error' } });
+      }
+
+      // Update the PIN
+      await deviceIdManager.database.updateDevicePin(deviceId, newPin);
+
+      // Update in-memory state
+      const deviceData = deviceIdManager.deviceIds.get(deviceId);
+      if (deviceData) {
+        deviceData.pinCode = newPin;
+      }
+
+      console.log(`🔄 PIN changed for device: ${deviceId}`);
+      res.json({ success: true, message: 'PIN changed successfully' });
+    } catch (error) {
+      console.error('Error changing PIN:', error);
+      res.status(500).json({ error: { message: 'Internal server error', type: 'server_error' } });
+    }
+  });
+
+  // Get device info
+  app.get('/:deviceId/info', async (req, res) => {
+    const { deviceId } = req.params;
+
+    if (deviceIdManager.database) {
+      try {
+        const device = await deviceIdManager.database.getDevice(deviceId);
+        if (device) {
+          res.json({
+            deviceId: device.device_id,
+            pinEnabled: device.pin_code !== null && device.pin_code !== '',
+            createdAt: device.created_at,
+            lastSeen: device.last_seen
+          });
+        } else {
+          res.status(404).json({ error: 'Device not found' });
+        }
+      } catch (error) {
+        console.warn('Failed to get device info:', error);
+        res.status(500).json({ error: 'Failed to get device info' });
+      }
+    } else {
+      res.status(500).json({ error: 'Database not available' });
+    }
+  });
+
+  // Authentication helper function
+  async function authenticateDevice(deviceId, authHeader) {
+    // Check if device exists and get PIN status
+    const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+    if (!deviceInfo) {
+      return { authenticated: false, error: 'Device not found' };
+    }
+
+    // If PIN is disabled (null or empty), allow access without authentication
+    if (!deviceInfo.pin_code) {
+      return { authenticated: true };
+    }
+
+    // PIN is enabled, require authentication
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { authenticated: false, error: 'PIN code required. Use Authorization: Bearer <pin-code>' };
+    }
+
+    const providedPin = authHeader.substring(7); // Remove 'Bearer '
+
+    if (deviceInfo.pin_code !== providedPin) {
+      return { authenticated: false, error: 'Invalid PIN code' };
+    }
+
+    return { authenticated: true };
+  }
+
+  // Models handler
+  async function handleModelsRequest(req, res, deviceId) {
+    // Check authentication
+    const authResult = await authenticateDevice(deviceId, req.headers.authorization);
+    if (!authResult.authenticated) {
+      return res.status(401).json({
+        error: {
+          message: authResult.error,
+          type: 'authentication_failed'
+        }
+      });
+    }
+
     res.json({
       object: 'list',
       data: [
@@ -25,27 +218,21 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         }
       ]
     });
-  });
-
-  // Device-specific models endpoint
-  app.get('/device-:deviceId/v1/models', (req, res) => {
-    const { deviceId } = req.params;
-    res.json({
-      object: 'list',
-      data: [
-        {
-          id: `r1-command-${deviceId}`,
-          object: 'model',
-          created: Math.floor(Date.now() / 1000),
-          owned_by: 'r1-api',
-          device_id: deviceId
-        }
-      ]
-    });
-  });
+  }
 
   // Shared handler for chat completions
   async function handleChatCompletion(req, res, targetDeviceId) {
+    // Check authentication
+    const authResult = await authenticateDevice(targetDeviceId, req.headers.authorization);
+    if (!authResult.authenticated) {
+      return res.status(401).json({
+        error: {
+          message: authResult.error,
+          type: 'authentication_failed'
+        }
+      });
+    }
+
     try {
       const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
 
