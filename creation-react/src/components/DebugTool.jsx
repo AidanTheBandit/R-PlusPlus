@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import HardwareDebug from './HardwareDebug'
 import CameraDebug from './CameraDebug'
 import LLMDebug from './LLMDebug'
 import StorageDebug from './StorageDebug'
@@ -10,10 +9,9 @@ import LogsPanel from './LogsPanel'
 import './DebugTool.css'
 
 const DebugTool = ({ r1Sdk, socket, deviceId, isConnected }) => {
-  const [activeTab, setActiveTab] = useState('hardware')
+  const [activeTab, setActiveTab] = useState('camera')
 
   const tabs = [
-    { id: 'hardware', label: 'Hardware', component: HardwareDebug },
     { id: 'camera', label: 'Camera', component: CameraDebug },
     { id: 'llm', label: 'LLM', component: LLMDebug },
     { id: 'storage', label: 'Storage', component: StorageDebug },

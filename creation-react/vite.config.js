@@ -27,6 +27,12 @@ export default defineConfig({
         target: 'http://localhost:5482',
         changeOrigin: true,
         secure: false,
+      },
+      // Proxy all other routes to the backend
+      '^/(?!@|src|node_modules|public)': {
+        target: 'http://localhost:5482',
+        changeOrigin: true,
+        secure: false,
       }
     }
   },

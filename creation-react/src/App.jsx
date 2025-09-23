@@ -9,8 +9,7 @@ function App() {
   const [deviceInfo, setDeviceInfo] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('Initializing...')
   const [consoleLogs, setConsoleLogs] = useState([])
-  const [pinEnabled, setPinEnabled] = useState(true)
-  const [pinCode, setPinCode] = useState(null)
+
   const socketRef = useRef(null)
   const r1CreateRef = useRef(null)
   const consoleRef = useRef(null)
@@ -145,13 +144,16 @@ function App() {
         pinCode: data.pinCode,
         pinEnabled: data.pinEnabled !== false && data.pinCode !== null
       })
-      setPinEnabled(data.pinEnabled !== false && data.pinCode !== null)
-      setPinCode(data.pinCode)
       setConnectionStatus(`Connected - Device: ${data.deviceId}`)
       addConsoleLog(`Connected with device ID: ${data.deviceId}`)
-      if (data.pinCode) {
-        addConsoleLog(`PIN Code: ${data.pinCode} (use as API key)`, 'info')
-      }
+      addConsoleLog(`Received PIN from socket: ${data.pinCode}`, 'info')
+
+      // Automatically refresh device info to get the latest PIN from server
+      setTimeout(() => {
+        if (data.deviceId) {
+          refreshDeviceInfoDirect(data.deviceId)
+        }
+      }, 1000)
     })
 
     // Handle incoming chat completion requests
@@ -280,14 +282,67 @@ function App() {
     connectSocket()
   }
 
+  const refreshDeviceInfoDirect = async (targetDeviceId) => {
+    try {
+      addConsoleLog(`Refreshing device info for: ${targetDeviceId}`, 'info')
+      const response = await fetch(`/${targetDeviceId}/info`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        addConsoleLog(`Device info refreshed: PIN=${data.pinCode}, enabled=${data.pinEnabled}`, 'info')
+        setDeviceInfo({
+          pinCode: data.pinCode,
+          pinEnabled: data.pinEnabled !== false && data.pinCode !== null
+        })
+      } else {
+        addConsoleLog(`Failed to refresh device info: ${response.status}`, 'error')
+      }
+    } catch (error) {
+      addConsoleLog(`Error refreshing device info: ${error.message}`, 'error')
+    }
+  }
+
+  const handleRefreshDeviceInfo = async () => {
+    if (!deviceId) {
+      addConsoleLog('No device connected', 'warn')
+      return
+    }
+    await refreshDeviceInfoDirect(deviceId)
+  }
+
   const handleDisablePin = async () => {
-    if (!deviceId || !deviceInfo?.pinCode) {
-      addConsoleLog('No PIN to disable', 'warn')
+    if (!deviceId) {
+      addConsoleLog('No device ID available', 'error')
       return
     }
 
+    if (!deviceInfo?.pinCode) {
+      addConsoleLog('No PIN available - refreshing device info first', 'warn')
+      await refreshDeviceInfoDirect(deviceId)
+
+      // Check again after refresh
+      if (!deviceInfo?.pinCode) {
+        addConsoleLog('Still no PIN after refresh - cannot disable', 'error')
+        return
+      }
+    }
+
+    addConsoleLog(`=== PIN DISABLE ATTEMPT ===`, 'info')
+    addConsoleLog(`Device ID: ${deviceId}`, 'info')
+    addConsoleLog(`Client PIN: ${deviceInfo.pinCode}`, 'info')
+    addConsoleLog(`PIN Enabled: ${deviceInfo.pinEnabled}`, 'info')
+
     try {
-      const response = await fetch(`/${deviceId}/disable-pin`, {
+      const url = `/${deviceId}/disable-pin`
+      addConsoleLog(`Request URL: ${url}`, 'info')
+      addConsoleLog(`Authorization: Bearer ${deviceInfo.pinCode}`, 'info')
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${deviceInfo.pinCode}`,
@@ -295,16 +350,43 @@ function App() {
         }
       })
 
+      addConsoleLog(`Response: ${response.status} ${response.statusText}`, 'info')
+
       if (response.ok) {
-        setDeviceInfo(prev => ({ ...prev, pinEnabled: false }))
-        setPinEnabled(false)
-        addConsoleLog('PIN disabled successfully', 'info')
+        setDeviceInfo(prev => ({ ...prev, pinEnabled: false, pinCode: null }))
+        addConsoleLog('✅ PIN disabled successfully', 'info')
       } else {
-        const error = await response.json()
-        addConsoleLog(`Failed to disable PIN: ${error.error}`, 'error')
+        const responseText = await response.text()
+        addConsoleLog(`❌ Server response: ${responseText}`, 'error')
+
+        // If auth error, refresh and try once more
+        if (response.status === 401 || response.status === 403) {
+          addConsoleLog('🔄 Auth failed - refreshing PIN and retrying once', 'warn')
+          await refreshDeviceInfoDirect(deviceId)
+
+          // Retry once with fresh PIN
+          if (deviceInfo?.pinCode) {
+            addConsoleLog(`🔄 Retrying with fresh PIN: ${deviceInfo.pinCode}`, 'info')
+            const retryResponse = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${deviceInfo.pinCode}`,
+                'Content-Type': 'application/json'
+              }
+            })
+
+            if (retryResponse.ok) {
+              setDeviceInfo(prev => ({ ...prev, pinEnabled: false, pinCode: null }))
+              addConsoleLog('✅ PIN disabled successfully on retry', 'info')
+            } else {
+              const retryText = await retryResponse.text()
+              addConsoleLog(`❌ Retry also failed: ${retryText}`, 'error')
+            }
+          }
+        }
       }
     } catch (error) {
-      addConsoleLog(`Error disabling PIN: ${error.message}`, 'error')
+      addConsoleLog(`❌ Network error: ${error.message}`, 'error')
     }
   }
 
@@ -330,14 +412,18 @@ function App() {
       })
 
       if (response.ok) {
-        const data = await response.json()
+        await response.json() // consume response
         setDeviceInfo(prev => ({ ...prev, pinEnabled: true, pinCode: newPin }))
-        setPinEnabled(true)
-        setPinCode(newPin)
         addConsoleLog(`PIN enabled successfully: ${newPin}`, 'info')
       } else {
-        const error = await response.json()
-        addConsoleLog(`Failed to enable PIN: ${error.error}`, 'error')
+        let errorMessage = 'Unknown error'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`
+        } catch (parseError) {
+          errorMessage = `HTTP ${response.status} - ${response.statusText}`
+        }
+        addConsoleLog(`Failed to enable PIN: ${errorMessage}`, 'error')
       }
     } catch (error) {
       addConsoleLog(`Error enabling PIN: ${error.message}`, 'error')
@@ -370,11 +456,16 @@ function App() {
 
       if (response.ok) {
         setDeviceInfo(prev => ({ ...prev, pinCode: newPin }))
-        setPinCode(newPin)
         addConsoleLog(`PIN changed successfully: ${newPin}`, 'info')
       } else {
-        const error = await response.json()
-        addConsoleLog(`Failed to change PIN: ${error.error}`, 'error')
+        let errorMessage = 'Unknown error'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`
+        } catch (parseError) {
+          errorMessage = `HTTP ${response.status} - ${response.statusText}`
+        }
+        addConsoleLog(`Failed to change PIN: ${errorMessage}`, 'error')
       }
     } catch (error) {
       addConsoleLog(`Error changing PIN: ${error.message}`, 'error')
@@ -383,7 +474,7 @@ function App() {
 
   // Initialize on mount
   useEffect(() => {
-    addConsoleLog('R1 Creation Console initialized')
+    addConsoleLog('R1 Anywhere Console initialized')
 
     // Override console methods for error logging
     const originalConsoleError = console.error
@@ -424,81 +515,104 @@ function App() {
 
   return (
     <div className="app">
-      <div className="header">
-        <div className="header-top">
-          <h1>R1 Device Console</h1>
-          <div className={`status ${isConnected ? 'connected' : 'disconnected'}`}>
-            {connectionStatus}
+      {/* Top Status Bar */}
+      <div className="status-bar">
+        <div className="status-left">
+          <div className="app-title">
+            <span className="icon">⚡</span>
+            <span>R1 Anywhere</span>
+          </div>
+          <div className={`connection-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+            <div className="pulse"></div>
+            <span>{isConnected ? 'Online' : 'Offline'}</span>
           </div>
         </div>
-        <div className="header-info">
+
+        <div className="status-right">
           {deviceId && (
-            <div className="device-id">
-              Device ID: <code>{deviceId}</code>
+            <div className="device-badge">
+              <span className="device-label">Device</span>
+              <code className="device-code">{deviceId}</code>
             </div>
           )}
-          <div className="pin-controls">
-            {pinEnabled && pinCode && (
-              <div className="pin-info">
-                PIN: <code>{pinCode}</code>
-                <button
-                  className="disable-pin-btn"
-                  onClick={handleDisablePin}
-                  title="Disable PIN authentication"
-                >
-                  ✕
+
+          {deviceInfo?.pinEnabled && deviceInfo?.pinCode && (
+            <div className="pin-badge">
+              <span className="pin-label">PIN</span>
+              <code className="pin-code">{deviceInfo.pinCode}</code>
+              <div className="pin-actions">
+                <button className="pin-action" onClick={handleChangePin} title="Change PIN">
+                  <span>⟲</span>
                 </button>
-                <button
-                  className="change-pin-btn"
-                  onClick={handleChangePin}
-                  title="Change PIN code"
-                >
-                  ⟲
+                <button className="pin-action danger" onClick={handleDisablePin} title="Disable PIN">
+                  <span>✕</span>
                 </button>
               </div>
-            )}
-            {(!pinEnabled || !pinCode) && (
-              <div className="pin-info">
-                <span className="pin-disabled">No PIN</span>
-                <button
-                  className="enable-pin-btn"
-                  onClick={handleEnablePin}
-                  title="Enable PIN authentication"
-                >
-                  +
-                </button>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {(!deviceInfo?.pinEnabled || !deviceInfo?.pinCode) && deviceId && (
+            <button className="enable-pin-btn" onClick={handleEnablePin} title="Enable PIN">
+              <span>🔒</span>
+              <span>Enable PIN</span>
+            </button>
+          )}
+
+          {deviceId && (
+            <button
+              className="refresh-btn"
+              onClick={handleRefreshDeviceInfo}
+              title="Refresh device info"
+            >
+              <span>🔄</span>
+            </button>
+          )}
+
           <button
-            className="reconnect-btn"
+            className={`reconnect-btn ${isConnected ? 'connected' : 'disconnected'}`}
             onClick={handleReconnect}
             disabled={isConnected}
-            title={isConnected ? 'Connected' : 'Reconnect to server'}
+            title={isConnected ? 'Connected' : 'Reconnect'}
           >
-            {isConnected ? '●' : '⟲'}
+            <span>{isConnected ? '●' : '⟲'}</span>
           </button>
         </div>
       </div>
 
-      <div className="console-container">
-        <div className="console-header">
-          <h3>Activity Log</h3>
-          <span className="log-count">{consoleLogs.length} entries</span>
-        </div>
-        <div className="console" ref={consoleRef}>
-          {consoleLogs.map((log, index) => (
-            <div key={index} className={`console-line ${log.type}`}>
-              <span className="timestamp">[{log.timestamp}]</span>
-              <span className="level">{log.type.toUpperCase()}</span>
-              <span className="message">{log.message}</span>
+      {/* Main Content - Activity Log */}
+      <div className="main-content">
+        <div className="console-panel">
+          <div className="console-header">
+            <div className="console-title">
+              <span className="console-icon">📝</span>
+              <span>Activity Log</span>
             </div>
-          ))}
-          {consoleLogs.length === 0 && (
-            <div className="console-placeholder">
-              Waiting for activity...
+            <div className="console-stats">
+              <span className="log-count">{consoleLogs.length}</span>
+              <span className="log-label">entries</span>
             </div>
-          )}
+          </div>
+
+          <div className="console-content" ref={consoleRef}>
+            {consoleLogs.length === 0 ? (
+              <div className="console-empty">
+                <div className="empty-icon">�n</div>
+                <div className="empty-text">Waiting for activity...</div>
+              </div>
+            ) : (
+              consoleLogs.map((log, index) => (
+                <div key={index} className={`console-entry ${log.type}`}>
+                  <div className="entry-time">{log.timestamp}</div>
+                  <div className="entry-level">
+                    <span className={`level-badge ${log.type}`}>
+                      {log.type === 'error' ? '❌' : log.type === 'warn' ? '⚠️' : log.type === 'info' ? 'ℹ️' : '📝'}
+                    </span>
+                  </div>
+                  <div className="entry-message">{log.message}</div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

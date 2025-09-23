@@ -748,7 +748,7 @@ database.init().then(() => {
   server.listen(PORT, () => {
     console.log(`R-API server running on http://localhost:${PORT}`);
     console.log(`Socket.IO server available at /socket.io (WebSocket+polling compatible)`);
-    console.log(`R1 Creation available at http://localhost:${PORT}`);
+    console.log(`R1 Anywhere available at http://localhost:${PORT}`);
     console.log(`Device-specific API at http://localhost:${PORT}/device-{deviceId}/v1/chat/completions`);
     console.log(`Loaded plugins: ${pluginManager.getAllPlugins().join(', ') || 'none'}`);
   });

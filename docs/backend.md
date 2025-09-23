@@ -10,7 +10,7 @@ R-API is a modular Node.js backend that provides an OpenAI-compatible interface 
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   API Clients   │────│   R-API Server  │────│   R1 Devices    │
 │                 │    │                 │    │                 │
-│ • ChatGPT       │    │ • Express API   │    │ • R1 Creation   │
+│ • ChatGPT       │    │ • Express API   │    │ • R1 Anywhere   │
 │ • Custom Apps   │    │ • WebSocket     │    │ • Hardware      │
 │ • OpenAI SDK    │    │ • Plugins       │    │ • Sensors       │
 └─────────────────┘    └─────────────────┘    └─────────────────┘

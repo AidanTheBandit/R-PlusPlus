@@ -5,13 +5,13 @@ Interface with your R1 remotely via WebSocket and a REST API
 R-API provides a bridge between the R1 device and external applications through:
 - **OpenAI-compatible REST API** for sending commands
 - **WebSocket server** for real-time R1 communication
-- **R1 Creation** that runs on the device to connect to the backend
+- **R1 Anywhere** that runs on the device to connect to the backend
 - **Plugin system** for extensibility and custom functionality
 
 ## Features
 - ✅ OpenAI-compatible API endpoints (`/v1/chat/completions`, `/v1/models`)
 - ✅ WebSocket server for bidirectional R1 communication
-- ✅ R1 Creation with React web interface for testing
+- ✅ R1 Anywhere with React web interface for testing
 - ✅ Real-time command forwarding from API to R1 devices
 - ✅ Multi-device support (multiple R1s can connect)
 - ✅ Health monitoring and status reporting
@@ -280,7 +280,7 @@ node src/tests/test-api.js
 1. **Express Server**: REST API endpoints
 2. **Socket.IO Server**: Real-time WebSocket communication
 3. **Plugin System**: Extensible functionality
-4. **R1 Creation**: Device-side web interface
+4. **R1 Anywhere**: Device-side web interface
 5. **Debug Tools**: Monitoring and analytics
 
 ### Data Flow
