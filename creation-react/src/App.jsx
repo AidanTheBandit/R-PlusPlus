@@ -252,31 +252,38 @@ function App() {
 
           // Use R1 SDK LLM API for enhanced creation LLM with journal
           if (wantsR1Response) {
-            // Use askLLMSpeak for voice responses with journal - this returns the response
-            r1CreateRef.current.llm.askLLMSpeak(messageToSend, wantsJournalEntry).then((response) => {
-              addConsoleLog(`📤 R1 LLM askLLMSpeak response received: ${JSON.stringify(response)}`)
-              
-              // Send response via socket
-              if (socketRef.current && socketRef.current.connected) {
-                const currentDeviceId = socketRef.current._deviceId || deviceId
-                const responseData = {
-                  requestId: currentRequestId,
-                  response: response.message || response.content || response || 'No response text',
-                  originalMessage: socketRef.current._originalMessage,
-                  model: 'r1-llm-voice',
-                  timestamp: new Date().toISOString(),
-                  deviceId: currentDeviceId
-                }
+            // Use askLLMSpeak for voice responses with journal
+            r1CreateRef.current.llm.askLLMSpeak(messageToSend, wantsJournalEntry)
+          } else {
+            // Use messaging API for text responses
+            r1CreateRef.current.messaging.sendMessage(messageToSend, {
+              useLLM: useLLM,
+              wantsJournalEntry: wantsJournalEntry,
+              requestId: currentRequestId
+            })
+          }
 
-                addConsoleLog(`📤 Sending askLLMSpeak response: ${JSON.stringify(responseData, null, 2)}`)
-                socketRef.current.emit('response', responseData)
-                addConsoleLog(`📤 Sent R1 askLLMSpeak response via socket: "${responseData.response.substring(0, 50)}..." (requestId: ${currentRequestId})`)
+          // Store the requestId for when we get the response
+          if (currentRequestId) {
+            socketRef.current._pendingRequestId = currentRequestId
+            socketRef.current._originalMessage = data.originalMessage || data.data?.originalMessage
+            addConsoleLog(`📝 Stored pending request: ${currentRequestId}`)
+          }
+
+          addConsoleLog(`📤 Sent message to R1 LLM via ${wantsR1Response ? 'askLLMSpeak' : 'messaging'} API, requestId: ${currentRequestId}`)
+
+          // Send immediate acknowledgment that we received the request
+          socketRef.current.emit('message_received', {
+            requestId: currentRequestId,
+            deviceId: socketRef.current._deviceId,
+            timestamp: new Date().toISOString()
+          }) "${responseData.response.substring(0, 50)}..." (requestId: ${currentRequestId})`)
               }
             }).catch((error) => {
-              addConsoleLog(`❌ Error in askLLMSpeak: ${error.message}`, 'error')
+              addConsoleLog(`❌ Error in askLLMSpeak: ${error?.message || error || 'Unknown error'}`, 'error')
               socketRef.current.emit('error', {
                 requestId: currentRequestId,
-                error: `R1 LLM askLLMSpeak error: ${error.message}`,
+                error: `R1 LLM askLLMSpeak error: ${error?.message || error || 'Unknown error'}`,
                 deviceId: socketRef.current._deviceId
               })
             })
