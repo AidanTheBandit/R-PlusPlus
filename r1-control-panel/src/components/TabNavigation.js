@@ -3,7 +3,12 @@ import React from 'react';
 const TabNavigation = ({ activeTab, onTabChange }) => {
   const tabs = [
     { id: 'chat', label: '💬 Chat', description: 'Chat with your R1 device' },
-    { id: 'mcp', label: '🔌 MCP Servers', description: 'Manage MCP servers for your device' }
+    // { id: 'mcp', label: '🔌 MCP Servers', description: 'Manage MCP servers for your device' }
+  ];
+
+  // Coming soon tabs (disabled)
+  const comingSoonTabs = [
+    { id: 'mcp', label: '🔌 MCP Servers', description: 'Coming Soon - Manage MCP servers for your device' }
   ];
 
   return (
@@ -17,6 +22,16 @@ const TabNavigation = ({ activeTab, onTabChange }) => {
             title={tab.description}
           >
             {tab.label}
+          </button>
+        ))}
+        {comingSoonTabs.map(tab => (
+          <button
+            key={tab.id}
+            className="tab-btn disabled coming-soon"
+            title={tab.description}
+            disabled
+          >
+            {tab.label} <span className="coming-soon-badge">Coming Soon</span>
           </button>
         ))}
       </div>
