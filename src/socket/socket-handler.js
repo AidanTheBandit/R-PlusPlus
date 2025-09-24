@@ -28,12 +28,13 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
 
     // Get or create persistent device ID
     console.log(`🔌 New socket connection: ${socket.id}`);
+    console.log(`🍪 Device secret from cookie: ${deviceSecret ? 'present' : 'none'}`);
     
     const result = await deviceIdManager.registerDevice(socket.id, null, deviceSecret, userAgent, ipAddress, enablePin);
     const { deviceId, pinCode, deviceSecret: newDeviceSecret, isReconnection } = result;
     connectedR1s.set(deviceId, socket);
 
-    console.log(`R1 device connected`);
+    console.log(`R1 device ${isReconnection ? 'reconnected' : 'connected'}`);
     console.log(`Total connected devices: ${connectedR1s.size}`);
 
     // Don't broadcast device connections to prevent device ID leakage
@@ -48,75 +49,60 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
       message: isReconnection ? 'Reconnected to R-API server' : 'Connected to R-API server'
     });
     
-    // Add debugging to track what events we're sending to this device
-    const originalEmit = socket.emit;
-    socket.emit = function(eventName, ...args) {
-      console.log(`📤 EMIT to ${deviceId}: ${eventName}`, args.length > 0 ? JSON.stringify(args[0]).substring(0, 100) + '...' : '');
-      return originalEmit.apply(this, [eventName, ...args]);
-    };
+    // Remove debug logging to prevent device ID leakage
 
     // Handle disconnection
     socket.on('disconnect', () => {
-      console.log(`R1 device disconnected: ${deviceId}, socket: ${socket.id}`);
+      console.log(`R1 device disconnected`);
       connectedR1s.delete(deviceId);
       deviceIdManager.unregisterDevice(socket.id);
 
       // Shutdown MCP servers for this device
       if (mcpManager) {
         mcpManager.shutdownDeviceServers(deviceId).catch(error => {
-          console.error(`Error shutting down MCP servers for ${deviceId}:`, error);
+          console.error(`Error shutting down MCP servers:`, error);
         });
       }
-
-      // Don't broadcast device disconnections to prevent device ID leakage
 
       console.log(`Total connected devices after disconnect: ${connectedR1s.size}`);
     });
 
-    // Debug data streaming handlers - removed broadcasts to prevent device ID leakage
+    // Debug data streaming handlers - store locally only
     socket.on('hardware_event', (data) => {
-      console.log(`Hardware event from ${deviceId}:`, data);
-      // Store locally but don't broadcast to prevent device ID leakage
+      // Store locally but don't log device IDs
     });
 
     socket.on('camera_event', (data) => {
-      console.log(`Camera event from ${deviceId}:`, data);
-      // Store locally but don't broadcast to prevent device ID leakage
+      // Store locally but don't log device IDs
     });
 
     socket.on('llm_event', (data) => {
-      console.log(`LLM event from ${deviceId}:`, data);
-      // Store locally but don't broadcast to prevent device ID leakage
+      // Store locally but don't log device IDs
     });
 
     socket.on('storage_event', (data) => {
-      console.log(`Storage event from ${deviceId}:`, data);
-      // Store locally but don't broadcast to prevent device ID leakage
+      // Store locally but don't log device IDs
     });
 
     socket.on('audio_event', (data) => {
-      console.log(`Audio event from ${deviceId}:`, data);
-      // Store locally but don't broadcast to prevent device ID leakage
+      // Store locally but don't log device IDs
     });
 
     socket.on('performance_event', (data) => {
-      console.log(`Performance event from ${deviceId}:`, data);
-      // Store locally but don't broadcast to prevent device ID leakage
+      // Store locally but don't log device IDs
     });
 
     socket.on('device_event', (data) => {
-      console.log(`Device event from ${deviceId}:`, data);
-      // Store locally but don't broadcast to prevent device ID leakage
+      // Store locally but don't log device IDs
     });
 
     socket.on('client_log', (data) => {
-      console.log(`Client log from ${deviceId}:`, data);
-      // Store locally but don't broadcast to prevent device ID leakage
+      // Store locally but don't log device IDs
     });
 
     // MCP-specific event handlers
     socket.on('mcp_tool_call', async (data) => {
-      console.log(`MCP tool call from ${deviceId}:`, data);
+      console.log(`MCP tool call received`);
       
       if (mcpManager) {
         try {
@@ -137,7 +123,7 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
           
           // Don't broadcast MCP events to prevent device ID leakage
         } catch (error) {
-          console.error(`Error handling MCP tool call from ${deviceId}:`, error);
+          console.error(`Error handling MCP tool call:`, error);
           
           // Send error back to the R1 device
           socket.emit('mcp_tool_result', {
@@ -159,13 +145,12 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
     });
 
     socket.on('mcp_server_status', (data) => {
-      console.log(`MCP server status from ${deviceId}:`, data);
-      // Don't broadcast MCP events to prevent device ID leakage
+      console.log(`MCP server status received`);
     });
 
     socket.on('system_info', (data) => {
-      console.log(`System info from ${deviceId}:`, data);
-      // Store system info for analytics
+      console.log(`System info received`);
+      // Store system info for analytics (without exposing device ID)
       if (!global.systemInfo) global.systemInfo = {};
       global.systemInfo[deviceId] = {
         ...data.systemInfo,
@@ -175,30 +160,19 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
 
     // Handle ping/heartbeat from client
     socket.on('ping', (data) => {
-      console.log(`🏓 Ping from ${deviceId}:`, data);
-      // Respond with pong to keep connection alive
+      // Respond with pong to keep connection alive (without exposing device ID)
       socket.emit('pong', {
         timestamp: Date.now(),
-        deviceId,
         serverTime: new Date().toISOString()
-      });
-      
-      // Since ping/pong works, let's test if we can send other events
-      console.log(`🧪 Ping received, testing if we can send test events to ${deviceId}...`);
-      socket.emit('debug_test', {
-        message: 'Debug test from server after ping',
-        timestamp: Date.now(),
-        deviceId
       });
     });
 
     // Handle test messages for debugging
     socket.on('test_message', (data) => {
-      console.log(`🧪 Test message from ${deviceId}:`, data);
+      console.log(`🧪 Test message received`);
       // Send test event back to verify bidirectional communication
       socket.emit('test_event', {
         message: 'Test response from server',
-        originalData: data,
         timestamp: new Date().toISOString()
       });
     });
@@ -229,76 +203,52 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
 
     // Handle response events from R1 devices
     socket.on('response', (data) => {
-      console.log(`🔄 Socket Response from ${deviceId}:`, JSON.stringify(data, null, 2));
+      console.log(`🔄 Socket Response received`);
 
       const { requestId, response, originalMessage, model, timestamp } = data;
 
       console.log(`Looking for pending request: ${requestId}`);
-      console.log(`Pending requests:`, Array.from(pendingRequests.keys()));
 
-      // If we have a requestId and it matches, use it
+      // Only process responses with valid request IDs to prevent cross-contamination
       if (requestId && pendingRequests.has(requestId)) {
-        console.log(`✅ Found matching request ${requestId}, sending response to client`);
+        console.log(`✅ Found matching request, sending response to client`);
         const { res, timeout, stream } = pendingRequests.get(requestId);
+
+        // Verify this request was actually sent to this device
+        const expectedDeviceId = requestDeviceMap.get(requestId);
+        if (expectedDeviceId !== deviceId) {
+          console.log(`❌ Security violation: Response from wrong device`);
+          return;
+        }
 
         // Clear timeout and remove from pending requests
         clearTimeout(timeout);
         pendingRequests.delete(requestId);
         requestDeviceMap.delete(requestId);
-        console.log(`🗑️ Removed pending request: ${requestId}, remaining: ${pendingRequests.size}`);
+        console.log(`🗑️ Removed pending request, remaining: ${pendingRequests.size}`);
 
         sendOpenAIResponse(res, response, originalMessage, model, stream);
       }
-      // If requestId is null/undefined but we have pending requests, try to match by device
-      else if (!requestId && pendingRequests.size > 0) {
-        console.log(`⚠️ No requestId provided, trying to match by device ${deviceId}`);
-
-        // Find requests that were sent to this device
-        const deviceRequests = Array.from(requestDeviceMap.entries())
-          .filter(([reqId, devId]) => devId === deviceId)
-          .map(([reqId]) => reqId);
-
-        if (deviceRequests.length > 0) {
-          const matchingRequestId = deviceRequests[0]; // Use the first one
-          console.log(`✅ Matched request ${matchingRequestId} by device ${deviceId}`);
-
-          const { res, timeout, stream } = pendingRequests.get(matchingRequestId);
-
-          // Clear timeout and remove from pending requests
-          clearTimeout(timeout);
-          pendingRequests.delete(matchingRequestId);
-          requestDeviceMap.delete(matchingRequestId);
-          console.log(`🗑️ Removed pending request: ${matchingRequestId}, remaining: ${pendingRequests.size}`);
-
-          sendOpenAIResponse(res, response, originalMessage, model, stream);
-        } else {
-          console.log(`❌ No requests found for device ${deviceId}`);
-        }
-      }
-      // If no requestId or it doesn't match, but we have pending requests, use the first one (fallback)
-      else if (pendingRequests.size > 0) {
-        console.log(`⚠️ No matching requestId, using first pending request as fallback`);
-        const [firstRequestId, { res, timeout, stream }] = pendingRequests.entries().next().value;
-
-        // Clear timeout and remove from pending requests
-        clearTimeout(timeout);
-        pendingRequests.delete(firstRequestId);
-        requestDeviceMap.delete(firstRequestId);
-        console.log(`🗑️ Removed pending request (fallback): ${firstRequestId}, remaining: ${pendingRequests.size}`);
-
-        sendOpenAIResponse(res, response, originalMessage, model, stream);
-      } else {
-        console.log(`❌ No pending requests found for response from ${deviceId}`);
+      else {
+        console.log(`❌ No matching requests found for response`);
       }
     });
 
     // Handle error events from R1 devices
     socket.on('error', (data) => {
-      console.error(`Error from ${deviceId}:`, data);
+      console.error(`Error from device:`, data);
 
       const { requestId, error } = data;
 
+      // Only process errors with valid request IDs to prevent cross-contamination
       if (requestId && pendingRequests.has(requestId)) {
+        // Verify this request was actually sent to this device
+        const expectedDeviceId = requestDeviceMap.get(requestId);
+        if (expectedDeviceId !== deviceId) {
+          console.log(`❌ Security violation: Error from wrong device`);
+          return;
+        }
+
         const { res, timeout } = pendingRequests.get(requestId);
 
         // Clear timeout and remove from pending requests
@@ -314,37 +264,11 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
           }
         });
       }
-      // If no requestId, try to match by device
-      else if (!requestId && pendingRequests.size > 0) {
-        const deviceRequests = Array.from(requestDeviceMap.entries())
-          .filter(([reqId, devId]) => devId === deviceId)
-          .map(([reqId]) => reqId);
-
-        if (deviceRequests.length > 0) {
-          const matchingRequestId = deviceRequests[0];
-          console.log(`✅ Matched error for request ${matchingRequestId} by device ${deviceId}`);
-
-          const { res, timeout } = pendingRequests.get(matchingRequestId);
-
-          // Clear timeout and remove from pending requests
-          clearTimeout(timeout);
-          pendingRequests.delete(matchingRequestId);
-          requestDeviceMap.delete(matchingRequestId);
-
-          // Send error response
-          res.status(500).json({
-            error: {
-              message: error || 'Error from R1 device',
-              type: 'r1_error'
-            }
-          });
-        }
-      }
     });
 
     socket.on('disconnect', () => {
       connectedR1s.delete(deviceId);
-      console.log(`R1 device disconnected: ${deviceId}`);
+      console.log(`R1 device disconnected`);
       console.log(`Total connected devices: ${connectedR1s.size}`);
     });
   });

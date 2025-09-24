@@ -102,8 +102,7 @@ class DeviceIdManager {
 
           if (!isCurrentlyConnected) {
             this.persistentIds.set(socketId, existingDevice.device_id);
-            console.log(`🔄 Reconnected device via secret: ${existingDevice.device_id} for socket: ${socketId}`);
-            console.log(`🔍 Device secret: ${deviceSecret.substring(0, 8)}...`);
+            console.log(`🔄 Device reconnected via secret`);
             return { deviceId: existingDevice.device_id, isReconnection: true };
           } else {
             console.log(`⚠️ Device ${existingDevice.device_id} with secret already connected, creating new ID for security`);
@@ -154,12 +153,12 @@ class DeviceIdManager {
     this.deviceIds.set(deviceId, { socketId, connectedAt: new Date().toISOString() });
 
     const newDeviceSecret = this.generateDeviceSecret();
-    console.log(`🆕 Generated NEW device ID: ${deviceId} for socket: ${socketId}`);
+    console.log(`🆕 Generated NEW device ID`);
     
     return { deviceId, deviceSecret: newDeviceSecret, isReconnection: false };
   }  // Register a device connection
   async registerDevice(socketId, deviceId = null, deviceSecret = null, userAgent = null, ipAddress = null, enablePin = true) {
-    console.log(`📱 Registering device for socket: ${socketId}`);
+    console.log(`📱 Registering device`);
 
     let newDeviceSecret = null;
     let isReconnection = false;
