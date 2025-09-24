@@ -64,26 +64,7 @@ function App() {
       return
     }
 
-    // Get existing device secret from cookie before connecting
-    const getDeviceSecret = () => {
-      const cookies = document.cookie.split(';')
-      for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=')
-        if (name === 'r1_device_secret') {
-          return decodeURIComponent(value)
-        }
-      }
-      return null
-    }
-
-    const existingDeviceSecret = getDeviceSecret()
-    if (existingDeviceSecret) {
-      addConsoleLog(`🍪 Found existing device secret: ${existingDeviceSecret.substring(0, 8)}...`, 'info')
-    } else {
-      addConsoleLog(`🍪 No existing device secret found`, 'info')
-    }
-
-    // Socket.IO configuration with cookie support
+    // Socket.IO configuration with automatic cookie sending
     socketRef.current = io('/', {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
@@ -94,10 +75,7 @@ function App() {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       randomizationFactor: 0.5,
-      withCredentials: true, // Enable cookies
-      extraHeaders: existingDeviceSecret ? {
-        'Cookie': `r1_device_secret=${encodeURIComponent(existingDeviceSecret)}`
-      } : {}
+      withCredentials: true // This ensures cookies are sent automatically
     })
 
     // Connection events
@@ -190,9 +168,9 @@ function App() {
         addConsoleLog(`🍪 Device secret cookie set for persistence`, 'info')
       }
       
-      setConnectionStatus(`${data.isReconnection ? 'Reconnected' : 'Connected'} - Device: ${data.deviceId}`)
-      addConsoleLog(`${data.isReconnection ? 'Reconnected' : 'Connected'} with device ID: ${data.deviceId}`)
-      addConsoleLog(`Received PIN from socket: ${data.pinCode}`, 'info')
+      setConnectionStatus(`${data.isReconnection ? 'Reconnected' : 'Connected'} - Device: [HIDDEN]`)
+      addConsoleLog(`${data.isReconnection ? 'Reconnected' : 'Connected'} with device`)
+      addConsoleLog(`Received PIN from socket: ${data.pinCode ? '[HIDDEN]' : 'none'}`, 'info')
       
       if (data.isReconnection) {
         addConsoleLog(`✅ Successfully reconnected using device secret`, 'info')
@@ -211,7 +189,7 @@ function App() {
           })
           // Only log ping occasionally to avoid spam
           if (Math.random() < 0.1) { // 10% chance to log
-            addConsoleLog(`🏓 Ping sent for device: ${socketRef.current._deviceId}`, 'info')
+            addConsoleLog(`🏓 Ping sent`, 'info')
           }
         }
       }, 30000) // Ping every 30 seconds
@@ -230,7 +208,7 @@ function App() {
             timestamp: Date.now(),
             deviceId: socketRef.current._deviceId
           })
-          addConsoleLog(`🏓 Initial ping sent for device: ${socketRef.current._deviceId}`, 'info')
+          addConsoleLog(`🏓 Initial ping sent`, 'info')
 
           // Test if we can receive custom events
           addConsoleLog(`🧪 Testing socket event reception...`, 'info')
@@ -267,7 +245,7 @@ function App() {
           const currentRequestId = data.requestId || data.data?.requestId
           const messageToSend = data.message || data.data?.message
 
-          addConsoleLog(`📤 Processing request ${currentRequestId} for device ${socketRef.current._deviceId}`)
+          addConsoleLog(`📤 Processing request ${currentRequestId}`)
           addConsoleLog(`📤 Message to send: "${messageToSend}"`)
 
           // Use R1 SDK messaging API to send message to LLM
@@ -413,7 +391,7 @@ function App() {
               addConsoleLog(`📤 Sending response data: ${JSON.stringify(responseData, null, 2)}`)
 
               socketRef.current.emit('response', responseData)
-              addConsoleLog(`📤 Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId}, deviceId: ${currentDeviceId})`)
+              addConsoleLog(`📤 Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId})`)
 
               // Clear the pending request data
               socketRef.current._pendingRequestId = null
@@ -458,7 +436,7 @@ function App() {
 
   const refreshDeviceInfoDirect = async (targetDeviceId) => {
     try {
-      addConsoleLog(`Refreshing device info for: ${targetDeviceId}`, 'info')
+      addConsoleLog(`Refreshing device info`, 'info')
       const response = await fetch(`/${targetDeviceId}/info`, {
         method: 'GET',
         headers: {
@@ -496,7 +474,7 @@ function App() {
     }
 
     try {
-      addConsoleLog(`🔍 Checking device status for: ${deviceId}`, 'info')
+      addConsoleLog(`🔍 Checking device status`, 'info')
       const response = await fetch(`/${deviceId}/status`, {
         method: 'GET',
         headers: {
@@ -517,7 +495,7 @@ function App() {
 
   const syncDeviceData = async (targetDeviceId) => {
     try {
-      addConsoleLog(`🔄 Syncing device data for: ${targetDeviceId}`, 'info')
+      addConsoleLog(`🔄 Syncing device data`, 'info')
 
       // Send device sync request to server
       const response = await fetch(`/${targetDeviceId}/sync`, {
@@ -563,7 +541,7 @@ function App() {
     }
 
     try {
-      addConsoleLog(`🧪 Testing chat completion for device: ${deviceId}`, 'info')
+      addConsoleLog(`🧪 Testing chat completion`, 'info')
 
       const testMessage = "Test message from R1 console"
       const response = await fetch('/chat/completions', {
@@ -647,8 +625,8 @@ function App() {
     }
 
     addConsoleLog(`=== PIN DISABLE ATTEMPT ===`, 'info')
-    addConsoleLog(`Device ID: ${deviceId}`, 'info')
-    addConsoleLog(`Client PIN: ${deviceInfo.pinCode}`, 'info')
+    addConsoleLog(`Device ID: [HIDDEN]`, 'info')
+    addConsoleLog(`Client PIN: [HIDDEN]`, 'info')
     addConsoleLog(`PIN Enabled: ${deviceInfo.pinEnabled}`, 'info')
 
     try {

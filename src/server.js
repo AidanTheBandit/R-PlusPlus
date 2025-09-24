@@ -790,7 +790,7 @@ database.init().then(() => {
     console.log(`🎛️  React Control Panel available at http://localhost:${PORT}`);
     console.log(`🔌 MCP Management available at http://localhost:${PORT} (MCP Servers tab)`);
     console.log(`🎨 Creation React UI available at http://localhost:${PORT}/creation`);
-    console.log(`🔗 Device-specific API at http://localhost:${PORT}/{deviceId}/v1/chat/completions`);
+    console.log(`🔗 Device-specific API at http://localhost:${PORT}/[device-id]/v1/chat/completions`);
     console.log(`🔧 Loaded plugins: ${pluginManager.getAllPlugins().join(', ') || 'none'}`);
     console.log(`\n💡 Quick start: npm run all`);
   });
