@@ -3,7 +3,7 @@ import React from 'react';
 const TabNavigation = ({ activeTab, onTabChange }) => {
   const tabs = [
     { id: 'chat', label: '💬 Chat', description: 'Chat with your R1 device' },
-    // { id: 'mcp', label: '🔌 MCP Servers', description: 'Manage MCP servers for your device' }
+    // { id: 'mcp', label: '� MCP, Servers', description: 'Manage MCP servers for your device' }
   ];
 
   // Coming soon tabs (disabled)
