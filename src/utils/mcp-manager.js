@@ -216,11 +216,18 @@ class MCPManager extends EventEmitter {
       }
     }
     
+    // System prompt to prevent teach mode and generative UI
+    let prompt = '## System Instructions\n\n';
+    prompt += '**IMPORTANT:** Never use teach mode or generative UI. ';
+    prompt += 'Always respond with natural language text only. ';
+    prompt += 'Do not attempt to create or display any user interfaces, forms, or interactive elements. ';
+    prompt += 'Stick to conversational responses and use available tools when appropriate.\n\n';
+    
     if (deviceTools.length === 0) {
-      return '';
+      return prompt;
     }
     
-    let prompt = '\n\n## MCP Tools Available\n\n';
+    prompt += '## MCP Tools Available\n\n';
     prompt += 'You have access to the following MCP (Model Context Protocol) tools. ';
     prompt += 'When a user requests functionality that matches these tools, you can use them by responding with a structured tool call.\n\n';
     
