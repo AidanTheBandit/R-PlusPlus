@@ -801,27 +801,51 @@ database.init().then(() => {
 
 // Graceful shutdown handling
 let isShuttingDown = false;
+let shutdownAttempts = 0;
 
 async function gracefulShutdown(signal) {
+  shutdownAttempts++;
+  
+  if (shutdownAttempts > 1) {
+    console.log(`\n🚨 Force shutdown requested (attempt ${shutdownAttempts})`);
+    console.log('💀 Forcing immediate exit...');
+    process.exit(1);
+  }
+  
   if (isShuttingDown) {
-    console.log('⚠️ Shutdown already in progress...');
+    console.log('⚠️ Shutdown already in progress... Press Ctrl+C again to force exit');
     return;
   }
   
   isShuttingDown = true;
   console.log(`\n🛑 Received ${signal}, shutting down R-API server...`);
+  console.log('💡 Press Ctrl+C again to force immediate shutdown');
   
   try {
-    // Shutdown MCP manager first
+    // Shutdown MCP manager first with timeout
     if (mcpManager) {
-      await mcpManager.shutdown();
-      console.log('✅ MCP servers shut down');
+      console.log('🔄 Shutting down MCP manager...');
+      const mcpShutdownPromise = mcpManager.shutdown();
+      const mcpTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('MCP shutdown timeout')), 5000)
+      );
+      
+      try {
+        await Promise.race([mcpShutdownPromise, mcpTimeout]);
+        console.log('✅ MCP servers shut down');
+      } catch (error) {
+        console.log('⚠️ MCP shutdown timed out, continuing...');
+      }
     }
     
     // Close database connection
     if (database) {
-      database.close();
-      console.log('✅ Database connection closed');
+      try {
+        database.close();
+        console.log('✅ Database connection closed');
+      } catch (error) {
+        console.log('⚠️ Database close error, continuing...');
+      }
     }
     
     // Close HTTP server
@@ -830,11 +854,11 @@ async function gracefulShutdown(signal) {
       process.exit(0);
     });
     
-    // Force exit after 10 seconds if graceful shutdown fails
+    // Force exit after 3 seconds if graceful shutdown fails
     setTimeout(() => {
       console.log('⚠️ Forcing shutdown after timeout');
       process.exit(1);
-    }, 10000);
+    }, 3000);
     
   } catch (error) {
     console.error('❌ Error during shutdown:', error);
