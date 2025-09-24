@@ -35,28 +35,34 @@ const ApiDocs = ({ deviceId }) => {
     {
       method: 'POST',
       path: '/magic-cam/stop',
-      description: 'Stop the camera',
+      description: 'Stop the camera on your R1 device',
       example: `curl -X POST "${apiBaseUrl}/magic-cam/stop"`
     },
     {
       method: 'POST',
       path: '/magic-cam/capture',
-      description: 'Capture a photo',
+      description: 'Capture a photo on your R1 device',
       example: `curl -X POST "${apiBaseUrl}/magic-cam/capture" \\
   -H "Content-Type: application/json" \\
   -d '{"width": 240, "height": 282}'`
     },
     {
-      method: 'GET',
-      path: '/health',
-      description: 'Check server health status',
-      example: `curl "${apiBaseUrl}/health"`
+      method: 'POST',
+      path: '/magic-cam/switch',
+      description: 'Switch between front and rear cameras on your R1 device',
+      example: `curl -X POST "${apiBaseUrl}/magic-cam/switch"`
     },
     {
       method: 'GET',
-      path: '/debug/devices',
-      description: 'List connected devices with debug info',
-      example: `curl "${apiBaseUrl}/debug/devices"`
+      path: '/magic-cam/status',
+      description: 'Get camera status for your R1 device',
+      example: `curl "${apiBaseUrl}/magic-cam/status"`
+    },
+    {
+      method: 'GET',
+      path: '/health',
+      description: 'Check server health status',
+      example: `curl "${baseUrl}/health"`
     }
   ];
 
@@ -69,10 +75,10 @@ const ApiDocs = ({ deviceId }) => {
           <code className="url-code">{apiBaseUrl}</code>
         </div>
         <div className="api-auth-notice">
-          <strong>🔐 Authentication:</strong> If you have set a PIN code for your device, use it as your API key in the <code>Authorization: Bearer &lt;your-pin-code&gt;</code> header.
+          <strong>🔐 Authentication Required:</strong> Use your device PIN code in the <code>Authorization: Bearer &lt;your-pin-code&gt;</code> header for all API requests.
         </div>
         <p>
-          Your R1 device is accessible via REST API endpoints. All requests should be made to URLs starting with your device ID.
+          Your R1 device is accessible via secure, device-specific REST API endpoints. All requests are authenticated and scoped to your individual device for maximum security and privacy.
         </p>
       </div>
 
@@ -99,22 +105,22 @@ const ApiDocs = ({ deviceId }) => {
         <h3>API Features</h3>
         <ul>
           <li><strong>OpenAI-Compatible:</strong> Use standard OpenAI chat completion format</li>
-          <li><strong>Camera Control:</strong> Start, stop, capture photos, and switch cameras</li>
+          <li><strong>Device-Specific Camera Control:</strong> Secure camera control limited to your own R1 device</li>
           <li><strong>Real-time Communication:</strong> WebSocket support for live updates</li>
-          <li><strong>Debug Tools:</strong> Monitor device status and debug information</li>
           <li><strong>Health Monitoring:</strong> Check server and device connectivity</li>
+          <li><strong>MCP Integration:</strong> Model Context Protocol support for enhanced AI capabilities</li>
         </ul>
       </div>
 
       <div className="api-notes">
         <h3>Important Notes</h3>
         <ul>
-          <li>Replace <code>{baseUrl}</code> with your actual server URL</li>
-          <li><strong>API Key:</strong> If you have set a PIN code for your device, use it as your API key with <code>Authorization: Bearer &lt;your-pin-code&gt;</code></li>
-          <li>Include <code>Authorization: Bearer &lt;pin-code&gt;</code> header if your device requires authentication</li>
+          <li><strong>Authentication:</strong> Use your device PIN code with <code>Authorization: Bearer &lt;your-pin-code&gt;</code> header</li>
+          <li><strong>Device-Specific:</strong> All endpoints are scoped to your specific R1 device - you can only control your own device</li>
+          <li><strong>Security:</strong> Camera commands and other device controls are isolated per device for privacy</li>
+          <li><strong>Chat Completions:</strong> Support both streaming and non-streaming responses</li>
+          <li><strong>MCP Integration:</strong> Enhanced AI capabilities through Model Context Protocol</li>
           <li>All endpoints return JSON responses</li>
-          <li>Camera commands are sent to all connected R1 devices</li>
-          <li>Chat completions support both streaming and non-streaming responses</li>
         </ul>
       </div>
     </div>
