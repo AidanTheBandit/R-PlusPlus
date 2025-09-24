@@ -44,21 +44,21 @@ class DeviceIdManager {
     let deviceId;
     let attempts = 0;
     const maxAttempts = 100;
-    
+
     do {
       const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
       const noun = nouns[Math.floor(Math.random() * nouns.length)];
       const number = Math.floor(Math.random() * 99) + 1; // 1-99
       deviceId = `${adjective}-${noun}-${number}`;
       attempts++;
-      
+
       if (attempts >= maxAttempts) {
         // Fallback to timestamp-based ID if we can't generate a non-blacklisted one
         deviceId = `device-${Date.now().toString(36)}`;
         break;
       }
     } while (BLACKLISTED_IDS.includes(deviceId));
-    
+
     return deviceId;
   }
 
@@ -67,54 +67,69 @@ class DeviceIdManager {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-    // Get or create a persistent device ID for a socket
-  async getPersistentDeviceId(socketId, userAgent = null, ipAddress = null) {
+  // Generate a secure device secret for cookie-based identification
+  generateDeviceSecret() {
+    // Generate a cryptographically secure random string
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 32; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  // Get or create a persistent device ID using device secret from cookie
+  async getPersistentDeviceId(socketId, deviceSecret = null, userAgent = null, ipAddress = null) {
     // First check if we already have this socket mapped
     if (this.persistentIds.has(socketId)) {
       return this.persistentIds.get(socketId);
     }
 
-    // SECURITY FIX: Only try to reuse device IDs for the EXACT same socket connection
-    // This prevents multiple R1 devices from getting the same ID
-    
-    // If we have database access, ONLY look for devices with the exact same socket ID
-    // that were recently disconnected (within 5 minutes)
-    if (this.database && socketId) {
+    // If device secret is provided, try to find existing device
+    if (this.database && deviceSecret) {
       try {
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        
-        // Only match by exact socket ID and very recent disconnection
-        const existingDevices = await this.database.all(
-          `SELECT * FROM devices WHERE socket_id = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 1`,
-          [socketId, fiveMinutesAgo]
+        // Look for device with matching secret within last 30 days
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        const existingDevice = await this.database.get(
+          `SELECT * FROM devices WHERE device_secret = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 1`,
+          [deviceSecret, thirtyDaysAgo]
         );
 
-        if (existingDevices.length > 0) {
-          const device = existingDevices[0];
-          this.persistentIds.set(socketId, device.device_id);
-          console.log(`🔄 Reusing device ID for same socket: ${device.device_id} for socket: ${socketId}`);
-          return device.device_id;
+        if (existingDevice) {
+          // Check if this device is currently connected to prevent duplicates
+          const isCurrentlyConnected = this.deviceIds.has(existingDevice.device_id);
+
+          if (!isCurrentlyConnected) {
+            this.persistentIds.set(socketId, existingDevice.device_id);
+            console.log(`🔄 Reconnected device via secret: ${existingDevice.device_id} for socket: ${socketId}`);
+            console.log(`🔍 Device secret: ${deviceSecret.substring(0, 8)}...`);
+            return { deviceId: existingDevice.device_id, isReconnection: true };
+          } else {
+            console.log(`⚠️ Device ${existingDevice.device_id} with secret already connected, creating new ID for security`);
+          }
+        } else {
+          console.log(`� No exicsting device found for secret: ${deviceSecret.substring(0, 8)}...`);
         }
 
       } catch (error) {
-        console.warn('Database query for existing device failed:', error);
+        console.warn('Database query for existing device by secret failed:', error);
       }
     }
 
-    // Always generate a new unique ID for new connections
-    // This ensures each R1 device gets its own unique identifier
+    // Generate a new unique ID and secret for new connections
     let deviceId;
     let attempts = 0;
     const maxAttempts = 50;
-    
+
     do {
       deviceId = this.generateDeviceId();
       attempts++;
-      
+
       // Check if this ID is already in use (in memory or database)
       const inMemoryConflict = this.deviceIds.has(deviceId);
       let dbConflict = false;
-      
+
       if (this.database) {
         try {
           const existingDevice = await this.database.getDevice(deviceId);
@@ -123,39 +138,52 @@ class DeviceIdManager {
           // Ignore database errors for ID generation
         }
       }
-      
+
       if (!inMemoryConflict && !dbConflict && !BLACKLISTED_IDS.includes(deviceId)) {
         break; // Found a unique ID
       }
-      
+
       if (attempts >= maxAttempts) {
         // Fallback to timestamp-based ID to guarantee uniqueness
-        deviceId = `device-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
+        deviceId = `device-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
         break;
       }
     } while (true);
-    
+
     this.persistentIds.set(socketId, deviceId);
     this.deviceIds.set(deviceId, { socketId, connectedAt: new Date().toISOString() });
 
-    console.log(`🆕 Generated NEW unique device ID: ${deviceId} for socket: ${socketId}`);
-    return deviceId;
+    const newDeviceSecret = this.generateDeviceSecret();
+    console.log(`🆕 Generated NEW device ID: ${deviceId} for socket: ${socketId}`);
+    
+    return { deviceId, deviceSecret: newDeviceSecret, isReconnection: false };
   }  // Register a device connection
-  async registerDevice(socketId, deviceId = null, userAgent = null, ipAddress = null, enablePin = true) {
-    console.log(`📱 Registering device for socket: ${socketId}, userAgent: ${userAgent?.substring(0, 50)}..., ipAddress: ${ipAddress}`);
+  async registerDevice(socketId, deviceId = null, deviceSecret = null, userAgent = null, ipAddress = null, enablePin = true) {
+    console.log(`📱 Registering device for socket: ${socketId}`);
+
+    let newDeviceSecret = null;
+    let isReconnection = false;
 
     if (!deviceId) {
-      deviceId = await this.getPersistentDeviceId(socketId, userAgent, ipAddress);
-      console.log(`📱 Generated/found deviceId: ${deviceId} for socket: ${socketId}`);
+      const result = await this.getPersistentDeviceId(socketId, deviceSecret, userAgent, ipAddress);
+      if (typeof result === 'object') {
+        deviceId = result.deviceId;
+        newDeviceSecret = result.deviceSecret;
+        isReconnection = result.isReconnection;
+      } else {
+        // Backward compatibility
+        deviceId = result;
+      }
+      console.log(`📱 ${isReconnection ? 'Reconnected' : 'Generated'} deviceId: ${deviceId} for socket: ${socketId}`);
     }
-    
+
     // CRITICAL FIX: Always update the deviceIds map for chat completion lookup
     this.persistentIds.set(socketId, deviceId);
-    this.deviceIds.set(deviceId, { 
-      socketId, 
+    this.deviceIds.set(deviceId, {
+      socketId,
       connectedAt: new Date().toISOString(),
       userAgent,
-      ipAddress 
+      ipAddress
     });
     console.log(`📱 Updated deviceIds map: ${deviceId} for socket: ${socketId}`)
 
@@ -194,9 +222,10 @@ class DeviceIdManager {
           );
           console.log(`📱 Updated existing device: ${deviceId}`);
         } else {
-          // Insert new device
-          await this.database.saveDevice(deviceId, socketId, userAgent, ipAddress, pinCode);
-          console.log(`📱 Created new device: ${deviceId}`);
+          // Insert new device with device secret
+          const secretToSave = newDeviceSecret || deviceSecret;
+          await this.database.saveDeviceWithSecret(deviceId, socketId, userAgent, ipAddress, pinCode, secretToSave);
+          console.log(`📱 Created new device: ${deviceId} with secret`);
         }
       } catch (error) {
         console.warn('Failed to save device to database:', error);
@@ -205,7 +234,12 @@ class DeviceIdManager {
 
     const pinMessage = pinCode ? `, PIN: ${pinCode}` : ', PIN disabled';
     console.log(`📱 Device registered: ${deviceId} (socket: ${socketId}${pinMessage})`);
-    return { deviceId, pinCode };
+    return { 
+      deviceId, 
+      pinCode, 
+      deviceSecret: newDeviceSecret, 
+      isReconnection 
+    };
   }
 
   // Unregister a device (on disconnect)
@@ -253,46 +287,74 @@ class DeviceIdManager {
     }
   }
 
+  // Debug method to check device reconnection potential by secret
+  async checkDeviceReconnectionPotential(deviceSecret) {
+    if (!this.database) return { canReconnect: false, reason: 'No database' };
+    if (!deviceSecret) return { canReconnect: false, reason: 'No device secret provided' };
+
+    try {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const existingDevice = await this.database.get(
+        `SELECT * FROM devices WHERE device_secret = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 1`,
+        [deviceSecret, thirtyDaysAgo]
+      );
+
+      if (existingDevice) {
+        return {
+          canReconnect: true,
+          deviceId: existingDevice.device_id,
+          lastSeen: existingDevice.last_seen,
+          currentlyConnected: this.deviceIds.has(existingDevice.device_id)
+        };
+      }
+
+      return { canReconnect: false, reason: 'No matching device found' };
+
+    } catch (error) {
+      return { canReconnect: false, reason: error.message };
+    }
+  }
+
   // EMERGENCY: Force regenerate device IDs for all currently connected devices
   // This fixes the security issue where multiple R1s have the same ID
   async forceRegenerateAllDeviceIds() {
     console.log('🚨 EMERGENCY: Force regenerating all device IDs to fix security issue');
-    
+
     const oldMappings = new Map(this.deviceIds);
     const oldPersistentMappings = new Map(this.persistentIds);
-    
+
     // Clear all current mappings
     this.deviceIds.clear();
     this.persistentIds.clear();
-    
+
     let regeneratedCount = 0;
-    
+
     for (const [oldDeviceId, deviceInfo] of oldMappings) {
       const { socketId, userAgent, ipAddress } = deviceInfo;
-      
+
       // Generate a completely new unique device ID
       let newDeviceId;
       let attempts = 0;
       const maxAttempts = 50;
-      
+
       do {
         newDeviceId = this.generateDeviceId();
         attempts++;
-        
+
         // Ensure it's not in use and not the same as the old one
         const inUse = this.deviceIds.has(newDeviceId) || oldMappings.has(newDeviceId);
         const isBlacklisted = BLACKLISTED_IDS.includes(newDeviceId);
-        
+
         if (!inUse && !isBlacklisted && newDeviceId !== oldDeviceId) {
           break;
         }
-        
+
         if (attempts >= maxAttempts) {
           newDeviceId = `device-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
           break;
         }
       } while (true);
-      
+
       // Update mappings with new ID
       this.deviceIds.set(newDeviceId, {
         ...deviceInfo,
@@ -300,7 +362,7 @@ class DeviceIdManager {
         regeneratedAt: new Date().toISOString()
       });
       this.persistentIds.set(socketId, newDeviceId);
-      
+
       // Update database if available
       if (this.database) {
         try {
@@ -311,11 +373,11 @@ class DeviceIdManager {
           console.warn(`Failed to update database for ${newDeviceId}:`, error);
         }
       }
-      
+
       regeneratedCount++;
       console.log(`🆕 Regenerated: ${oldDeviceId} → ${newDeviceId} (socket: ${socketId})`);
     }
-    
+
     console.log(`✅ Emergency regeneration complete: ${regeneratedCount} device IDs regenerated`);
     return regeneratedCount;
   }

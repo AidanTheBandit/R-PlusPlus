@@ -142,11 +142,18 @@ class DatabaseManager {
       // Check if pin_code column exists, add it if not
       const tableInfo = await this.all("PRAGMA table_info(devices)");
       const hasPinCode = tableInfo.some(column => column.name === 'pin_code');
+      const hasDeviceSecret = tableInfo.some(column => column.name === 'device_secret');
 
       if (!hasPinCode) {
         console.log('Adding pin_code column to devices table...');
         await this.run(`ALTER TABLE devices ADD COLUMN pin_code TEXT`);
         console.log('pin_code column added successfully');
+      }
+
+      if (!hasDeviceSecret) {
+        console.log('Adding device_secret column to devices table...');
+        await this.run(`ALTER TABLE devices ADD COLUMN device_secret TEXT`);
+        console.log('device_secret column added successfully');
       }
     } catch (error) {
       console.warn('Migration check failed:', error);
@@ -199,6 +206,14 @@ class DatabaseManager {
       VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
     `;
     await this.run(sql, [deviceId, socketId, userAgent, ipAddress, pinCode]);
+  }
+
+  async saveDeviceWithSecret(deviceId, socketId = null, userAgent = null, ipAddress = null, pinCode = null, deviceSecret = null) {
+    const sql = `
+      INSERT OR REPLACE INTO devices (device_id, socket_id, last_seen, user_agent, ip_address, pin_code, device_secret)
+      VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
+    `;
+    await this.run(sql, [deviceId, socketId, userAgent, ipAddress, pinCode, deviceSecret]);
   }
 
   async updateDevicePin(deviceId, pinCode) {

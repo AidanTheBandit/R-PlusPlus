@@ -64,7 +64,26 @@ function App() {
       return
     }
 
-    // Socket.IO configuration
+    // Get existing device secret from cookie before connecting
+    const getDeviceSecret = () => {
+      const cookies = document.cookie.split(';')
+      for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=')
+        if (name === 'r1_device_secret') {
+          return decodeURIComponent(value)
+        }
+      }
+      return null
+    }
+
+    const existingDeviceSecret = getDeviceSecret()
+    if (existingDeviceSecret) {
+      addConsoleLog(`🍪 Found existing device secret: ${existingDeviceSecret.substring(0, 8)}...`, 'info')
+    } else {
+      addConsoleLog(`🍪 No existing device secret found`, 'info')
+    }
+
+    // Socket.IO configuration with cookie support
     socketRef.current = io('/', {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
@@ -74,7 +93,11 @@ function App() {
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      randomizationFactor: 0.5
+      randomizationFactor: 0.5,
+      withCredentials: true, // Enable cookies
+      extraHeaders: existingDeviceSecret ? {
+        'Cookie': `r1_device_secret=${encodeURIComponent(existingDeviceSecret)}`
+      } : {}
     })
 
     // Connection events
@@ -145,24 +168,7 @@ function App() {
       addConsoleLog(`🧪 Received test_from_server event: ${JSON.stringify(data)}`, 'info')
     })
 
-    // Store original on method for debugging but don't override it
-    const originalOn = socketRef.current.on
 
-    // Add a catch-all event listener to see ALL events
-    socketRef.current.onAny((eventName, ...args) => {
-      if (eventName === 'chat_completion') {
-        addConsoleLog(`🚨 CATCH-ALL: chat_completion event detected!`, 'info')
-      }
-      // Log ALL events for debugging (but not pong to avoid spam)
-      if (eventName !== 'pong') {
-        addConsoleLog(`🔍 CATCH-ALL: Event '${eventName}' received`, 'info')
-        if (args.length > 0) {
-          addConsoleLog(`🔍 CATCH-ALL: Event '${eventName}' with args: ${JSON.stringify(args).substring(0, 200)}...`, 'info')
-        }
-      }
-    })
-
-    // Remove the manual test listener that was interfering
 
     // Application events
     socketRef.current.on('connected', (data) => {
@@ -174,9 +180,23 @@ function App() {
         pinCode: data.pinCode,
         pinEnabled: data.pinEnabled !== false && data.pinCode !== null
       })
-      setConnectionStatus(`Connected - Device: ${data.deviceId}`)
-      addConsoleLog(`Connected with device ID: ${data.deviceId}`)
+      
+      // Handle device secret cookie for persistence
+      if (data.deviceSecret && !data.isReconnection) {
+        // Set cookie for new devices (expires in 30 days)
+        const expiryDate = new Date()
+        expiryDate.setDate(expiryDate.getDate() + 30)
+        document.cookie = `r1_device_secret=${encodeURIComponent(data.deviceSecret)}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict`
+        addConsoleLog(`🍪 Device secret cookie set for persistence`, 'info')
+      }
+      
+      setConnectionStatus(`${data.isReconnection ? 'Reconnected' : 'Connected'} - Device: ${data.deviceId}`)
+      addConsoleLog(`${data.isReconnection ? 'Reconnected' : 'Connected'} with device ID: ${data.deviceId}`)
       addConsoleLog(`Received PIN from socket: ${data.pinCode}`, 'info')
+      
+      if (data.isReconnection) {
+        addConsoleLog(`✅ Successfully reconnected using device secret`, 'info')
+      }
 
       // Set up heartbeat/ping mechanism with the actual device ID
       if (socketRef.current._heartbeatInterval) {
@@ -319,19 +339,9 @@ function App() {
       addConsoleLog(`📢 Server notification: ${JSON.stringify(data)}`, 'info')
     })
 
-    // Handle device connection/disconnection broadcasts
-    socketRef.current.on('device_connected', (data) => {
-      addConsoleLog(`📱 Device connected: ${data.deviceId}`)
-    })
+    // Device connection/disconnection events removed to prevent device ID leakage
 
-    socketRef.current.on('device_disconnected', (data) => {
-      addConsoleLog(`📱 Device disconnected: ${data.deviceId}`)
-    })
-
-    // Handle debug data broadcasts
-    socketRef.current.on('debug_data', (data) => {
-      addConsoleLog(`🔍 ${data.type}: ${JSON.stringify(data.data).substring(0, 100)}...`)
-    })
+    // Debug data broadcasts removed to prevent device ID leakage
   }
 
   // Initialize R1 SDK

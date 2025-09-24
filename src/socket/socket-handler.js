@@ -15,28 +15,37 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
     // Get client info for device identification
     const userAgent = socket.handshake.headers['user-agent'];
     const ipAddress = socket.handshake.address || socket.request.connection.remoteAddress;
+    
+    // Extract device secret from cookie
+    const cookies = socket.handshake.headers.cookie;
+    let deviceSecret = null;
+    if (cookies) {
+      const cookieMatch = cookies.match(/r1_device_secret=([^;]+)/);
+      if (cookieMatch) {
+        deviceSecret = decodeURIComponent(cookieMatch[1]);
+      }
+    }
 
     // Get or create persistent device ID
-    console.log(`🔌 New socket connection: ${socket.id}, userAgent: ${userAgent?.substring(0, 50)}..., ipAddress: ${ipAddress}`);
-    const { deviceId, pinCode } = await deviceIdManager.registerDevice(socket.id, null, userAgent, ipAddress, enablePin);
+    console.log(`🔌 New socket connection: ${socket.id}`);
+    
+    const result = await deviceIdManager.registerDevice(socket.id, null, deviceSecret, userAgent, ipAddress, enablePin);
+    const { deviceId, pinCode, deviceSecret: newDeviceSecret, isReconnection } = result;
     connectedR1s.set(deviceId, socket);
 
-    console.log(`R1 device connected: ${deviceId}`);
+    console.log(`R1 device connected`);
     console.log(`Total connected devices: ${connectedR1s.size}`);
 
-    // Broadcast device connection to all clients
-    socket.broadcast.emit('device_connected', {
-      deviceId: deviceId,
-      userAgent: socket.handshake.headers['user-agent'],
-      connectedAt: new Date().toISOString()
-    });
+    // Don't broadcast device connections to prevent device ID leakage
 
-    // Send welcome message with device ID and PIN code
+    // Send welcome message with device ID, PIN code, and device secret for cookie
     socket.emit('connected', {
       deviceId: deviceId,
       pinCode: pinCode,
       pinEnabled: pinCode !== null,
-      message: 'Connected to R-API server'
+      deviceSecret: newDeviceSecret, // Only sent for new devices
+      isReconnection: isReconnection,
+      message: isReconnection ? 'Reconnected to R-API server' : 'Connected to R-API server'
     });
     
     // Add debugging to track what events we're sending to this device
@@ -59,95 +68,50 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
         });
       }
 
-      // Broadcast device disconnection to all clients
-      socket.broadcast.emit('device_disconnected', {
-        deviceId: deviceId,
-        disconnectedAt: new Date().toISOString()
-      });
+      // Don't broadcast device disconnections to prevent device ID leakage
 
       console.log(`Total connected devices after disconnect: ${connectedR1s.size}`);
     });
 
-    // Debug data streaming handlers
+    // Debug data streaming handlers - removed broadcasts to prevent device ID leakage
     socket.on('hardware_event', (data) => {
       console.log(`Hardware event from ${deviceId}:`, data);
-      // Broadcast to all connected clients (including web clients)
-      socket.broadcast.emit('debug_data', {
-        type: 'hardware',
-        deviceId: data.deviceId,
-        data: data.event,
-        timestamp: new Date().toISOString()
-      });
+      // Store locally but don't broadcast to prevent device ID leakage
     });
 
     socket.on('camera_event', (data) => {
       console.log(`Camera event from ${deviceId}:`, data);
-      socket.broadcast.emit('debug_data', {
-        type: 'camera',
-        deviceId: data.deviceId,
-        data: data.event,
-        timestamp: new Date().toISOString()
-      });
+      // Store locally but don't broadcast to prevent device ID leakage
     });
 
     socket.on('llm_event', (data) => {
       console.log(`LLM event from ${deviceId}:`, data);
-      socket.broadcast.emit('debug_data', {
-        type: 'llm',
-        deviceId: data.deviceId,
-        data: data.event,
-        timestamp: new Date().toISOString()
-      });
+      // Store locally but don't broadcast to prevent device ID leakage
     });
 
     socket.on('storage_event', (data) => {
       console.log(`Storage event from ${deviceId}:`, data);
-      socket.broadcast.emit('debug_data', {
-        type: 'storage',
-        deviceId: data.deviceId,
-        data: data.event,
-        timestamp: new Date().toISOString()
-      });
+      // Store locally but don't broadcast to prevent device ID leakage
     });
 
     socket.on('audio_event', (data) => {
       console.log(`Audio event from ${deviceId}:`, data);
-      socket.broadcast.emit('debug_data', {
-        type: 'audio',
-        deviceId: data.deviceId,
-        data: data.event,
-        timestamp: new Date().toISOString()
-      });
+      // Store locally but don't broadcast to prevent device ID leakage
     });
 
     socket.on('performance_event', (data) => {
       console.log(`Performance event from ${deviceId}:`, data);
-      socket.broadcast.emit('debug_data', {
-        type: 'performance',
-        deviceId: data.deviceId,
-        data: data.event,
-        timestamp: new Date().toISOString()
-      });
+      // Store locally but don't broadcast to prevent device ID leakage
     });
 
     socket.on('device_event', (data) => {
       console.log(`Device event from ${deviceId}:`, data);
-      socket.broadcast.emit('debug_data', {
-        type: 'device',
-        deviceId: data.deviceId,
-        data: data.event,
-        timestamp: new Date().toISOString()
-      });
+      // Store locally but don't broadcast to prevent device ID leakage
     });
 
     socket.on('client_log', (data) => {
       console.log(`Client log from ${deviceId}:`, data);
-      socket.broadcast.emit('debug_data', {
-        type: 'logs',
-        deviceId: data.deviceId,
-        data: data.log,
-        timestamp: new Date().toISOString()
-      });
+      // Store locally but don't broadcast to prevent device ID leakage
     });
 
     // MCP-specific event handlers
@@ -171,15 +135,7 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
             timestamp: new Date().toISOString()
           });
           
-          // Broadcast tool call event
-          socket.broadcast.emit('mcp_event', {
-            type: 'tool_call',
-            deviceId,
-            serverName,
-            toolName,
-            result,
-            timestamp: new Date().toISOString()
-          });
+          // Don't broadcast MCP events to prevent device ID leakage
         } catch (error) {
           console.error(`Error handling MCP tool call from ${deviceId}:`, error);
           
@@ -204,12 +160,7 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
 
     socket.on('mcp_server_status', (data) => {
       console.log(`MCP server status from ${deviceId}:`, data);
-      socket.broadcast.emit('mcp_event', {
-        type: 'server_status',
-        deviceId,
-        data,
-        timestamp: new Date().toISOString()
-      });
+      // Don't broadcast MCP events to prevent device ID leakage
     });
 
     socket.on('system_info', (data) => {
