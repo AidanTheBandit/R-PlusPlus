@@ -91,7 +91,7 @@ const DeviceLogin = ({
                     <QRCode 
                         value={JSON.stringify({
                             title: "R1 Anywhere",
-                            url: "https://r1a.boondit.site",
+                            url: "https://r1a.boondit.site/creation",
                             description: "Use R1 anywhere",
                             iconUrl: "https://boondit.site/icons/r1a.png",
                             themeColor: "#ff61f2"
