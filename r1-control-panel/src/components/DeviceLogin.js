@@ -89,8 +89,14 @@ const DeviceLogin = ({
                 <div className="qr-section">
                     <h4>Add R1 Creation to R1</h4>
                     <QRCode 
-                        value="https://r1a.boondit.site"
-                        size={128}
+                        value={JSON.stringify({
+                            title: "R1 Anywhere",
+                            url: "https://r1a.boondit.site",
+                            description: "Use R1 anywhere",
+                            iconUrl: "https://boondit.site/icons/r1a.png",
+                            themeColor: "#ff61f2"
+                        })}
+                        size={200}
                         fgColor="#ebdbb2"
                         bgColor="#282828"
                         level="M"
