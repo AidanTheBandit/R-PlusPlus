@@ -373,17 +373,8 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     try {
       const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
 
-      // Check if there are already pending requests (device can only handle one at a time)
-      if (pendingRequests.size > 0) {
-        console.log(`⚠️ Device is busy with ${pendingRequests.size} pending requests, rejecting new request`);
-        res.status(429).json({
-          error: {
-            message: 'R1 device is currently processing another request. Please wait a moment and try again.',
-            type: 'device_busy'
-          }
-        });
-        return;
-      }
+      // Allow multiple concurrent requests - removed the busy check
+      console.log(`📊 Current pending requests: ${pendingRequests.size}`);
 
       // Extract the latest user message
       const userMessage = messages[messages.length - 1]?.content || '';
@@ -475,13 +466,26 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
             console.log(`📤 Sending to device ${targetDeviceId}:`, JSON.stringify(command, null, 2));
             console.log(`📤 Socket object:`, { id: socket.id, connected: socket.connected });
             
-            // Add callback to verify emit worked
-            socket.emit('chat_completion', command, (ack) => {
-              console.log(`📤 Emit callback received:`, ack);
+            // First, test with a simple event to verify socket works
+            console.log(`🧪 Testing socket with simple event first...`);
+            socket.emit('test_from_server', { 
+              message: 'Server test before chat_completion', 
+              timestamp: Date.now(),
+              deviceId: targetDeviceId
             });
             
-            // Also try emitting a test event to verify socket works
-            socket.emit('test_from_server', { message: 'Server test', timestamp: Date.now() });
+            // Add a small delay then emit chat_completion
+            setTimeout(() => {
+              console.log(`📤 Now emitting chat_completion event...`);
+              socket.emit('chat_completion', command, (ack) => {
+                console.log(`📤 Chat completion emit callback received:`, ack);
+              });
+              
+              // Also try emitting with different event name to test
+              console.log(`🧪 Also trying alternative event name...`);
+              socket.emit('chat_request', command);
+              socket.emit('completion_request', command);
+            }, 100);
             
             requestDeviceMap.set(requestId, targetDeviceId);
             responsesSent++;

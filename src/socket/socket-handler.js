@@ -38,6 +38,13 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
       pinEnabled: pinCode !== null,
       message: 'Connected to R-API server'
     });
+    
+    // Add debugging to track what events we're sending to this device
+    const originalEmit = socket.emit;
+    socket.emit = function(eventName, ...args) {
+      console.log(`📤 EMIT to ${deviceId}: ${eventName}`, args.length > 0 ? JSON.stringify(args[0]).substring(0, 100) + '...' : '');
+      return originalEmit.apply(this, [eventName, ...args]);
+    };
 
     // Handle disconnection
     socket.on('disconnect', () => {
@@ -223,6 +230,14 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
         timestamp: Date.now(),
         deviceId,
         serverTime: new Date().toISOString()
+      });
+      
+      // Since ping/pong works, let's test if we can send other events
+      console.log(`🧪 Ping received, testing if we can send test events to ${deviceId}...`);
+      socket.emit('debug_test', {
+        message: 'Debug test from server after ping',
+        timestamp: Date.now(),
+        deviceId
       });
     });
 
