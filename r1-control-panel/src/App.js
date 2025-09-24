@@ -3,6 +3,7 @@ import io from 'socket.io-client';
 import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
+import Apps from './components/Apps';
 // import MCPManager from './components/MCPManager'; // Coming soon
 import './App.css';
 
@@ -140,6 +141,11 @@ function App() {
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="tab-content">
           {renderActiveTab()}
+        </div>
+        
+        {/* Global Apps Footer */}
+        <div className="global-footer">
+          <Apps />
         </div>
       </div>
     </div>
