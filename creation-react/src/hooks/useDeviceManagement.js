@@ -336,9 +336,6 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
 
   return {
     handleRefreshDeviceInfo,
-    checkDeviceStatus,
-    syncDeviceData,
-    testChatCompletion,
     handleDisablePin,
     handleEnablePin,
     handleChangePin
