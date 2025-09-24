@@ -5,13 +5,10 @@ function StatusBar({
   deviceId,
   deviceInfo,
   onRefreshDeviceInfo,
-  onCheckDeviceStatus,
-  onTestChatCompletion,
   onReconnect,
   onChangePin,
   onDisablePin,
-  onEnablePin,
-  onSocketTest
+  onEnablePin
 }) {
   return (
     <div className="status-bar">
@@ -63,36 +60,6 @@ function StatusBar({
             title="Refresh device info"
           >
             <span>🔄</span>
-          </button>
-        )}
-
-        {deviceId && (
-          <button
-            className="status-btn"
-            onClick={onCheckDeviceStatus}
-            title="Check device status"
-          >
-            <span>📊</span>
-          </button>
-        )}
-
-        {deviceId && (
-          <button
-            className="test-btn"
-            onClick={onTestChatCompletion}
-            title="Test chat completion"
-          >
-            <span>🧪</span>
-          </button>
-        )}
-
-        {deviceId && (
-          <button
-            className="socket-test-btn"
-            onClick={onSocketTest}
-            title="Test socket communication"
-          >
-            <span>📡</span>
           </button>
         )}
 
