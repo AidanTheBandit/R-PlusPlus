@@ -236,6 +236,9 @@ function App() {
 
       const currentRequestId = data.requestId || data.data?.requestId
       const messageToSend = data.message || data.data?.message
+      const useLLM = data.useLLM !== undefined ? data.useLLM : (data.data?.useLLM !== undefined ? data.data.useLLM : true)
+      const wantsR1Response = data.wantsR1Response !== undefined ? data.wantsR1Response : (data.data?.wantsR1Response !== undefined ? data.data.wantsR1Response : false)
+      const wantsJournalEntry = true // Always save to journal as per requirements
 
 
 
@@ -247,10 +250,13 @@ function App() {
 
           addConsoleLog(`📤 Processing request ${currentRequestId}`)
           addConsoleLog(`📤 Message to send: "${messageToSend}"`)
+          addConsoleLog(`📤 Options: useLLM=${useLLM}, wantsR1Response=${wantsR1Response}, wantsJournalEntry=${wantsJournalEntry}`)
 
           // Use R1 SDK messaging API to send message to LLM
           r1CreateRef.current.messaging.sendMessage(messageToSend, {
-            useLLM: true,
+            useLLM: useLLM,
+            wantsR1Response: wantsR1Response,
+            wantsJournalEntry: wantsJournalEntry,
             requestId: currentRequestId
           })
 
