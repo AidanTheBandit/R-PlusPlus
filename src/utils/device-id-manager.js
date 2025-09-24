@@ -74,63 +74,26 @@ class DeviceIdManager {
       return this.persistentIds.get(socketId);
     }
 
-    // If we have database access, try to find an existing device for this connection
-    if (this.database && (userAgent || ipAddress)) {
+    // SECURITY FIX: Only try to reuse device IDs for the EXACT same socket connection
+    // This prevents multiple R1 devices from getting the same ID
+    
+    // If we have database access, ONLY look for devices with the exact same socket ID
+    // that were recently disconnected (within 5 minutes)
+    if (this.database && socketId) {
       try {
-        // Look for existing devices with matching criteria
-        // Use a broader time window (24 hours instead of 2 hours)
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        
+        // Only match by exact socket ID and very recent disconnection
+        const existingDevices = await this.database.all(
+          `SELECT * FROM devices WHERE socket_id = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 1`,
+          [socketId, fiveMinutesAgo]
+        );
 
-        let existingDevices = [];
-
-        // Try to match by IP address first (most reliable for device identification)
-        if (ipAddress) {
-          existingDevices = await this.database.all(
-            `SELECT * FROM devices WHERE ip_address = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 5`,
-            [ipAddress, oneDayAgo]
-          );
-
-          if (existingDevices.length > 0) {
-            const device = existingDevices[0];
-            this.persistentIds.set(socketId, device.device_id);
-            console.log(`🔄 Reusing device ID by IP match: ${device.device_id} for socket: ${socketId}`);
-            return device.device_id;
-          }
-        }
-
-        // If no IP match, try user agent (less reliable but still useful)
-        if (userAgent) {
-          existingDevices = await this.database.all(
-            `SELECT * FROM devices WHERE user_agent = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 3`,
-            [userAgent, oneDayAgo]
-          );
-
-          if (existingDevices.length > 0) {
-            const device = existingDevices[0];
-            this.persistentIds.set(socketId, device.device_id);
-            console.log(`🔄 Reusing device ID by user agent match: ${device.device_id} for socket: ${socketId}`);
-            return device.device_id;
-          }
-        }
-
-        // As a last resort, look for any recently connected device from the same IP range
-        // (useful for devices behind NAT that change IP slightly)
-        if (ipAddress) {
-          const ipParts = ipAddress.split('.');
-          if (ipParts.length === 4) {
-            const ipPrefix = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`; // First 3 octets
-            existingDevices = await this.database.all(
-              `SELECT * FROM devices WHERE ip_address LIKE ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 3`,
-              [`${ipPrefix}.%`, oneDayAgo]
-            );
-
-            if (existingDevices.length > 0) {
-              const device = existingDevices[0];
-              this.persistentIds.set(socketId, device.device_id);
-              console.log(`🔄 Reusing device ID by IP range match: ${device.device_id} for socket: ${socketId}`);
-              return device.device_id;
-            }
-          }
+        if (existingDevices.length > 0) {
+          const device = existingDevices[0];
+          this.persistentIds.set(socketId, device.device_id);
+          console.log(`🔄 Reusing device ID for same socket: ${device.device_id} for socket: ${socketId}`);
+          return device.device_id;
         }
 
       } catch (error) {
@@ -138,12 +101,44 @@ class DeviceIdManager {
       }
     }
 
-    // Generate a new ID and store it
-    const deviceId = this.generateDeviceId();
+    // Always generate a new unique ID for new connections
+    // This ensures each R1 device gets its own unique identifier
+    let deviceId;
+    let attempts = 0;
+    const maxAttempts = 50;
+    
+    do {
+      deviceId = this.generateDeviceId();
+      attempts++;
+      
+      // Check if this ID is already in use (in memory or database)
+      const inMemoryConflict = this.deviceIds.has(deviceId);
+      let dbConflict = false;
+      
+      if (this.database) {
+        try {
+          const existingDevice = await this.database.getDevice(deviceId);
+          dbConflict = !!existingDevice;
+        } catch (error) {
+          // Ignore database errors for ID generation
+        }
+      }
+      
+      if (!inMemoryConflict && !dbConflict && !BLACKLISTED_IDS.includes(deviceId)) {
+        break; // Found a unique ID
+      }
+      
+      if (attempts >= maxAttempts) {
+        // Fallback to timestamp-based ID to guarantee uniqueness
+        deviceId = `device-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
+        break;
+      }
+    } while (true);
+    
     this.persistentIds.set(socketId, deviceId);
     this.deviceIds.set(deviceId, { socketId, connectedAt: new Date().toISOString() });
 
-    console.log(`🔄 Generated new device ID: ${deviceId} for socket: ${socketId}`);
+    console.log(`🆕 Generated NEW unique device ID: ${deviceId} for socket: ${socketId}`);
     return deviceId;
   }  // Register a device connection
   async registerDevice(socketId, deviceId = null, userAgent = null, ipAddress = null, enablePin = true) {
@@ -256,6 +251,73 @@ class DeviceIdManager {
       console.warn('Failed to get device info from database:', error);
       return null;
     }
+  }
+
+  // EMERGENCY: Force regenerate device IDs for all currently connected devices
+  // This fixes the security issue where multiple R1s have the same ID
+  async forceRegenerateAllDeviceIds() {
+    console.log('🚨 EMERGENCY: Force regenerating all device IDs to fix security issue');
+    
+    const oldMappings = new Map(this.deviceIds);
+    const oldPersistentMappings = new Map(this.persistentIds);
+    
+    // Clear all current mappings
+    this.deviceIds.clear();
+    this.persistentIds.clear();
+    
+    let regeneratedCount = 0;
+    
+    for (const [oldDeviceId, deviceInfo] of oldMappings) {
+      const { socketId, userAgent, ipAddress } = deviceInfo;
+      
+      // Generate a completely new unique device ID
+      let newDeviceId;
+      let attempts = 0;
+      const maxAttempts = 50;
+      
+      do {
+        newDeviceId = this.generateDeviceId();
+        attempts++;
+        
+        // Ensure it's not in use and not the same as the old one
+        const inUse = this.deviceIds.has(newDeviceId) || oldMappings.has(newDeviceId);
+        const isBlacklisted = BLACKLISTED_IDS.includes(newDeviceId);
+        
+        if (!inUse && !isBlacklisted && newDeviceId !== oldDeviceId) {
+          break;
+        }
+        
+        if (attempts >= maxAttempts) {
+          newDeviceId = `device-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
+          break;
+        }
+      } while (true);
+      
+      // Update mappings with new ID
+      this.deviceIds.set(newDeviceId, {
+        ...deviceInfo,
+        regeneratedFrom: oldDeviceId,
+        regeneratedAt: new Date().toISOString()
+      });
+      this.persistentIds.set(socketId, newDeviceId);
+      
+      // Update database if available
+      if (this.database) {
+        try {
+          // Create new device entry
+          await this.database.saveDevice(newDeviceId, socketId, userAgent, ipAddress, null);
+          console.log(`🔄 Database: Created new device ${newDeviceId} (was ${oldDeviceId})`);
+        } catch (error) {
+          console.warn(`Failed to update database for ${newDeviceId}:`, error);
+        }
+      }
+      
+      regeneratedCount++;
+      console.log(`🆕 Regenerated: ${oldDeviceId} → ${newDeviceId} (socket: ${socketId})`);
+    }
+    
+    console.log(`✅ Emergency regeneration complete: ${regeneratedCount} device IDs regenerated`);
+    return regeneratedCount;
   }
 
   // Clean up old persistent IDs (optional - call periodically)
