@@ -214,6 +214,17 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
       });
     });
 
+    // Handle test messages for debugging
+    socket.on('test_message', (data) => {
+      console.log(`🧪 Test message from ${deviceId}:`, data);
+      // Send test event back to verify bidirectional communication
+      socket.emit('test_event', {
+        message: 'Test response from server',
+        originalData: data,
+        timestamp: new Date().toISOString()
+      });
+    });
+
     socket.on('message', (data) => {
       try {
         const message = JSON.parse(data);
