@@ -140,17 +140,42 @@ function App() {
       addConsoleLog(`🧪 Received test event: ${JSON.stringify(data)}`, 'info')
     })
 
+    // Test event from server
+    socketRef.current.on('test_from_server', (data) => {
+      addConsoleLog(`🧪 Received test_from_server event: ${JSON.stringify(data)}`, 'info')
+    })
+
     // Add debugging for all socket events
     const originalOn = socketRef.current.on
-    socketRef.current.on = function(event, handler) {
+    socketRef.current.on = function (event, handler) {
       const wrappedHandler = (...args) => {
-        if (event !== 'pong' && Math.random() < 0.3) { // Log 30% of non-pong events to avoid spam
-          addConsoleLog(`🔍 Socket event '${event}' received with data: ${JSON.stringify(args[0]).substring(0, 100)}...`, 'info')
+        // Always log chat_completion events, and sample others
+        if (event === 'chat_completion' || (event !== 'pong' && Math.random() < 0.3)) {
+          addConsoleLog(`🔍 Socket event '${event}' received with data: ${JSON.stringify(args[0]).substring(0, 200)}...`, 'info')
         }
         return handler(...args)
       }
       return originalOn.call(this, event, wrappedHandler)
     }
+
+    // Add a catch-all event listener to see ALL events
+    socketRef.current.onAny((eventName, ...args) => {
+      if (eventName === 'chat_completion') {
+        addConsoleLog(`🚨 CATCH-ALL: chat_completion event detected!`, 'info')
+      }
+      // Log ALL events for debugging
+      addConsoleLog(`🔍 CATCH-ALL: Event '${eventName}' received`, 'info')
+      if (eventName !== 'pong') {
+        addConsoleLog(`🔍 CATCH-ALL: Event '${eventName}' with args: ${JSON.stringify(args).substring(0, 200)}...`, 'info')
+      }
+    })
+
+    // Add a manual test listener
+    addConsoleLog(`🧪 Setting up manual test for chat_completion events`, 'info')
+    socketRef.current.addEventListener = socketRef.current.on
+    socketRef.current.addEventListener('chat_completion', (data) => {
+      addConsoleLog(`🧪 MANUAL LISTENER: chat_completion received!`, 'info')
+    })
 
     // Application events
     socketRef.current.on('connected', (data) => {
@@ -199,6 +224,14 @@ function App() {
             deviceId: socketRef.current._deviceId
           })
           addConsoleLog(`🏓 Initial ping sent for device: ${socketRef.current._deviceId}`, 'info')
+
+          // Test if we can receive custom events
+          addConsoleLog(`🧪 Testing socket event reception...`, 'info')
+          socketRef.current.emit('test_message', {
+            deviceId: socketRef.current._deviceId,
+            message: 'Testing socket bidirectional communication',
+            timestamp: new Date().toISOString()
+          })
         }
       }, 2000)
 
@@ -213,28 +246,14 @@ function App() {
 
     // Handle incoming chat completion requests
     socketRef.current.on('chat_completion', (data) => {
+      addConsoleLog(`�🚨H🚨 CHAT COMPLETION EVENT RECEIVED! 🚨🚨🚨`, 'info')
       addConsoleLog(`📥 Received chat completion request: ${data.message?.substring(0, 50)}...`)
       addConsoleLog(`📥 Full request data: ${JSON.stringify(data, null, 2)}`)
-      
-      // Always send a mock response for now to test the flow
-      addConsoleLog('🧪 Sending mock response to test socket communication', 'info')
-      
-      const mockResponse = `Mock response to: "${data.message || data.data?.message}"`
+
       const currentRequestId = data.requestId || data.data?.requestId
-      
-      setTimeout(() => {
-        if (socketRef.current && socketRef.current.connected) {
-          socketRef.current.emit('response', {
-            requestId: currentRequestId,
-            response: mockResponse,
-            originalMessage: data.originalMessage || data.data?.originalMessage,
-            model: 'r1-mock',
-            timestamp: new Date().toISOString(),
-            deviceId: socketRef.current._deviceId
-          })
-          addConsoleLog(`📤 Sent mock response: "${mockResponse}"`)
-        }
-      }, 1000) // 1 second delay to simulate processing
+      const messageToSend = data.message || data.data?.message
+
+
 
       if (r1CreateRef.current && r1CreateRef.current.messaging) {
         try {
@@ -259,14 +278,14 @@ function App() {
           }
 
           addConsoleLog(`📤 Sent message to R1 LLM via messaging API, requestId: ${currentRequestId}`)
-          
+
           // Send immediate acknowledgment that we received the request
           socketRef.current.emit('message_received', {
             requestId: currentRequestId,
             deviceId: socketRef.current._deviceId,
             timestamp: new Date().toISOString()
           })
-          
+
         } catch (error) {
           addConsoleLog(`R1 SDK messaging error: ${error.message}`, 'error')
           addConsoleLog(`R1 SDK error stack: ${error.stack}`, 'error')
@@ -278,25 +297,17 @@ function App() {
           sendErrorToServer('error', `R1 SDK messaging failed: ${error.message}`)
         }
       } else {
-        addConsoleLog('R1 SDK messaging not available - sending mock response for testing', 'warn')
-        
-        // Send a mock response for testing when R1 SDK is not available
-        const mockResponse = `Mock response to: "${data.message || data.data?.message}"`
-        const currentRequestId = data.requestId || data.data?.requestId
-        
-        setTimeout(() => {
-          if (socketRef.current && socketRef.current.connected) {
-            socketRef.current.emit('response', {
-              requestId: currentRequestId,
-              response: mockResponse,
-              originalMessage: data.originalMessage || data.data?.originalMessage,
-              model: 'r1-mock',
-              timestamp: new Date().toISOString(),
-              deviceId: socketRef.current._deviceId
-            })
-            addConsoleLog(`📤 Sent mock response: "${mockResponse}"`)
-          }
-        }, 1000) // 1 second delay to simulate processing
+        addConsoleLog('❌ R1 SDK messaging not available - cannot process chat completion', 'error')
+
+        // Send error response when R1 SDK is not available
+        if (socketRef.current && socketRef.current.connected) {
+          socketRef.current.emit('error', {
+            requestId: currentRequestId,
+            error: 'R1 SDK messaging not available - this app must run on R1 device',
+            deviceId: socketRef.current._deviceId
+          })
+          addConsoleLog(`❌ Sent error response: R1 SDK not available`)
+        }
       }
     })
 
@@ -327,10 +338,14 @@ function App() {
   // Initialize R1 SDK
   useEffect(() => {
     try {
+      addConsoleLog('🔍 Checking R1 SDK availability...', 'info')
+      addConsoleLog(`🔍 r1 object exists: ${!!r1}`, 'info')
+      addConsoleLog(`🔍 r1.messaging exists: ${!!(r1 && r1.messaging)}`, 'info')
+
       // Check if R1 SDK is available
       if (r1 && r1.messaging) {
         r1CreateRef.current = r1
-        addConsoleLog('R1 SDK available')
+        addConsoleLog('✅ R1 SDK available and initialized', 'info')
 
         // Check what APIs are available
         const availableAPIs = []
@@ -342,48 +357,79 @@ function App() {
         if (r1.microphone) availableAPIs.push('microphone')
         if (r1.speaker) availableAPIs.push('speaker')
 
-        addConsoleLog(`Available R1 APIs: ${availableAPIs.join(', ')}`)
+        addConsoleLog(`� Ava1ilable R1 APIs: ${availableAPIs.join(', ')}`, 'info')
+
+        // Test the messaging API
+        try {
+          addConsoleLog('🧪 Testing R1 messaging API...', 'info')
+          // Just check if the methods exist
+          if (typeof r1.messaging.sendMessage === 'function') {
+            addConsoleLog('✅ r1.messaging.sendMessage is available', 'info')
+          } else {
+            addConsoleLog('❌ r1.messaging.sendMessage is not a function', 'error')
+          }
+
+          if (typeof r1.messaging.onMessage === 'function') {
+            addConsoleLog('✅ r1.messaging.onMessage is available', 'info')
+          } else {
+            addConsoleLog('❌ r1.messaging.onMessage is not a function', 'error')
+          }
+        } catch (testError) {
+          addConsoleLog(`❌ Error testing R1 messaging API: ${testError.message}`, 'error')
+        }
 
         // Set up message handler for LLM responses
-        r1.messaging.onMessage((response) => {
-          addConsoleLog(`📤 R1 SDK message received: ${JSON.stringify(response, null, 2)}`)
+        try {
+          r1.messaging.onMessage((response) => {
+            addConsoleLog(`📤 R1 SDK message received: ${JSON.stringify(response, null, 2)}`)
 
-          // The R1 responds with {"message":"text"}, so extract the response text
-          const responseText = response.message || response.content || response || 'No response text'
+            // The R1 responds with {"message":"text"}, so extract the response text
+            const responseText = response.message || response.content || response || 'No response text'
 
-          addConsoleLog(`📤 Extracted response text: "${responseText}"`)
-          addConsoleLog(`📤 Current pending request ID: ${socketRef.current._pendingRequestId}`)
+            addConsoleLog(`📤 Extracted response text: "${responseText}"`)
+            addConsoleLog(`📤 Current pending request ID: ${socketRef.current._pendingRequestId}`)
 
-          // Send response via socket (server will handle requestId matching)
-          if (socketRef.current && socketRef.current.connected) {
-            const currentDeviceId = socketRef.current._deviceId || deviceId
-            const responseData = {
-              requestId: socketRef.current._pendingRequestId,
-              response: responseText,
-              originalMessage: socketRef.current._originalMessage,
-              model: 'r1-llm',
-              timestamp: new Date().toISOString(),
-              deviceId: currentDeviceId
+            // Send response via socket (server will handle requestId matching)
+            if (socketRef.current && socketRef.current.connected) {
+              const currentDeviceId = socketRef.current._deviceId || deviceId
+              const responseData = {
+                requestId: socketRef.current._pendingRequestId,
+                response: responseText,
+                originalMessage: socketRef.current._originalMessage,
+                model: 'r1-llm',
+                timestamp: new Date().toISOString(),
+                deviceId: currentDeviceId
+              }
+
+              addConsoleLog(`📤 Sending response data: ${JSON.stringify(responseData, null, 2)}`)
+
+              socketRef.current.emit('response', responseData)
+              addConsoleLog(`📤 Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId}, deviceId: ${currentDeviceId})`)
+
+              // Clear the pending request data
+              socketRef.current._pendingRequestId = null
+              socketRef.current._originalMessage = null
+            } else {
+              addConsoleLog('Socket not connected, cannot send response', 'error')
             }
-            
-            addConsoleLog(`📤 Sending response data: ${JSON.stringify(responseData, null, 2)}`)
-            
-            socketRef.current.emit('response', responseData)
-            addConsoleLog(`📤 Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId}, deviceId: ${currentDeviceId})`)
-
-            // Clear the pending request data
-            socketRef.current._pendingRequestId = null
-            socketRef.current._originalMessage = null
-          } else {
-            addConsoleLog('Socket not connected, cannot send response', 'error')
-          }
-        })
+          })
+          addConsoleLog('✅ R1 messaging onMessage handler set up', 'info')
+        } catch (handlerError) {
+          addConsoleLog(`❌ Error setting up R1 message handler: ${handlerError.message}`, 'error')
+        }
       } else {
-        addConsoleLog('R1 SDK messaging not available - this app must run on R1 device', 'error')
-        console.error('r1 object:', r1)
+        addConsoleLog('❌ R1 SDK messaging not available - this app must run on R1 device', 'error')
+        addConsoleLog(`🔍 r1 object details: ${JSON.stringify(r1, null, 2)}`, 'info')
+
+        // Check if we're in a browser environment that doesn't have R1 SDK
+        if (typeof window !== 'undefined' && !window.r1) {
+          addConsoleLog('💡 This appears to be running in a browser without R1 SDK', 'info')
+          addConsoleLog('💡 For testing, you can use the mock response mode', 'info')
+        }
       }
     } catch (error) {
-      addConsoleLog(`R1 SDK initialization error: ${error.message}`, 'error')
+      addConsoleLog(`❌ R1 SDK initialization error: ${error.message}`, 'error')
+      addConsoleLog(`❌ Error stack: ${error.stack}`, 'error')
       console.error('R1 SDK initialization error details:', error)
     }
 

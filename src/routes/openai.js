@@ -179,6 +179,57 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     }
   });
 
+  // Test endpoint to manually send chat completion to device
+  app.post('/:deviceId/test-chat', async (req, res) => {
+    const { deviceId } = req.params;
+    const { message = 'Test message from server' } = req.body;
+
+    console.log(`🧪 Manual test chat for device: ${deviceId}`);
+    
+    // Check if device is connected
+    if (!deviceIdManager.hasDevice(deviceId)) {
+      return res.status(404).json({ error: 'Device not connected in deviceIdManager' });
+    }
+
+    if (!connectedR1s.has(deviceId)) {
+      return res.status(404).json({ error: 'Device not connected in connectedR1s' });
+    }
+
+    const socket = connectedR1s.get(deviceId);
+    if (!socket) {
+      return res.status(404).json({ error: 'No socket found for device' });
+    }
+
+    const testCommand = {
+      type: 'chat_completion',
+      data: {
+        message,
+        originalMessage: message,
+        model: 'r1-test',
+        requestId: `test-${Date.now()}`,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    console.log(`🧪 Sending test command to ${deviceId}:`, JSON.stringify(testCommand, null, 2));
+    console.log(`🧪 Socket details:`, { id: socket.id, connected: socket.connected });
+    
+    try {
+      socket.emit('chat_completion', testCommand);
+      console.log(`✅ Test command sent successfully to ${deviceId}`);
+      res.json({ 
+        success: true, 
+        message: 'Test chat completion sent',
+        deviceId,
+        socketId: socket.id,
+        command: testCommand
+      });
+    } catch (error) {
+      console.error(`❌ Error sending test command:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Device sync endpoint to resolve PIN mismatches
   app.post('/:deviceId/sync', async (req, res) => {
     const { deviceId } = req.params;
@@ -414,7 +465,16 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           const socket = connectedR1s.get(targetDeviceId);
           if (socket) {
             console.log(`📤 Sending to device ${targetDeviceId}:`, JSON.stringify(command, null, 2));
-            socket.emit('chat_completion', command);
+            console.log(`📤 Socket object:`, { id: socket.id, connected: socket.connected });
+            
+            // Add callback to verify emit worked
+            socket.emit('chat_completion', command, (ack) => {
+              console.log(`📤 Emit callback received:`, ack);
+            });
+            
+            // Also try emitting a test event to verify socket works
+            socket.emit('test_from_server', { message: 'Server test', timestamp: Date.now() });
+            
             requestDeviceMap.set(requestId, targetDeviceId);
             responsesSent++;
             console.log(`📊 Sent request ${requestId} to specific device: ${targetDeviceId}`);
@@ -431,6 +491,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
             const socket = connectedR1s.get(targetDeviceId);
             if (socket) {
               console.log(`📤 Fallback sending to device ${targetDeviceId}:`, JSON.stringify(command, null, 2));
+              console.log(`📤 Fallback socket object:`, { id: socket.id, connected: socket.connected });
               socket.emit('chat_completion', command);
               requestDeviceMap.set(requestId, targetDeviceId);
               responsesSent++;
