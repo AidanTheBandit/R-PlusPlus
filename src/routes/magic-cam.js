@@ -1,22 +1,26 @@
 function setupMagicCamRoutes(app, connectedR1s) {
-  // Magic Cam control endpoints
+  // Magic Cam control endpoints - Device-specific
 
-  app.post('/magic-cam/start', (req, res) => {
+  app.post('/:deviceId/magic-cam/start', (req, res) => {
     try {
+      const { deviceId } = req.params;
       const { facingMode = 'user' } = req.body;
 
-      console.log(`Starting magic cam with facing mode: ${facingMode}`);
+      console.log(`Starting magic cam for device ${deviceId} with facing mode: ${facingMode}`);
 
-      // Broadcast camera start command to all R1 devices
-      connectedR1s.forEach((socket, deviceId) => {
-        socket.emit('magic_cam_start', { facingMode });
-      });
+      // Send camera start command to specific R1 device only
+      const socket = connectedR1s.get(deviceId);
+      if (!socket) {
+        return res.status(404).json({ error: 'Device not connected' });
+      }
+
+      socket.emit('magic_cam_start', { facingMode });
 
       res.json({
         status: 'command_sent',
         command: 'start',
         facingMode,
-        devices: connectedR1s.size
+        deviceId
       });
     } catch (error) {
       console.error('Error starting magic cam:', error);
@@ -24,19 +28,24 @@ function setupMagicCamRoutes(app, connectedR1s) {
     }
   });
 
-  app.post('/magic-cam/stop', (req, res) => {
+  app.post('/:deviceId/magic-cam/stop', (req, res) => {
     try {
-      console.log('Stopping magic cam');
+      const { deviceId } = req.params;
 
-      // Broadcast camera stop command to all R1 devices
-      connectedR1s.forEach((socket, deviceId) => {
-        socket.emit('magic_cam_stop', {});
-      });
+      console.log(`Stopping magic cam for device ${deviceId}`);
+
+      // Send camera stop command to specific R1 device only
+      const socket = connectedR1s.get(deviceId);
+      if (!socket) {
+        return res.status(404).json({ error: 'Device not connected' });
+      }
+
+      socket.emit('magic_cam_stop', {});
 
       res.json({
         status: 'command_sent',
         command: 'stop',
-        devices: connectedR1s.size
+        deviceId
       });
     } catch (error) {
       console.error('Error stopping magic cam:', error);
@@ -44,22 +53,26 @@ function setupMagicCamRoutes(app, connectedR1s) {
     }
   });
 
-  app.post('/magic-cam/capture', (req, res) => {
+  app.post('/:deviceId/magic-cam/capture', (req, res) => {
     try {
+      const { deviceId } = req.params;
       const { width = 240, height = 282 } = req.body;
 
-      console.log(`Capturing photo with dimensions: ${width}x${height}`);
+      console.log(`Capturing photo for device ${deviceId} with dimensions: ${width}x${height}`);
 
-      // Broadcast photo capture command to all R1 devices
-      connectedR1s.forEach((socket, deviceId) => {
-        socket.emit('magic_cam_capture', { width, height });
-      });
+      // Send photo capture command to specific R1 device only
+      const socket = connectedR1s.get(deviceId);
+      if (!socket) {
+        return res.status(404).json({ error: 'Device not connected' });
+      }
+
+      socket.emit('magic_cam_capture', { width, height });
 
       res.json({
         status: 'command_sent',
         command: 'capture',
         dimensions: `${width}x${height}`,
-        devices: connectedR1s.size
+        deviceId
       });
     } catch (error) {
       console.error('Error capturing photo:', error);
@@ -67,19 +80,24 @@ function setupMagicCamRoutes(app, connectedR1s) {
     }
   });
 
-  app.post('/magic-cam/switch', (req, res) => {
+  app.post('/:deviceId/magic-cam/switch', (req, res) => {
     try {
-      console.log('Switching magic cam');
+      const { deviceId } = req.params;
 
-      // Broadcast camera switch command to all R1 devices
-      connectedR1s.forEach((socket, deviceId) => {
-        socket.emit('magic_cam_switch', {});
-      });
+      console.log(`Switching magic cam for device ${deviceId}`);
+
+      // Send camera switch command to specific R1 device only
+      const socket = connectedR1s.get(deviceId);
+      if (!socket) {
+        return res.status(404).json({ error: 'Device not connected' });
+      }
+
+      socket.emit('magic_cam_switch', {});
 
       res.json({
         status: 'command_sent',
         command: 'switch',
-        devices: connectedR1s.size
+        deviceId
       });
     } catch (error) {
       console.error('Error switching magic cam:', error);
@@ -87,10 +105,15 @@ function setupMagicCamRoutes(app, connectedR1s) {
     }
   });
 
-  app.get('/magic-cam/status', (req, res) => {
+  app.get('/:deviceId/magic-cam/status', (req, res) => {
     try {
+      const { deviceId } = req.params;
+
+      const isConnected = connectedR1s.has(deviceId);
+
       res.json({
-        connectedDevices: connectedR1s.size,
+        deviceId,
+        connected: isConnected,
         cameraCommands: ['start', 'stop', 'capture', 'switch'],
         supportedFacingModes: ['user', 'environment']
       });

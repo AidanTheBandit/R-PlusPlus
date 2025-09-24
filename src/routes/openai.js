@@ -333,6 +333,20 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     }
 
     try {
+      // Debug: Check if req.body exists
+      if (!req.body) {
+        console.error('req.body is undefined in handleChatCompletion');
+        console.error('req.headers:', req.headers);
+        console.error('req.method:', req.method);
+        console.error('req.url:', req.url);
+        return res.status(400).json({
+          error: {
+            message: 'Request body is required',
+            type: 'validation_error'
+          }
+        });
+      }
+
       const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
 
       // Allow multiple concurrent requests - removed the busy check

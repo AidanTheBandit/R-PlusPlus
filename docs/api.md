@@ -86,11 +86,13 @@ Lists available models.
 }
 ```
 
-## Camera Control Endpoints
+## Camera Control Endpoints (Device-Specific)
 
-### POST /magic-cam/start
+### POST /{deviceId}/magic-cam/start
 
-Starts the camera on connected R1 devices.
+Starts the camera on a specific R1 device.
+
+**Authentication:** Required (device PIN)
 
 **Request Body:**
 ```json
@@ -108,26 +110,30 @@ Starts the camera on connected R1 devices.
   "status": "command_sent",
   "command": "start",
   "facingMode": "user",
-  "devices": 2
+  "deviceId": "your-device-id"
 }
 ```
 
-### POST /magic-cam/stop
+### POST /{deviceId}/magic-cam/stop
 
-Stops the camera.
+Stops the camera on a specific R1 device.
+
+**Authentication:** Required (device PIN)
 
 **Response:**
 ```json
 {
   "status": "command_sent",
   "command": "stop",
-  "devices": 2
+  "deviceId": "your-device-id"
 }
 ```
 
-### POST /magic-cam/capture
+### POST /{deviceId}/magic-cam/capture
 
-Captures a photo.
+Captures a photo on a specific R1 device.
+
+**Authentication:** Required (device PIN)
 
 **Request Body:**
 ```json
@@ -143,31 +149,36 @@ Captures a photo.
   "status": "command_sent",
   "command": "capture",
   "dimensions": "240x282",
-  "devices": 2
+  "deviceId": "your-device-id"
 }
 ```
 
-### POST /magic-cam/switch
+### POST /{deviceId}/magic-cam/switch
 
-Switches between front and rear cameras.
+Switches between front and rear cameras on a specific R1 device.
+
+**Authentication:** Required (device PIN)
 
 **Response:**
 ```json
 {
   "status": "command_sent",
   "command": "switch",
-  "devices": 2
+  "deviceId": "your-device-id"
 }
 ```
 
-### GET /magic-cam/status
+### GET /{deviceId}/magic-cam/status
 
-Gets camera status.
+Gets camera status for a specific R1 device.
+
+**Authentication:** Required (device PIN)
 
 **Response:**
 ```json
 {
-  "connectedDevices": 2,
+  "deviceId": "your-device-id",
+  "connected": true,
   "cameraCommands": ["start", "stop", "capture", "switch"],
   "supportedFacingModes": ["user", "environment"]
 }

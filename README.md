@@ -27,6 +27,10 @@ R-API provides a bridge between the R1 device and external applications through:
 - `PORT`: Server port (default: 5482)
 - `DISABLE_PIN`: Set to `true` to disable PIN code authentication (default: false)
 
+### Hosted Service
+
+This R-API instance is hosted at `https://r1a.boondit.site`. All endpoints are available at this base URL.
+
 ### Disabling PIN Codes
 
 By default, each R1 device gets a unique 6-digit PIN code that must be used for API authentication. To disable PIN authentication:
@@ -50,7 +54,7 @@ R1 devices are automatically assigned persistent IDs based on their user agent a
 When PIN codes are enabled (default), include the PIN code in API requests:
 
 ```bash
-curl -X POST http://localhost:5482/device-red-fox-42/v1/chat/completions \
+curl -X POST https://r1a.boondit.site/device-red-fox-42/v1/chat/completions \
   -H "Authorization: Bearer 123456" \
   -H "Content-Type: application/json" \
   -d '{
@@ -94,21 +98,16 @@ Authorization: Bearer {pin-code}  # Required unless DISABLE_PIN=true
 GET /health
 ```
 
-### Camera Control
+### Camera Control (Device-Specific)
 ```http
-POST /magic-cam/start
-POST /magic-cam/stop
-POST /magic-cam/capture
-POST /magic-cam/switch
-GET /magic-cam/status
+POST /{deviceId}/magic-cam/start
+POST /{deviceId}/magic-cam/stop
+POST /{deviceId}/magic-cam/capture
+POST /{deviceId}/magic-cam/switch
+GET /{deviceId}/magic-cam/status
 ```
 
-### Debug & Analytics
-```http
-GET /debug/devices
-GET /debug/history/:deviceId
-POST /debug/stream/:type
-```
+**Note:** Camera commands are now device-specific and require authentication. Only the device owner can control their camera.
 
 ### MCP (Model Context Protocol)
 ```http
@@ -128,7 +127,7 @@ GET /mcp/templates
 ### Connect to WebSocket
 ```javascript
 import io from 'socket.io-client';
-const socket = io('http://localhost:5482');
+const socket = io('https://r1a.boondit.site');
 ```
 
 ### Message Types
@@ -219,7 +218,7 @@ This will:
 3. Build the r1-control-panel interface  
 4. Start the R-API server
 
-Then visit `http://localhost:5482` for the secure, device-specific control panel with MCP management.
+Then visit `https://r1a.boondit.site` for the secure, device-specific control panel with MCP management.
 
 **Note**: The control panel now requires device authentication - enter your R1 device ID and PIN to access your device securely.
 
@@ -231,7 +230,7 @@ import openai
 
 # Replace 'your-device-id' and 'your-pin-code' with actual values
 client = openai.OpenAI(
-    base_url="http://localhost:5482/device-your-device-id/v1",
+    base_url="https://r1a.boondit.site/device-your-device-id/v1",
     api_key="your-pin-code"  # PIN code as API key
 )
 
@@ -247,7 +246,7 @@ response = client.chat.completions.create(
 ### Direct HTTP Request
 ```bash
 # Replace 'your-device-id' and '123456' with actual values
-curl -X POST http://localhost:5482/device-your-device-id/v1/chat/completions \
+curl -X POST https://r1a.boondit.site/device-your-device-id/v1/chat/completions \
   -H "Authorization: Bearer 123456" \
   -H "Content-Type: application/json" \
   -d '{
