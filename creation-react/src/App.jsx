@@ -145,18 +145,8 @@ function App() {
       addConsoleLog(`🧪 Received test_from_server event: ${JSON.stringify(data)}`, 'info')
     })
 
-    // Add debugging for all socket events
+    // Store original on method for debugging but don't override it
     const originalOn = socketRef.current.on
-    socketRef.current.on = function (event, handler) {
-      const wrappedHandler = (...args) => {
-        // Always log chat_completion events, and sample others
-        if (event === 'chat_completion' || (event !== 'pong' && Math.random() < 0.3)) {
-          addConsoleLog(`🔍 Socket event '${event}' received with data: ${JSON.stringify(args[0]).substring(0, 200)}...`, 'info')
-        }
-        return handler(...args)
-      }
-      return originalOn.call(this, event, wrappedHandler)
-    }
 
     // Add a catch-all event listener to see ALL events
     socketRef.current.onAny((eventName, ...args) => {
@@ -170,12 +160,7 @@ function App() {
       }
     })
 
-    // Add a manual test listener
-    addConsoleLog(`🧪 Setting up manual test for chat_completion events`, 'info')
-    socketRef.current.addEventListener = socketRef.current.on
-    socketRef.current.addEventListener('chat_completion', (data) => {
-      addConsoleLog(`🧪 MANUAL LISTENER: chat_completion received!`, 'info')
-    })
+    // Remove the manual test listener that was interfering
 
     // Application events
     socketRef.current.on('connected', (data) => {
@@ -246,9 +231,8 @@ function App() {
 
     // Handle incoming chat completion requests
     socketRef.current.on('chat_completion', (data) => {
-      addConsoleLog(`�🚨H🚨 CHAT COMPLETION EVENT RECEIVED! 🚨🚨🚨`, 'info')
-      addConsoleLog(`📥 Received chat completion request: ${data.message?.substring(0, 50)}...`)
-      addConsoleLog(`📥 Full request data: ${JSON.stringify(data, null, 2)}`)
+      addConsoleLog(`🚨🚨🚨 CHAT COMPLETION EVENT RECEIVED! 🚨🚨🚨`, 'info')
+      addConsoleLog(`📥 Received chat completion request: ${JSON.stringify(data, null, 2)}`)
 
       const currentRequestId = data.requestId || data.data?.requestId
       const messageToSend = data.message || data.data?.message
@@ -297,17 +281,30 @@ function App() {
           sendErrorToServer('error', `R1 SDK messaging failed: ${error.message}`)
         }
       } else {
-        addConsoleLog('❌ R1 SDK messaging not available - cannot process chat completion', 'error')
+        addConsoleLog('❌ R1 SDK messaging not available - using fallback simulation', 'warn')
 
-        // Send error response when R1 SDK is not available
-        if (socketRef.current && socketRef.current.connected) {
-          socketRef.current.emit('error', {
-            requestId: currentRequestId,
-            error: 'R1 SDK messaging not available - this app must run on R1 device',
-            deviceId: socketRef.current._deviceId
-          })
-          addConsoleLog(`❌ Sent error response: R1 SDK not available`)
-        }
+        // For testing purposes, simulate an R1 response when SDK is not available
+        const simulatedResponse = `Hello! This is a simulated response from the R1 device. You said: "${messageToSend}". The R1 SDK is not available in this browser environment, but the socket communication is working correctly.`
+        
+        addConsoleLog(`🤖 Simulating R1 response: "${simulatedResponse.substring(0, 50)}..."`, 'info')
+
+        // Send simulated response after a short delay to mimic processing time
+        setTimeout(() => {
+          if (socketRef.current && socketRef.current.connected) {
+            const responseData = {
+              requestId: currentRequestId,
+              response: simulatedResponse,
+              originalMessage: data.originalMessage || data.data?.originalMessage,
+              model: 'r1-llm-simulated',
+              timestamp: new Date().toISOString(),
+              deviceId: socketRef.current._deviceId
+            }
+
+            addConsoleLog(`📤 Sending simulated response: ${JSON.stringify(responseData, null, 2)}`)
+            socketRef.current.emit('response', responseData)
+            addConsoleLog(`✅ Sent simulated R1 response via socket`)
+          }
+        }, 1000) // 1 second delay to simulate processing
       }
     })
 
