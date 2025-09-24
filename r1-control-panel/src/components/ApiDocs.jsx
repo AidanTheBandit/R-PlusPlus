@@ -68,6 +68,9 @@ const ApiDocs = ({ deviceId }) => {
           <strong>Base URL:</strong>
           <code className="url-code">{apiBaseUrl}</code>
         </div>
+        <div className="api-auth-notice">
+          <strong>🔐 Authentication:</strong> If you have set a PIN code for your device, use it as your API key in the <code>Authorization: Bearer &lt;your-pin-code&gt;</code> header.
+        </div>
         <p>
           Your R1 device is accessible via REST API endpoints. All requests should be made to URLs starting with your device ID.
         </p>
