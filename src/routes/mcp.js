@@ -135,15 +135,16 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
       // Update database
       await mcpManager.database.updateMCPServerStatus(deviceId, serverName, enabled);
       
-      // Start or stop process
+      // Start or stop server (prompt injection mode)
       if (enabled) {
         const config = {
           command: serverConfig.command,
           args: serverConfig.args ? JSON.parse(serverConfig.args) : [],
           env: serverConfig.env ? JSON.parse(serverConfig.env) : {},
+          autoApprove: serverConfig.auto_approve ? JSON.parse(serverConfig.auto_approve) : [],
           enabled: true
         };
-        await mcpManager.startServerProcess(deviceId, serverName, config);
+        await mcpManager.initializeServerTools(deviceId, serverName, config);
       } else {
         await mcpManager.stopServerProcess(deviceId, serverName);
       }
@@ -191,19 +192,13 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
     const { arguments: toolArgs } = req.body;
     
     try {
-      const message = {
-        jsonrpc: '2.0',
-        id: mcpManager.generateId(),
-        method: 'tools/call',
-        params: {
-          name: toolName,
-          arguments: toolArgs || {}
-        }
-      };
-
-      await mcpManager.handleToolCall(deviceId, serverName, message);
+      const result = await mcpManager.handleToolCall(deviceId, serverName, toolName, toolArgs || {});
       
-      res.json({ success: true, message: 'Tool call initiated' });
+      res.json({ 
+        success: true, 
+        result: result,
+        message: 'Tool executed successfully' 
+      });
     } catch (error) {
       console.error('Error calling MCP tool:', error);
       res.status(500).json({ 
@@ -280,62 +275,87 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
     }
   });
 
+  // Get MCP prompt injection for device
+  app.get('/:deviceId/mcp/prompt-injection', async (req, res) => {
+    const { deviceId } = req.params;
+    
+    try {
+      // Verify device exists
+      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+      if (!deviceInfo) {
+        return res.status(404).json({ 
+          error: { message: 'Device not found', type: 'device_error' } 
+        });
+      }
+
+      const promptInjection = mcpManager.generateMCPPromptInjection(deviceId);
+      
+      res.json({ 
+        deviceId,
+        promptInjection,
+        hasTools: promptInjection.length > 0,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error generating MCP prompt injection:', error);
+      res.status(500).json({ 
+        error: { message: 'Internal server error', type: 'server_error' } 
+      });
+    }
+  });
+
   // Get MCP server templates/presets (root level - no device required)
   app.get('/mcp/templates', (req, res) => {
     const templates = [
       {
-        name: 'filesystem',
-        displayName: 'File System Access',
-        description: 'Access and manipulate files and directories',
-        command: 'uvx',
-        args: ['mcp-server-filesystem'],
-        env: {},
-        autoApprove: [],
-        category: 'system'
-      },
-      {
         name: 'web-search',
         displayName: 'Web Search',
         description: 'Search the web using various search engines',
-        command: 'uvx',
-        args: ['mcp-server-web-search'],
+        command: 'simulated',
+        args: [],
         env: {},
-        autoApprove: ['search'],
+        autoApprove: ['search_web'],
         category: 'web'
       },
       {
-        name: 'github',
-        displayName: 'GitHub Integration',
-        description: 'Interact with GitHub repositories and issues',
-        command: 'uvx',
-        args: ['mcp-server-github'],
-        env: {
-          GITHUB_TOKEN: 'your-github-token'
-        },
-        autoApprove: [],
-        category: 'development'
+        name: 'weather',
+        displayName: 'Weather Information',
+        description: 'Get current weather information for any location',
+        command: 'simulated',
+        args: [],
+        env: {},
+        autoApprove: ['get_weather'],
+        category: 'information'
       },
       {
-        name: 'sqlite',
-        displayName: 'SQLite Database',
-        description: 'Query and manipulate SQLite databases',
-        command: 'uvx',
-        args: ['mcp-server-sqlite'],
+        name: 'calculator',
+        displayName: 'Calculator',
+        description: 'Perform mathematical calculations',
+        command: 'simulated',
+        args: [],
+        env: {},
+        autoApprove: ['calculate'],
+        category: 'utility'
+      },
+      {
+        name: 'time',
+        displayName: 'Time & Date',
+        description: 'Get current time and date information',
+        command: 'simulated',
+        args: [],
+        env: {},
+        autoApprove: ['get_current_time'],
+        category: 'utility'
+      },
+      {
+        name: 'knowledge',
+        displayName: 'Knowledge Base',
+        description: 'Search knowledge base for information',
+        command: 'simulated',
+        args: [],
         env: {},
         autoApprove: [],
-        category: 'database'
-      },
-      {
-        name: 'aws-docs',
-        displayName: 'AWS Documentation',
-        description: 'Search and access AWS documentation',
-        command: 'uvx',
-        args: ['awslabs.aws-documentation-mcp-server@latest'],
-        env: {
-          FASTMCP_LOG_LEVEL: 'ERROR'
-        },
-        autoApprove: ['search_docs'],
-        category: 'cloud'
+        category: 'information'
       }
     ];
 

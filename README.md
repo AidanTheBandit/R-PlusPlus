@@ -323,30 +323,44 @@ node src/tests/test-api.js
 3. **Process** → R1 Device → Generate Response
 4. **Return** → WebSocket → Response Utils → API Client
 
-## MCP (Model Context Protocol) Integration
+## MCP (Model Context Protocol) Integration - Prompt Injection Mode
 
-R-API now includes comprehensive MCP support, allowing R1 devices to connect to external tools and services:
+R-API includes MCP support through **prompt injection**, making it safe for public server deployment:
 
 ### Key Features
-- **Web-based Management**: Configure MCP servers through the control panel
-- **Pre-configured Templates**: Quick setup for popular MCP servers (filesystem, web-search, GitHub, etc.)
+- **Prompt Injection**: Tools are described in chat prompts rather than running actual processes
+- **Public Server Safe**: No file system or database access, suitable for public deployment
+- **Web-based Management**: Configure MCP tool definitions through the control panel
+- **Pre-configured Templates**: Quick setup for common tools (web search, weather, calculator, etc.)
 - **Security Controls**: Auto-approval lists and manual approval workflows
 - **Real-time Monitoring**: Live status monitoring and comprehensive logging
-- **Device-specific Configuration**: Each R1 device can have its own MCP server setup
+- **Device-specific Configuration**: Each R1 device can have its own MCP tool setup
+
+### How It Works
+Instead of spawning actual MCP server processes, R-API injects tool descriptions directly into chat prompts. When users request functionality that matches available tools, the R1 can respond with structured tool calls that get executed as simulations.
 
 ### Quick Start
 1. Open the R-API Control Panel at `http://localhost:5482`
 2. Navigate to the "MCP Servers" tab
 3. Select your R1 device from the dropdown
-4. Click "Add Server" and choose from templates or create custom configuration
-5. Your R1 can now use MCP tools for enhanced capabilities
+4. Click "Add Server" and choose from templates (web-search, weather, calculator, etc.)
+5. Your R1 will now receive tool descriptions in chat prompts and can use them naturally
 
-### Popular MCP Servers
-- **File System**: Read/write files and directories
-- **Web Search**: Search the internet for information
-- **GitHub**: Interact with repositories and issues
-- **SQLite**: Query databases
-- **AWS Docs**: Search AWS documentation
+### Available Tool Simulations
+- **Web Search**: Simulated web search results
+- **Weather**: Simulated weather information
+- **Calculator**: Real mathematical calculations
+- **Time & Date**: Current time and date information
+- **Knowledge Base**: Simulated knowledge base searches
+
+### Testing MCP Integration
+```bash
+# Test the MCP prompt injection system
+npm run test-mcp
+
+# Run the example R1 client
+node examples/mcp-prompt-injection-example.js
+```
 
 See [MCP Documentation](docs/mcp.md) for detailed setup and usage instructions.
 

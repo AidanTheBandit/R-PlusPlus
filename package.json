@@ -15,7 +15,8 @@
     "check-builds": "node scripts/check-builds.js",
     "test-blacklist": "node scripts/test-blacklist.js",
     "test-server": "node scripts/test-server.js",
-    "test": "npm run test-blacklist && npm run test-server"
+    "test-mcp": "node scripts/test-mcp-prompt-injection.js",
+    "test": "npm run test-blacklist && npm run test-server && npm run test-mcp"
   },
   "keywords": [
     "r1",

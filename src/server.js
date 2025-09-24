@@ -52,7 +52,7 @@ app.use(express.json());
 app.set('trust proxy', 1);
 
 // Setup routes FIRST (before static file serving)
-setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager);
+setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager);
 setupMagicCamRoutes(app, connectedR1s);
 setupHealthRoutes(app, connectedR1s);
 setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugDataStore, performanceMetrics);

@@ -151,18 +151,18 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
         try {
           const { serverName, toolName, arguments: toolArgs, requestId } = data;
           
-          // Handle the tool call
-          const message = {
-            jsonrpc: '2.0',
-            id: requestId || mcpManager.generateId(),
-            method: 'tools/call',
-            params: {
-              name: toolName,
-              arguments: toolArgs || {}
-            }
-          };
-
-          await mcpManager.handleToolCall(deviceId, serverName, message);
+          // Handle the tool call using the new prompt injection system
+          const result = await mcpManager.handleToolCall(deviceId, serverName, toolName, toolArgs || {});
+          
+          // Send result back to the R1 device
+          socket.emit('mcp_tool_result', {
+            requestId: requestId || mcpManager.generateId(),
+            serverName,
+            toolName,
+            result,
+            success: true,
+            timestamp: new Date().toISOString()
+          });
           
           // Broadcast tool call event
           socket.broadcast.emit('mcp_event', {
@@ -170,10 +170,22 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
             deviceId,
             serverName,
             toolName,
+            result,
             timestamp: new Date().toISOString()
           });
         } catch (error) {
           console.error(`Error handling MCP tool call from ${deviceId}:`, error);
+          
+          // Send error back to the R1 device
+          socket.emit('mcp_tool_result', {
+            requestId: data.requestId || mcpManager.generateId(),
+            serverName: data.serverName,
+            toolName: data.toolName,
+            error: error.message,
+            success: false,
+            timestamp: new Date().toISOString()
+          });
+          
           socket.emit('mcp_error', {
             error: error.message,
             serverName: data.serverName,
