@@ -240,7 +240,9 @@ function App() {
       const wantsR1Response = data.wantsR1Response !== undefined ? data.wantsR1Response : (data.data?.wantsR1Response !== undefined ? data.data.wantsR1Response : false)
       const wantsJournalEntry = true // Always save to journal as per requirements
 
-      if (r1CreateRef.current && r1CreateRef.current.llm && r1CreateRef.current.messaging) {
+
+
+      if (r1CreateRef.current && r1CreateRef.current.messaging) {
         try {
           // Store requestId for response
           const currentRequestId = data.requestId || data.data?.requestId
@@ -250,18 +252,13 @@ function App() {
           addConsoleLog(`📤 Message to send: "${messageToSend}"`)
           addConsoleLog(`📤 Options: useLLM=${useLLM}, wantsR1Response=${wantsR1Response}, wantsJournalEntry=${wantsJournalEntry}`)
 
-          // Use R1 SDK LLM API for enhanced creation LLM with journal
-          if (wantsR1Response) {
-            // Use askLLMSpeak for voice responses with journal
-            r1CreateRef.current.llm.askLLMSpeak(messageToSend, wantsJournalEntry)
-          } else {
-            // Use messaging API for text responses
-            r1CreateRef.current.messaging.sendMessage(messageToSend, {
-              useLLM: useLLM,
-              wantsJournalEntry: wantsJournalEntry,
-              requestId: currentRequestId
-            })
-          }
+          // Use R1 SDK messaging API to send message to LLM
+          r1CreateRef.current.messaging.sendMessage(messageToSend, {
+            useLLM: useLLM,
+            wantsR1Response: wantsR1Response,
+            wantsJournalEntry: wantsJournalEntry,
+            requestId: currentRequestId
+          })
 
           // Store the requestId for when we get the response
           if (currentRequestId) {
@@ -270,70 +267,27 @@ function App() {
             addConsoleLog(`📝 Stored pending request: ${currentRequestId}`)
           }
 
-          addConsoleLog(`📤 Sent message to R1 LLM via ${wantsR1Response ? 'askLLMSpeak' : 'messaging'} API, requestId: ${currentRequestId}`)
+          addConsoleLog(`📤 Sent message to R1 LLM via messaging API, requestId: ${currentRequestId}`)
 
           // Send immediate acknowledgment that we received the request
           socketRef.current.emit('message_received', {
             requestId: currentRequestId,
             deviceId: socketRef.current._deviceId,
             timestamp: new Date().toISOString()
-          }) "${responseData.response.substring(0, 50)}..." (requestId: ${currentRequestId})`)
-              }
-            }).catch((error) => {
-              addConsoleLog(`❌ Error in askLLMSpeak: ${error?.message || error || 'Unknown error'}`, 'error')
-              socketRef.current.emit('error', {
-                requestId: currentRequestId,
-                error: `R1 LLM askLLMSpeak error: ${error?.message || error || 'Unknown error'}`,
-                deviceId: socketRef.current._deviceId
-              })
-            })
-          } else {
-            // Use messaging API for text responses
-            r1CreateRef.current.messaging.sendMessage(messageToSend, {
-              useLLM: useLLM,
-              wantsJournalEntry: wantsJournalEntry,
-              requestId: currentRequestId
-            }).then((response) => {
-              addConsoleLog(`📤 R1 messaging response received: ${JSON.stringify(response)}`)
-              
-              // Send response via socket
-              if (socketRef.current && socketRef.current.connected) {
-                const currentDeviceId = socketRef.current._deviceId || deviceId
-                const responseData = {
-                  requestId: currentRequestId,
-                  response: response.message || response.content || response || 'No response text',
-                  originalMessage: socketRef.current._originalMessage,
-                  model: 'r1-llm-text',
-                  timestamp: new Date().toISOString(),
-                  deviceId: currentDeviceId
-                }
-
-                addConsoleLog(`� Sending messaging response: ${JSON.stringify(responseData, null, 2)}`)
-                socketRef.current.emit('response', responseData)
-                addConsoleLog(`📤 Sent R1 messaging response via socket: "${responseData.response.substring(0, 50)}..." (requestId: ${currentRequestId})`)
-              }
-            }).catch((error) => {
-              addConsoleLog(`❌ Error in messaging.sendMessage: ${error.message}`, 'error')
-              socketRef.current.emit('error', {
-                requestId: currentRequestId,
-                error: `R1 messaging error: ${error.message}`,
-                deviceId: socketRef.current._deviceId
-              })
-            })
-          }
+          })
 
         } catch (error) {
-          addConsoleLog(`R1 SDK LLM error: ${error.message}`, 'error')
+          addConsoleLog(`R1 SDK messaging error: ${error.message}`, 'error')
           addConsoleLog(`R1 SDK error stack: ${error.stack}`, 'error')
           socketRef.current.emit('error', {
             requestId: data.requestId || data.data?.requestId,
-            error: `R1 SDK LLM error: ${error.message}`,
+            error: `R1 SDK messaging error: ${error.message}`,
             deviceId: socketRef.current._deviceId
           })
-          sendErrorToServer('error', `R1 SDK LLM failed: ${error.message}`)
+          sendErrorToServer('error', `R1 SDK messaging failed: ${error.message}`)
         }
       } else {
-        addConsoleLog('❌ R1 SDK LLM/messaging not available - using fallback simulation', 'warn')
+        addConsoleLog('❌ R1 SDK messaging not available - using fallback simulation', 'warn')
 
         // For testing purposes, simulate an R1 response when SDK is not available
         const simulatedResponse = `Hello! This is a simulated response from the R1 device. You said: "${messageToSend}". The R1 SDK is not available in this browser environment, but the socket communication is working correctly.`
@@ -382,9 +336,9 @@ function App() {
       addConsoleLog(`🔍 r1.messaging exists: ${!!(r1 && r1.messaging)}`, 'info')
 
       // Check if R1 SDK is available
-      if (r1 && r1.messaging && r1.llm) {
+      if (r1 && r1.messaging) {
         r1CreateRef.current = r1
-        addConsoleLog('✅ R1 SDK available and initialized (messaging + llm)', 'info')
+        addConsoleLog('✅ R1 SDK available and initialized', 'info')
 
         // Check what APIs are available
         const availableAPIs = []
@@ -396,23 +350,25 @@ function App() {
         if (r1.microphone) availableAPIs.push('microphone')
         if (r1.speaker) availableAPIs.push('speaker')
 
-        addConsoleLog(`📋 Available R1 APIs: ${availableAPIs.join(', ')}`, 'info')
+        addConsoleLog(`� Ava1ilable R1 APIs: ${availableAPIs.join(', ')}`, 'info')
 
-        // Test the APIs
+        // Test the messaging API
         try {
-          addConsoleLog('🧪 Testing R1 APIs...', 'info')
-          if (r1.messaging && typeof r1.messaging.sendMessage === 'function') {
+          addConsoleLog('🧪 Testing R1 messaging API...', 'info')
+          // Just check if the methods exist
+          if (typeof r1.messaging.sendMessage === 'function') {
             addConsoleLog('✅ r1.messaging.sendMessage is available', 'info')
           } else {
-            addConsoleLog('❌ r1.messaging.sendMessage is not available', 'error')
+            addConsoleLog('❌ r1.messaging.sendMessage is not a function', 'error')
           }
-          if (r1.llm && typeof r1.llm.askLLMSpeak === 'function') {
-            addConsoleLog('✅ r1.llm.askLLMSpeak is available', 'info')
+
+          if (typeof r1.messaging.onMessage === 'function') {
+            addConsoleLog('✅ r1.messaging.onMessage is available', 'info')
           } else {
-            addConsoleLog('❌ r1.llm.askLLMSpeak is not available', 'error')
+            addConsoleLog('❌ r1.messaging.onMessage is not a function', 'error')
           }
         } catch (testError) {
-          addConsoleLog(`❌ Error testing R1 APIs: ${testError.message}`, 'error')
+          addConsoleLog(`❌ Error testing R1 messaging API: ${testError.message}`, 'error')
         }
 
         // Set up message handler for LLM responses
