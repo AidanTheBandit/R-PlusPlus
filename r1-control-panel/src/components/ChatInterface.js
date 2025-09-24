@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 const ChatInterface = ({ socket, deviceId, pinCode }) => {
   const [message, setMessage] = useState('');
@@ -123,7 +124,9 @@ const ChatInterface = ({ socket, deviceId, pinCode }) => {
             <div className="message-header">
               {msg.type.charAt(0).toUpperCase() + msg.type.slice(1)} - {new Date(msg.timestamp).toLocaleTimeString()}
             </div>
-            <div className="message-content">{msg.content}</div>
+            <div className="message-content">
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
