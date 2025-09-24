@@ -207,3 +207,38 @@
     margin-left: 4px;
   }
 }
+
+/* QR Section */
+.qr-section {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.qr-section h4 {
+  margin-bottom: 10px;
+  color: var(--fg1);
+}
+
+/* App Footer */
+.app-footer {
+  margin-top: 40px;
+  padding: 20px;
+  text-align: center;
+  border-top: 1px solid var(--bg3);
+  background: var(--bg1);
+}
+
+.app-footer a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
+}
+
+.app-footer span {
+  display: block;
+  margin-top: 10px;
+  color: var(--fg2);
+}

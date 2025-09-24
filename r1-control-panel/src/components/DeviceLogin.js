@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import QRCode from 'qrcode.react';
 
 const DeviceLogin = ({
     deviceId,
@@ -84,6 +85,17 @@ const DeviceLogin = ({
                         )}
                     </button>
                 </form>
+
+                <div className="qr-section">
+                    <h4>Add R1 Creation to R1</h4>
+                    <QRCode 
+                        value="https://r1a.boondit.site"
+                        size={128}
+                        fgColor="#ebdbb2"
+                        bgColor="#282828"
+                        level="M"
+                    />
+                </div>
 
                 <div className="login-footer">
                     <div className="security-note">
