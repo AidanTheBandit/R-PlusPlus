@@ -61,6 +61,9 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = newPin;
+        console.log(`🔄 Updated in-memory PIN for device ${deviceId}: ${newPin}`);
+      } else {
+        console.log(`⚠️ Device ${deviceId} not found in memory cache during PIN enable`);
       }
 
       console.log(`🔐 PIN ${deviceInfo.pin_code ? 'changed' : 'enabled'} for device: ${deviceId}`);
@@ -96,9 +99,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = null;
+        console.log(`🔄 Cleared in-memory PIN for device ${deviceId}`);
+      } else {
+        console.log(`⚠️ Device ${deviceId} not found in memory cache during PIN disable`);
       }
 
-      console.log(`� PIN disabled for device: ${deviceId}`);
+      console.log(`🔓 PIN disabled for device: ${deviceId}`);
       res.json({ success: true, message: 'PIN disabled successfully' });
     } catch (error) {
       console.error('Error disabling PIN:', error);
@@ -133,6 +139,9 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = newPin;
+        console.log(`🔄 Updated in-memory PIN for device ${deviceId}: ${newPin}`);
+      } else {
+        console.log(`⚠️ Device ${deviceId} not found in memory cache during PIN change`);
       }
 
       console.log(`🔄 PIN changed for device: ${deviceId}`);
@@ -153,6 +162,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         if (device) {
           res.json({
             deviceId: device.device_id,
+            pinCode: device.pin_code,
             pinEnabled: device.pin_code !== null && device.pin_code !== '',
             createdAt: device.created_at,
             lastSeen: device.last_seen
@@ -167,6 +177,80 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     } else {
       res.status(500).json({ error: 'Database not available' });
     }
+  });
+
+  // Device sync endpoint to resolve PIN mismatches
+  app.post('/:deviceId/sync', async (req, res) => {
+    const { deviceId } = req.params;
+
+    if (deviceIdManager.database) {
+      try {
+        const device = await deviceIdManager.database.getDevice(deviceId);
+        if (device) {
+          // Update the in-memory device manager with database info
+          const deviceData = deviceIdManager.deviceIds.get(deviceId);
+          if (deviceData) {
+            deviceData.pinCode = device.pin_code;
+            console.log(`🔄 Synced device ${deviceId} PIN from database: ${device.pin_code ? 'set' : 'none'}`);
+          }
+
+          res.json({
+            deviceId: device.device_id,
+            pinCode: device.pin_code,
+            pinEnabled: device.pin_code !== null && device.pin_code !== '',
+            synced: true,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.status(404).json({ error: 'Device not found' });
+        }
+      } catch (error) {
+        console.warn('Failed to sync device info:', error);
+        res.status(500).json({ error: 'Failed to sync device info' });
+      }
+    } else {
+      res.status(500).json({ error: 'Database not available' });
+    }
+  });
+
+  // Device status endpoint for debugging
+  app.get('/:deviceId/status', async (req, res) => {
+    const { deviceId } = req.params;
+
+    const status = {
+      deviceId,
+      connected: deviceIdManager.hasDevice(deviceId),
+      socketConnected: connectedR1s.has(deviceId),
+      inMemoryInfo: deviceIdManager.getDeviceInfo(deviceId),
+      timestamp: new Date().toISOString()
+    };
+
+    if (deviceIdManager.database) {
+      try {
+        const dbDevice = await deviceIdManager.database.getDevice(deviceId);
+        status.databaseInfo = dbDevice;
+        status.pinMismatch = false;
+
+        // Check for PIN mismatch between memory and database
+        const memoryDevice = deviceIdManager.getDeviceInfo(deviceId);
+        if (memoryDevice && dbDevice) {
+          const memoryPin = memoryDevice.pinCode;
+          const dbPin = dbDevice.pin_code;
+          if (memoryPin !== dbPin) {
+            status.pinMismatch = true;
+            status.pinMismatchDetails = {
+              memory: memoryPin,
+              database: dbPin
+            };
+            console.log(`⚠️ PIN mismatch detected for ${deviceId}: memory=${memoryPin}, db=${dbPin}`);
+          }
+        }
+      } catch (error) {
+        status.databaseError = error.message;
+      }
+    }
+
+    res.json(status);
   });
 
   // Authentication helper function
@@ -319,6 +403,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       let responsesSent = 0;
 
       if (targetDeviceId) {
+        // Debug device state
+        console.log(`🔍 Looking for device: ${targetDeviceId}`);
+        console.log(`🔍 hasDevice: ${deviceIdManager.hasDevice(targetDeviceId)}`);
+        console.log(`🔍 connectedR1s has: ${connectedR1s.has(targetDeviceId)}`);
+        console.log(`🔍 All connected devices: ${Array.from(connectedR1s.keys()).join(', ')}`);
+        
         // Send to specific device
         if (deviceIdManager.hasDevice(targetDeviceId)) {
           const socket = connectedR1s.get(targetDeviceId);
@@ -329,20 +419,35 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
             responsesSent++;
             console.log(`📊 Sent request ${requestId} to specific device: ${targetDeviceId}`);
           } else {
-            console.log(`❌ Device ${targetDeviceId} not connected`);
+            console.log(`❌ Device ${targetDeviceId} has no socket in connectedR1s`);
           }
         } else {
-          console.log(`❌ Device ${targetDeviceId} not found`);
-          // No devices connected or target device not found
-          pendingRequests.delete(requestId);
-          clearTimeout(timeout);
-          res.status(503).json({
-            error: {
-              message: `Device ${targetDeviceId} not connected`,
-              type: 'service_unavailable'
+          console.log(`❌ Device ${targetDeviceId} not found in deviceIdManager`);
+          console.log(`🔍 DeviceIdManager device info: ${JSON.stringify(deviceIdManager.getDeviceInfo(targetDeviceId))}`);
+          
+          // Try fallback - check if device exists in connectedR1s directly
+          if (connectedR1s.has(targetDeviceId)) {
+            console.log(`🔄 Fallback: Found device in connectedR1s, sending anyway`);
+            const socket = connectedR1s.get(targetDeviceId);
+            if (socket) {
+              console.log(`📤 Fallback sending to device ${targetDeviceId}:`, JSON.stringify(command, null, 2));
+              socket.emit('chat_completion', command);
+              requestDeviceMap.set(requestId, targetDeviceId);
+              responsesSent++;
+              console.log(`📊 Fallback sent request ${requestId} to device: ${targetDeviceId}`);
             }
-          });
-          return;
+          } else {
+            // No devices connected or target device not found
+            pendingRequests.delete(requestId);
+            clearTimeout(timeout);
+            res.status(503).json({
+              error: {
+                message: `Device ${targetDeviceId} not connected`,
+                type: 'service_unavailable'
+              }
+            });
+            return;
+          }
         }
       } else {
         // Send to the first available R1 device

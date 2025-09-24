@@ -135,6 +135,23 @@ function App() {
     // Add heartbeat/ping mechanism - will be set up after device connection
     socketRef.current._heartbeatInterval = null
 
+    // Test event listener to verify socket is working
+    socketRef.current.on('test_event', (data) => {
+      addConsoleLog(`🧪 Received test event: ${JSON.stringify(data)}`, 'info')
+    })
+
+    // Add debugging for all socket events
+    const originalOn = socketRef.current.on
+    socketRef.current.on = function(event, handler) {
+      const wrappedHandler = (...args) => {
+        if (event !== 'pong' && Math.random() < 0.3) { // Log 30% of non-pong events to avoid spam
+          addConsoleLog(`🔍 Socket event '${event}' received with data: ${JSON.stringify(args[0]).substring(0, 100)}...`, 'info')
+        }
+        return handler(...args)
+      }
+      return originalOn.call(this, event, wrappedHandler)
+    }
+
     // Application events
     socketRef.current.on('connected', (data) => {
       setDeviceId(data.deviceId)
@@ -197,7 +214,27 @@ function App() {
     // Handle incoming chat completion requests
     socketRef.current.on('chat_completion', (data) => {
       addConsoleLog(`📥 Received chat completion request: ${data.message?.substring(0, 50)}...`)
-      addConsoleLog(`📥 Request data: ${JSON.stringify(data).substring(0, 200)}...`)
+      addConsoleLog(`📥 Full request data: ${JSON.stringify(data, null, 2)}`)
+      
+      // Always send a mock response for now to test the flow
+      addConsoleLog('🧪 Sending mock response to test socket communication', 'info')
+      
+      const mockResponse = `Mock response to: "${data.message || data.data?.message}"`
+      const currentRequestId = data.requestId || data.data?.requestId
+      
+      setTimeout(() => {
+        if (socketRef.current && socketRef.current.connected) {
+          socketRef.current.emit('response', {
+            requestId: currentRequestId,
+            response: mockResponse,
+            originalMessage: data.originalMessage || data.data?.originalMessage,
+            model: 'r1-mock',
+            timestamp: new Date().toISOString(),
+            deviceId: socketRef.current._deviceId
+          })
+          addConsoleLog(`📤 Sent mock response: "${mockResponse}"`)
+        }
+      }, 1000) // 1 second delay to simulate processing
 
       if (r1CreateRef.current && r1CreateRef.current.messaging) {
         try {
@@ -206,6 +243,7 @@ function App() {
           const messageToSend = data.message || data.data?.message
 
           addConsoleLog(`📤 Processing request ${currentRequestId} for device ${socketRef.current._deviceId}`)
+          addConsoleLog(`📤 Message to send: "${messageToSend}"`)
 
           // Use R1 SDK messaging API to send message to LLM
           r1CreateRef.current.messaging.sendMessage(messageToSend, {
@@ -217,11 +255,21 @@ function App() {
           if (currentRequestId) {
             socketRef.current._pendingRequestId = currentRequestId
             socketRef.current._originalMessage = data.originalMessage || data.data?.originalMessage
+            addConsoleLog(`📝 Stored pending request: ${currentRequestId}`)
           }
 
           addConsoleLog(`📤 Sent message to R1 LLM via messaging API, requestId: ${currentRequestId}`)
+          
+          // Send immediate acknowledgment that we received the request
+          socketRef.current.emit('message_received', {
+            requestId: currentRequestId,
+            deviceId: socketRef.current._deviceId,
+            timestamp: new Date().toISOString()
+          })
+          
         } catch (error) {
           addConsoleLog(`R1 SDK messaging error: ${error.message}`, 'error')
+          addConsoleLog(`R1 SDK error stack: ${error.stack}`, 'error')
           socketRef.current.emit('error', {
             requestId: data.requestId || data.data?.requestId,
             error: `R1 SDK messaging error: ${error.message}`,
@@ -230,12 +278,25 @@ function App() {
           sendErrorToServer('error', `R1 SDK messaging failed: ${error.message}`)
         }
       } else {
-        addConsoleLog('R1 SDK messaging not available - cannot process message', 'error')
-        socketRef.current.emit('error', {
-          requestId: data.requestId || data.data?.requestId,
-          error: 'R1 SDK messaging not available - this app must run on R1 device',
-          deviceId: socketRef.current._deviceId
-        })
+        addConsoleLog('R1 SDK messaging not available - sending mock response for testing', 'warn')
+        
+        // Send a mock response for testing when R1 SDK is not available
+        const mockResponse = `Mock response to: "${data.message || data.data?.message}"`
+        const currentRequestId = data.requestId || data.data?.requestId
+        
+        setTimeout(() => {
+          if (socketRef.current && socketRef.current.connected) {
+            socketRef.current.emit('response', {
+              requestId: currentRequestId,
+              response: mockResponse,
+              originalMessage: data.originalMessage || data.data?.originalMessage,
+              model: 'r1-mock',
+              timestamp: new Date().toISOString(),
+              deviceId: socketRef.current._deviceId
+            })
+            addConsoleLog(`📤 Sent mock response: "${mockResponse}"`)
+          }
+        }, 1000) // 1 second delay to simulate processing
       }
     })
 
@@ -285,22 +346,29 @@ function App() {
 
         // Set up message handler for LLM responses
         r1.messaging.onMessage((response) => {
-          addConsoleLog(`📤 R1 SDK message received: ${JSON.stringify(response).substring(0, 100)}...`)
+          addConsoleLog(`📤 R1 SDK message received: ${JSON.stringify(response, null, 2)}`)
 
           // The R1 responds with {"message":"text"}, so extract the response text
-          const responseText = response.message || response.content || response
+          const responseText = response.message || response.content || response || 'No response text'
+
+          addConsoleLog(`📤 Extracted response text: "${responseText}"`)
+          addConsoleLog(`📤 Current pending request ID: ${socketRef.current._pendingRequestId}`)
 
           // Send response via socket (server will handle requestId matching)
           if (socketRef.current && socketRef.current.connected) {
             const currentDeviceId = socketRef.current._deviceId || deviceId
-            socketRef.current.emit('response', {
+            const responseData = {
               requestId: socketRef.current._pendingRequestId,
               response: responseText,
               originalMessage: socketRef.current._originalMessage,
               model: 'r1-llm',
               timestamp: new Date().toISOString(),
               deviceId: currentDeviceId
-            })
+            }
+            
+            addConsoleLog(`📤 Sending response data: ${JSON.stringify(responseData, null, 2)}`)
+            
+            socketRef.current.emit('response', responseData)
             addConsoleLog(`📤 Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId}, deviceId: ${currentDeviceId})`)
 
             // Clear the pending request data
@@ -778,6 +846,27 @@ function App() {
               title="Test chat completion"
             >
               <span>🧪</span>
+            </button>
+          )}
+
+          {deviceId && (
+            <button
+              className="socket-test-btn"
+              onClick={() => {
+                if (socketRef.current && socketRef.current.connected) {
+                  addConsoleLog('🧪 Testing socket communication...', 'info')
+                  socketRef.current.emit('test_message', {
+                    deviceId: deviceId,
+                    message: 'Socket test from creation app',
+                    timestamp: new Date().toISOString()
+                  })
+                } else {
+                  addConsoleLog('❌ Socket not connected', 'error')
+                }
+              }}
+              title="Test socket communication"
+            >
+              <span>📡</span>
             </button>
           )}
 

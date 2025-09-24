@@ -344,6 +344,63 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
 
 
 
+  // Debug endpoint to check device state
+  app.get('/debug/device/:deviceId', (req, res) => {
+    const { deviceId } = req.params;
+    
+    const debugInfo = {
+      deviceId,
+      hasDevice: deviceIdManager.hasDevice(deviceId),
+      connectedR1sHas: connectedR1s.has(deviceId),
+      deviceInfo: deviceIdManager.getDeviceInfo(deviceId),
+      socketId: deviceIdManager.getSocketForDevice(deviceId),
+      connectedDevices: Array.from(connectedR1s.keys()),
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log(`🔍 Debug info for device ${deviceId}:`, JSON.stringify(debugInfo, null, 2));
+    res.json(debugInfo);
+  });
+
+  // Debug endpoint to manually test chat completion
+  app.post('/debug/test-chat/:deviceId', (req, res) => {
+    const { deviceId } = req.params;
+    const { message = 'Test message from debug endpoint' } = req.body;
+    
+    console.log(`🧪 Manual chat test for device: ${deviceId}`);
+    
+    if (connectedR1s.has(deviceId)) {
+      const socket = connectedR1s.get(deviceId);
+      const testCommand = {
+        type: 'chat_completion',
+        data: {
+          message,
+          originalMessage: message,
+          model: 'r1-command',
+          temperature: 0.7,
+          max_tokens: 150,
+          requestId: `debug-${Date.now()}`,
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      console.log(`🧪 Sending test command:`, JSON.stringify(testCommand, null, 2));
+      socket.emit('chat_completion', testCommand);
+      
+      res.json({ 
+        success: true, 
+        message: 'Test command sent',
+        command: testCommand
+      });
+    } else {
+      res.status(404).json({ 
+        error: 'Device not connected',
+        deviceId,
+        connectedDevices: Array.from(connectedR1s.keys())
+      });
+    }
+  });
+
   console.log('MCP routes initialized');
 }
 
