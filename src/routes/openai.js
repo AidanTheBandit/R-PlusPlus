@@ -61,12 +61,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = newPin;
-        console.log(`🔄 Updated in-memory PIN for device ${deviceId}: ${newPin}`);
+        console.log(`🔄 Updated in-memory PIN for device`);
       } else {
-        console.log(`⚠️ Device ${deviceId} not found in memory cache during PIN enable`);
+        console.log(`⚠️ Device not found in memory cache during PIN enable`);
       }
 
-      console.log(`🔐 PIN ${deviceInfo.pin_code ? 'changed' : 'enabled'} for device: ${deviceId}`);
+      console.log(`🔐 PIN ${deviceInfo.pin_code ? 'changed' : 'enabled'} for device`);
       res.json({ success: true, message: `PIN ${deviceInfo.pin_code ? 'changed' : 'enabled'} successfully` });
     } catch (error) {
       console.error('Error enabling/changing PIN:', error);
@@ -99,12 +99,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = null;
-        console.log(`🔄 Cleared in-memory PIN for device ${deviceId}`);
+        console.log(`🔄 Cleared in-memory PIN for device`);
       } else {
-        console.log(`⚠️ Device ${deviceId} not found in memory cache during PIN disable`);
+        console.log(`⚠️ Device not found in memory cache during PIN disable`);
       }
 
-      console.log(`🔓 PIN disabled for device: ${deviceId}`);
+      console.log(`🔓 PIN disabled for device`);
       res.json({ success: true, message: 'PIN disabled successfully' });
     } catch (error) {
       console.error('Error disabling PIN:', error);
@@ -139,12 +139,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = newPin;
-        console.log(`🔄 Updated in-memory PIN for device ${deviceId}: ${newPin}`);
+        console.log(`🔄 Updated in-memory PIN for device`);
       } else {
-        console.log(`⚠️ Device ${deviceId} not found in memory cache during PIN change`);
+        console.log(`⚠️ Device not found in memory cache during PIN change`);
       }
 
-      console.log(`🔄 PIN changed for device: ${deviceId}`);
+      console.log(`🔄 PIN changed for device`);
       res.json({ success: true, message: 'PIN changed successfully' });
     } catch (error) {
       console.error('Error changing PIN:', error);
@@ -184,7 +184,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     const { deviceId } = req.params;
     const { message = 'Test message from server' } = req.body;
 
-    console.log(`🧪 Manual test chat for device: ${deviceId}`);
+    console.log(`🧪 Manual test chat for device`);
 
     // Check if device is connected
     if (!deviceIdManager.hasDevice(deviceId)) {
@@ -211,12 +211,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       }
     };
 
-    console.log(`🧪 Sending test command to ${deviceId}:`, JSON.stringify(testCommand, null, 2));
+    console.log(`🧪 Sending test command:`, JSON.stringify(testCommand, null, 2));
     console.log(`🧪 Socket details:`, { id: socket.id, connected: socket.connected });
 
     try {
       socket.emit('chat_completion', testCommand);
-      console.log(`✅ Test command sent successfully to ${deviceId}`);
+      console.log(`✅ Test command sent successfully`);
       res.json({
         success: true,
         message: 'Test chat completion sent',
@@ -242,7 +242,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           const deviceData = deviceIdManager.deviceIds.get(deviceId);
           if (deviceData) {
             deviceData.pinCode = device.pin_code;
-            console.log(`🔄 Synced device ${deviceId} PIN from database: ${device.pin_code ? 'set' : 'none'}`);
+            console.log(`🔄 Synced device PIN from database: ${device.pin_code ? 'set' : 'none'}`);
           }
 
           res.json({
@@ -415,17 +415,17 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       let responsesSent = 0;
 
       if (targetDeviceId) {
-        // Debug device state
-        console.log(`🔍 Looking for device: ${targetDeviceId}`);
+        // Debug device state (without exposing device IDs)
+        console.log(`🔍 Looking for target device`);
         console.log(`🔍 hasDevice: ${deviceIdManager.hasDevice(targetDeviceId)}`);
         console.log(`🔍 connectedR1s has: ${connectedR1s.has(targetDeviceId)}`);
-        console.log(`🔍 All connected devices: ${Array.from(connectedR1s.keys()).join(', ')}`);
+        console.log(`🔍 Total connected devices: ${connectedR1s.size}`);
 
         // Send to specific device
         if (deviceIdManager.hasDevice(targetDeviceId)) {
           const socket = connectedR1s.get(targetDeviceId);
           if (socket) {
-            console.log(`📤 Sending to device ${targetDeviceId}:`, JSON.stringify(command, null, 2));
+            console.log(`📤 Sending to device:`, JSON.stringify(command, null, 2));
             console.log(`📤 Socket object:`, { id: socket.id, connected: socket.connected });
 
             // Send chat completion to device
@@ -433,25 +433,25 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
             requestDeviceMap.set(requestId, targetDeviceId);
             responsesSent++;
-            console.log(`📊 Sent request ${requestId} to specific device: ${targetDeviceId}`);
+            console.log(`📊 Sent request ${requestId} to specific device`);
           } else {
-            console.log(`❌ Device ${targetDeviceId} has no socket in connectedR1s`);
+            console.log(`❌ Device has no socket in connectedR1s`);
           }
         } else {
-          console.log(`❌ Device ${targetDeviceId} not found in deviceIdManager`);
-          console.log(`🔍 DeviceIdManager device info: ${JSON.stringify(deviceIdManager.getDeviceInfo(targetDeviceId))}`);
+          console.log(`❌ Device not found in deviceIdManager`);
+          console.log(`🔍 DeviceIdManager device info available: ${!!deviceIdManager.getDeviceInfo(targetDeviceId)}`);
 
           // Try fallback - check if device exists in connectedR1s directly
           if (connectedR1s.has(targetDeviceId)) {
             console.log(`🔄 Fallback: Found device in connectedR1s, sending anyway`);
             const socket = connectedR1s.get(targetDeviceId);
             if (socket) {
-              console.log(`📤 Fallback sending to device ${targetDeviceId}:`, JSON.stringify(command, null, 2));
+              console.log(`📤 Fallback sending to device:`, JSON.stringify(command, null, 2));
               console.log(`📤 Fallback socket object:`, { id: socket.id, connected: socket.connected });
               socket.emit('chat_completion', command);
               requestDeviceMap.set(requestId, targetDeviceId);
               responsesSent++;
-              console.log(`📊 Fallback sent request ${requestId} to device: ${targetDeviceId}`);
+              console.log(`📊 Fallback sent request ${requestId} to device`);
             }
           } else {
             // No devices connected or target device not found
@@ -459,7 +459,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
             clearTimeout(timeout);
             res.status(503).json({
               error: {
-                message: `Device ${targetDeviceId} not connected`,
+                message: `Device not connected`,
                 type: 'service_unavailable'
               }
             });
@@ -484,11 +484,11 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
         const deviceId = devices[0]; // Use the first device
         const socket = connectedR1s.get(deviceId);
-        console.log(`📤 Sending to device ${deviceId}:`, JSON.stringify(command, null, 2));
+        console.log(`📤 Sending to first available device:`, JSON.stringify(command, null, 2));
         socket.emit('chat_completion', command);
         requestDeviceMap.set(requestId, deviceId); // Track which device gets this request
         responsesSent++;
-        console.log(`📊 Sent request ${requestId} to device ${deviceId}`);
+        console.log(`📊 Sent request ${requestId} to first available device`);
       }
 
       if (responsesSent === 0) {

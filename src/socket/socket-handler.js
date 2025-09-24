@@ -180,21 +180,21 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
     socket.on('message', (data) => {
       try {
         const message = JSON.parse(data);
-        console.log(`Message from ${deviceId}:`, message);
+        console.log(`Message from device:`, message);
 
         // Handle different message types from R1
         switch (message.type) {
           case 'status':
-            console.log(`R1 ${deviceId} status:`, message.data);
+            console.log(`R1 device status:`, message.data);
             break;
           case 'response':
-            console.log(`R1 ${deviceId} response:`, message.data);
+            console.log(`R1 device response:`, message.data);
             break;
           case 'error':
-            console.error(`R1 ${deviceId} error:`, message.data);
+            console.error(`R1 device error:`, message.data);
             break;
           default:
-            console.log(`Unknown message type from ${deviceId}:`, message);
+            console.log(`Unknown message type from device:`, message);
         }
       } catch (error) {
         console.error(`Error parsing message from ${deviceId}:`, error);

@@ -173,7 +173,7 @@ class DeviceIdManager {
         // Backward compatibility
         deviceId = result;
       }
-      console.log(`📱 ${isReconnection ? 'Reconnected' : 'Generated'} deviceId: ${deviceId} for socket: ${socketId}`);
+      console.log(`📱 ${isReconnection ? 'Reconnected' : 'Generated'} deviceId for socket: ${socketId}`);
     }
 
     // CRITICAL FIX: Always update the deviceIds map for chat completion lookup
@@ -184,7 +184,7 @@ class DeviceIdManager {
       userAgent,
       ipAddress
     });
-    console.log(`📱 Updated deviceIds map: ${deviceId} for socket: ${socketId}`)
+    console.log(`📱 Updated deviceIds map for socket: ${socketId}`)
 
     // Check if device already exists in database and has a PIN
     let pinCode = null;
@@ -193,9 +193,9 @@ class DeviceIdManager {
         const existingDevice = await this.database.getDevice(deviceId);
         if (existingDevice) {
           pinCode = existingDevice.pin_code;
-          console.log(`📌 Found existing device ${deviceId} in database with PIN: ${pinCode ? 'set' : 'none'}`);
+          console.log(`📌 Found existing device in database with PIN: ${pinCode ? 'set' : 'none'}`);
         } else {
-          console.log(`📌 Device ${deviceId} not found in database, will create new entry`);
+          console.log(`📌 Device not found in database, will create new entry`);
         }
       } catch (error) {
         console.warn('Failed to check existing device PIN:', error);
@@ -205,7 +205,7 @@ class DeviceIdManager {
     // Generate new PIN code only if enabled and no existing PIN
     if (enablePin && !pinCode) {
       pinCode = this.generatePinCode();
-      console.log(`🔢 Generated new PIN for device: ${deviceId}: ${pinCode}`);
+      console.log(`🔢 Generated new PIN for device`);
     }
 
     // Save to database if available
@@ -219,12 +219,12 @@ class DeviceIdManager {
             `UPDATE devices SET socket_id = ?, last_seen = CURRENT_TIMESTAMP, user_agent = ?, ip_address = ? WHERE device_id = ?`,
             [socketId, userAgent, ipAddress, deviceId]
           );
-          console.log(`📱 Updated existing device: ${deviceId}`);
+          console.log(`📱 Updated existing device`);
         } else {
           // Insert new device with device secret
           const secretToSave = newDeviceSecret || deviceSecret;
           await this.database.saveDeviceWithSecret(deviceId, socketId, userAgent, ipAddress, pinCode, secretToSave);
-          console.log(`📱 Created new device: ${deviceId} with secret`);
+          console.log(`📱 Created new device with secret`);
         }
       } catch (error) {
         console.warn('Failed to save device to database:', error);
@@ -232,7 +232,7 @@ class DeviceIdManager {
     }
 
     const pinMessage = pinCode ? `, PIN: ${pinCode}` : ', PIN disabled';
-    console.log(`📱 Device registered: ${deviceId} (socket: ${socketId}${pinMessage})`);
+    console.log(`📱 Device registered (socket: ${socketId}${pinMessage})`);
     return { 
       deviceId, 
       pinCode, 
@@ -247,7 +247,7 @@ class DeviceIdManager {
     if (deviceId) {
       this.deviceIds.delete(deviceId);
       // Keep the persistent mapping for reconnection
-      console.log(`📱 Device unregistered: ${deviceId} (socket: ${socketId})`);
+      console.log(`📱 Device unregistered (socket: ${socketId})`);
     }
   }
 
@@ -367,14 +367,14 @@ class DeviceIdManager {
         try {
           // Create new device entry
           await this.database.saveDevice(newDeviceId, socketId, userAgent, ipAddress, null);
-          console.log(`🔄 Database: Created new device ${newDeviceId} (was ${oldDeviceId})`);
+          console.log(`🔄 Database: Created new device (regenerated)`);
         } catch (error) {
           console.warn(`Failed to update database for ${newDeviceId}:`, error);
         }
       }
 
       regeneratedCount++;
-      console.log(`🆕 Regenerated: ${oldDeviceId} → ${newDeviceId} (socket: ${socketId})`);
+      console.log(`🆕 Regenerated device ID (socket: ${socketId})`);
     }
 
     console.log(`✅ Emergency regeneration complete: ${regeneratedCount} device IDs regenerated`);
@@ -400,7 +400,7 @@ class DeviceIdManager {
       const deviceId = this.persistentIds.get(socketId);
       this.persistentIds.delete(socketId);
       this.deviceIds.delete(deviceId);
-      console.log(`🧹 Cleaned up old device ID: ${deviceId}`);
+      console.log(`🧹 Cleaned up old device ID`);
     });
 
     return toRemove.length;
