@@ -503,3 +503,222 @@
     padding: 10px;
   }
 }
+
+/* Phone Link Component Styles */
+.phone-link .link-form,
+.phone-link .verify-form {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: var(--bg2);
+  border-radius: 8px;
+  border: 1px solid var(--bg3);
+}
+
+.phone-link .form-group {
+  margin-bottom: 15px;
+}
+
+.phone-link .form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--aqua);
+  font-weight: bold;
+}
+
+.phone-link .form-group input {
+  width: 100%;
+  padding: 10px;
+  background: var(--bg0);
+  border: 1px solid var(--bg3);
+  border-radius: 4px;
+  color: var(--fg1);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.phone-link .form-group input:focus {
+  border-color: var(--yellow);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(250, 189, 47, 0.2);
+}
+
+.phone-link .form-group small {
+  display: block;
+  margin-top: 5px;
+  color: var(--fg4);
+  font-size: 12px;
+}
+
+.phone-link .button-group {
+  display: flex;
+  gap: 10px;
+}
+
+.phone-link .btn-primary,
+.phone-link .btn-secondary,
+.phone-link .btn-danger {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.phone-link .btn-primary {
+  background: var(--green);
+  color: var(--bg0);
+}
+
+.phone-link .btn-primary:hover:not(:disabled) {
+  background: var(--green-dim);
+}
+
+.phone-link .btn-secondary {
+  background: var(--bg3);
+  color: var(--fg1);
+}
+
+.phone-link .btn-secondary:hover {
+  background: var(--bg4);
+}
+
+.phone-link .btn-danger {
+  background: var(--red);
+  color: var(--fg0);
+}
+
+.phone-link .btn-danger:hover {
+  background: var(--red-dim);
+}
+
+.phone-link .btn-small {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.phone-link .message {
+  padding: 10px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.phone-link .message.success {
+  background: rgba(184, 187, 38, 0.2);
+  border: 1px solid var(--green);
+  color: var(--green);
+}
+
+.phone-link .message.error {
+  background: rgba(251, 73, 52, 0.2);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+
+.phone-link .linked-phones {
+  margin-top: 30px;
+}
+
+.phone-link .linked-phones h3 {
+  color: var(--yellow);
+  margin-bottom: 15px;
+}
+
+.phone-link .phone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.phone-link .phone-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background: var(--bg2);
+  border-radius: 4px;
+  border: 1px solid var(--bg3);
+}
+
+.phone-link .phone-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: bold;
+}
+
+.phone-link .verified-status {
+  color: var(--green);
+  font-size: 12px;
+}
+
+.phone-link .instructions {
+  margin-top: 30px;
+  padding: 20px;
+  background: var(--bg2);
+  border-radius: 8px;
+  border: 1px solid var(--bg3);
+}
+
+.phone-link .instructions h3 {
+  color: var(--yellow);
+  margin-bottom: 15px;
+}
+
+.phone-link .instructions ol {
+  padding-left: 20px;
+}
+
+.phone-link .instructions li {
+  margin-bottom: 8px;
+}
+
+.phone-link .instructions code {
+  background: var(--bg0);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+/* Confirmation Dialog */
+.phone-link .confirm-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.phone-link .confirm-content {
+  background: var(--bg1);
+  border: 2px solid var(--yellow);
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.phone-link .confirm-content h3 {
+  color: var(--yellow);
+  margin-top: 0;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.phone-link .confirm-content p {
+  margin-bottom: 20px;
+  text-align: center;
+  color: var(--fg1);
+}
+
+.phone-link .confirm-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
