@@ -1,27 +1,28 @@
-# MCP (Model Context Protocol) Integration
+# MCP (Model Context Protocol) Integration - Prompt Injection Mode
 
 ## Overview
 
-The R-API now includes comprehensive support for MCP (Model Context Protocol), allowing R1 devices to connect to and use external tools and services through standardized MCP servers. This enables powerful extensibility while maintaining security and control.
+The R-API includes MCP (Model Context Protocol) support through **prompt injection**, making it suitable for public server environments. Instead of spawning actual MCP server processes, the system injects tool descriptions and capabilities directly into chat prompts, allowing R1 devices to understand and use available tools through natural language responses.
 
 ## Features
 
-- **Server Management**: Register, configure, and manage MCP servers per device
-- **Tool Discovery**: Automatically discover and catalog available tools from MCP servers
+- **Prompt Injection**: Tools are described in chat prompts rather than running actual processes
+- **Server Management**: Register, configure, and manage MCP tool definitions per device
+- **Tool Simulation**: Simulated tool responses for common functionality
 - **Security Controls**: Auto-approval lists and manual approval workflows
 - **Real-time Monitoring**: Live status monitoring and logging
-- **Template System**: Pre-configured templates for popular MCP servers
-- **Session Management**: Persistent sessions with automatic cleanup
+- **Template System**: Pre-configured templates for common tool types
+- **Public Server Safe**: No file system or database access, suitable for public deployment
 
 ## Architecture
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│ R1 Device   │────│ R-API Server│────│ MCP Servers │
+│ R1 Device   │────│ R-API Server│────│ Tool Sims   │
 │             │    │             │    │             │
-│ • MCP Client│    │ • MCP Mgr   │    │ • Tools     │
-│ • Tool Calls│    │ • Security  │    │ • Resources │
-│ • Sessions  │    │ • Logging   │    │ • Prompts   │
+│ • Chat API  │    │ • Prompt    │    │ • Web Search│
+│ • Tool Calls│    │   Injection │    │ • Weather   │
+│ • Responses │    │ • Tool Sims │    │ • Calculator│
 └─────────────┘    └─────────────┘    └─────────────┘
 ```
 
@@ -55,63 +56,70 @@ The R-API now includes comprehensive support for MCP (Model Context Protocol), a
 
 ## Pre-configured Templates
 
-### File System Access
-```json
-{
-  "name": "filesystem",
-  "command": "uvx",
-  "args": ["mcp-server-filesystem"],
-  "description": "Access and manipulate files and directories"
-}
-```
-
 ### Web Search
 ```json
 {
   "name": "web-search",
-  "command": "uvx", 
-  "args": ["mcp-server-web-search"],
-  "description": "Search the web using various search engines"
+  "command": "simulated",
+  "args": [],
+  "description": "Search the web using various search engines",
+  "autoApprove": ["search_web"]
 }
 ```
 
-### GitHub Integration
+### Weather Information
 ```json
 {
-  "name": "github",
-  "command": "uvx",
-  "args": ["mcp-server-github"],
-  "env": {
-    "GITHUB_TOKEN": "your-github-token"
-  },
-  "description": "Interact with GitHub repositories and issues"
+  "name": "weather",
+  "command": "simulated",
+  "args": [],
+  "description": "Get current weather information for any location",
+  "autoApprove": ["get_weather"]
 }
 ```
 
-### SQLite Database
+### Calculator
 ```json
 {
-  "name": "sqlite",
-  "command": "uvx",
-  "args": ["mcp-server-sqlite"],
-  "description": "Query and manipulate SQLite databases"
+  "name": "calculator",
+  "command": "simulated",
+  "args": [],
+  "description": "Perform mathematical calculations",
+  "autoApprove": ["calculate"]
 }
 ```
 
-### AWS Documentation
+### Time & Date
 ```json
 {
-  "name": "aws-docs",
-  "command": "uvx",
-  "args": ["awslabs.aws-documentation-mcp-server@latest"],
-  "env": {
-    "FASTMCP_LOG_LEVEL": "ERROR"
-  },
-  "description": "Search and access AWS documentation"
+  "name": "time",
+  "command": "simulated",
+  "args": [],
+  "description": "Get current time and date information",
+  "autoApprove": ["get_current_time"]
+}
+```
+
+### Knowledge Base
+```json
+{
+  "name": "knowledge",
+  "command": "simulated",
+  "args": [],
+  "description": "Search knowledge base for information"
 }
 ```
 
 ## API Endpoints
+
+### Prompt Injection
+
+#### Get MCP Prompt Injection
+```http
+GET /{deviceId}/mcp/prompt-injection
+```
+
+Returns the MCP prompt injection text that should be prepended to chat completions for the specified device.
 
 ### Server Management
 

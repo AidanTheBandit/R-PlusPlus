@@ -1,6 +1,6 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 
-function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager) {
+function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
   // Device-specific endpoints: /device-{deviceId}/v1/chat/completions (legacy format)
   app.post('/device-:deviceId/v1/chat/completions', async (req, res) => {
     const { deviceId } = req.params;
@@ -411,13 +411,21 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       // Update stored history
       conversationHistory.set(sessionId, history);
 
-      // Create message with conversation context
+      // Create message with conversation context and MCP injection
       let messageWithContext = userMessage;
       if (history.length > 1) {
         // Get only the last assistant response for context
         const lastAssistantMessage = history.slice(-2).find(msg => msg.role === 'assistant');
         if (lastAssistantMessage) {
           messageWithContext = `Previous assistant response: ${lastAssistantMessage.content}\n\nCurrent question: ${userMessage}`;
+        }
+      }
+
+      // Inject MCP prompt if available
+      if (mcpManager) {
+        const mcpPrompt = mcpManager.generateMCPPromptInjection(targetDeviceId);
+        if (mcpPrompt) {
+          messageWithContext = mcpPrompt + '\n\n' + messageWithContext;
         }
       }
 

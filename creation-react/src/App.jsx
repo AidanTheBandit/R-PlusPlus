@@ -153,10 +153,12 @@ function App() {
       if (eventName === 'chat_completion') {
         addConsoleLog(`🚨 CATCH-ALL: chat_completion event detected!`, 'info')
       }
-      // Log ALL events for debugging
-      addConsoleLog(`🔍 CATCH-ALL: Event '${eventName}' received`, 'info')
+      // Log ALL events for debugging (but not pong to avoid spam)
       if (eventName !== 'pong') {
-        addConsoleLog(`🔍 CATCH-ALL: Event '${eventName}' with args: ${JSON.stringify(args).substring(0, 200)}...`, 'info')
+        addConsoleLog(`🔍 CATCH-ALL: Event '${eventName}' received`, 'info')
+        if (args.length > 0) {
+          addConsoleLog(`🔍 CATCH-ALL: Event '${eventName}' with args: ${JSON.stringify(args).substring(0, 200)}...`, 'info')
+        }
       }
     })
 
@@ -285,7 +287,7 @@ function App() {
 
         // For testing purposes, simulate an R1 response when SDK is not available
         const simulatedResponse = `Hello! This is a simulated response from the R1 device. You said: "${messageToSend}". The R1 SDK is not available in this browser environment, but the socket communication is working correctly.`
-        
+
         addConsoleLog(`🤖 Simulating R1 response: "${simulatedResponse.substring(0, 50)}..."`, 'info')
 
         // Send simulated response after a short delay to mimic processing time
