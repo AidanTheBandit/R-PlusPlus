@@ -151,7 +151,7 @@ function App() {
         
         <footer className="app-footer">
           <a href="https://barkle.chat/@Aidan" target="_blank" rel="noopener noreferrer">
-            Barkle Account
+            Barkle 
           </a>
           <span>Made with ❤️ by Aidan and <a href="https://boondit.site/r1-generator" target="_blank" rel="noopener noreferrer">R1 QR code gen</a></span>
         </footer>
