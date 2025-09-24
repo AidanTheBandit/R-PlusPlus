@@ -277,15 +277,24 @@ class RAPIClient {
             <div id="camera-section" class="debug-section">
                 <h3>Camera Debug</h3>
                 <div class="debug-subsection">
+                    <h4>Device Selection</h4>
+                    <div class="device-selector">
+                        <label for="camera-device-select" style="margin-right: 10px; font-weight: bold;">Select Device:</label>
+                        <select id="camera-device-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                            <option value="">Select a device...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="debug-subsection">
                     <h4>Camera Controls</h4>
                     <div class="camera-controls">
                         <button class="cam-btn" onclick="startCamera()">Start Camera</button>
                         <button class="cam-btn" onclick="stopCamera()">Stop Camera</button>
                         <button class="cam-btn" onclick="capturePhoto()">Capture Photo</button>
                         <button class="cam-btn" onclick="switchCamera()">Switch Camera</button>
-                        <button class="cam-btn" onclick="testCameraCapabilities()">Test Capabilities</button>
+                        <button class="cam-btn" onclick="getCameraStatus()">Get Status</button>
                     </div>
-                    <div class="camera-status">Status: Inactive</div>
+                    <div class="camera-status">Status: No device selected</div>
                 </div>
                 <div class="debug-subsection">
                     <h4>Video Preview</h4>
@@ -803,6 +812,28 @@ class RAPIClient {
         }
     }
 
+    async loadCameraDeviceList() {
+        const deviceSelect = document.getElementById('camera-device-select');
+        if (!deviceSelect) return;
+
+        try {
+            // Clear existing options except the first one
+            while (deviceSelect.children.length > 1) {
+                deviceSelect.removeChild(deviceSelect.lastChild);
+            }
+
+            // Use connected devices from socket
+            for (const [deviceId] of this.connectedDevices) {
+                const option = document.createElement('option');
+                option.value = deviceId;
+                option.textContent = deviceId;
+                deviceSelect.appendChild(option);
+            }
+        } catch (error) {
+            this.log(`Failed to load camera device list: ${error.message}`);
+        }
+    }
+
     async loadMCPTemplates() {
         try {
             const response = await fetch('/mcp/templates');
@@ -1009,6 +1040,7 @@ class RAPIClient {
     initCameraDebug() {
         // Camera debug initialization
         this.cameraEvents = [];
+        this.loadCameraDeviceList();
     }
 
     initLLMDebug() {
@@ -1178,6 +1210,7 @@ class RAPIClient {
         });
         this.updateDeviceList();
         this.updateMetrics();
+        this.loadCameraDeviceList(); // Update camera device selector
         this.log(`Device connected: ${data.deviceId}`);
         this.messageCounter++;
     }
@@ -1186,6 +1219,7 @@ class RAPIClient {
         this.connectedDevices.delete(data.deviceId);
         this.updateDeviceList();
         this.updateMetrics();
+        this.loadCameraDeviceList(); // Update camera device selector
         this.log(`Device disconnected: ${data.deviceId}`);
     }
 
@@ -1251,56 +1285,56 @@ class RAPIClient {
         this.addChatMessage('system', 'Debug', logMessage);
     }
 
-    // Debug data management methods
-    async getDebugDevices() {
-        try {
-            const response = await fetch('/debug/devices');
-            if (response.ok) {
-                const data = await response.json();
-                this.log(`Found ${data.devices.length} debug-enabled devices`);
-                return data.devices;
-            }
-        } catch (error) {
-            this.log(`Error fetching debug devices: ${error.message}`);
-        }
-        return [];
-    }
+    // Debug data management methods - REMOVED: Leaks device IDs and sensitive data
+    // async getDebugDevices() {
+    //     try {
+    //         const response = await fetch('/debug/devices');
+    //         if (response.ok) {
+    //             const data = await response.json();
+    //             this.log(`Found ${data.devices.length} debug-enabled devices`);
+    //             return data.devices;
+    //         }
+    //     } catch (error) {
+    //         this.log(`Error fetching debug devices: ${error.message}`);
+    //     }
+    //     return [];
+    // }
 
-    async getDeviceDebugHistory(deviceId, type = null, limit = 20) {
-        try {
-            const url = type
-                ? `/debug/history/${deviceId}?type=${type}&limit=${limit}`
-                : `/debug/history/${deviceId}?limit=${limit}`;
+    // async getDeviceDebugHistory(deviceId, type = null, limit = 20) {
+    //     try {
+    //         const url = type
+    //             ? `/debug/history/${deviceId}?type=${type}&limit=${limit}`
+    //             : `/debug/history/${deviceId}?limit=${limit}`;
 
-            const response = await fetch(url);
-            if (response.ok) {
-                const data = await response.json();
-                this.log(`Fetched debug history for ${deviceId}`);
-                return data.data;
-            }
-        } catch (error) {
-            this.log(`Error fetching debug history: ${error.message}`);
-        }
-        return {};
-    }
+    //         const response = await fetch(url);
+    //         if (response.ok) {
+    //             const data = await response.json();
+    //             this.log(`Fetched debug history for ${deviceId}`);
+    //             return data.data;
+    //         }
+    //     } catch (error) {
+    //         this.log(`Error fetching debug history: ${error.message}`);
+    //     }
+    //     return {};
+    // }
 
-    async clearDeviceDebugData(deviceId, type = null) {
-        try {
-            const url = type
-                ? `/debug/clear/${deviceId}?type=${type}`
-                : `/debug/clear/${deviceId}`;
+    // async clearDeviceDebugData(deviceId, type = null) {
+    //     try {
+    //         const url = type
+    //             ? `/debug/clear/${deviceId}?type=${type}`
+    //             : `/debug/clear/${deviceId}`;
 
-            const response = await fetch(url, { method: 'DELETE' });
-            if (response.ok) {
-                const data = await response.json();
-                this.log(`Cleared debug data for ${deviceId}`);
-                return data;
-            }
-        } catch (error) {
-            this.log(`Error clearing debug data: ${error.message}`);
-        }
-        return null;
-    }
+    //         const response = await fetch(url, { method: 'DELETE' });
+    //         if (response.ok) {
+    //             const data = await response.json();
+    //             this.log(`Cleared debug data for ${deviceId}`);
+    //             return data;
+    //         }
+    //     } catch (error) {
+    //         this.log(`Error clearing debug data: ${error.message}`);
+    //     }
+    //     return null;
+    // }
 
     // Server status and health checks
     async checkServerStatus() {
@@ -1553,11 +1587,16 @@ class RAPIClient {
         this.log('Log exported');
     }
 
-    // Camera control methods
-    async startCamera() {
+    // Camera control methods - Now device-specific
+    async startCamera(deviceId) {
+        if (!deviceId) {
+            this.showError('No device selected for camera control');
+            return;
+        }
+
         try {
-            this.log('Starting magic cam...');
-            const response = await fetch('/magic-cam/start', {
+            this.log(`Starting magic cam for device ${deviceId}...`);
+            const response = await fetch(`/${deviceId}/magic-cam/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ facingMode: 'user' })
@@ -1565,7 +1604,7 @@ class RAPIClient {
 
             const result = await response.json();
             if (response.ok) {
-                this.log(`Camera start command sent to ${result.devices} device(s)`);
+                this.log(`Camera start command sent to device ${deviceId}`);
                 this.updateCameraStatus('Starting camera...');
             } else {
                 this.showError(`Failed to start camera: ${result.error}`);
@@ -1575,16 +1614,21 @@ class RAPIClient {
         }
     }
 
-    async stopCamera() {
+    async stopCamera(deviceId) {
+        if (!deviceId) {
+            this.showError('No device selected for camera control');
+            return;
+        }
+
         try {
-            this.log('Stopping magic cam...');
-            const response = await fetch('/magic-cam/stop', {
+            this.log(`Stopping magic cam for device ${deviceId}...`);
+            const response = await fetch(`/${deviceId}/magic-cam/stop`, {
                 method: 'POST'
             });
 
             const result = await response.json();
             if (response.ok) {
-                this.log(`Camera stop command sent to ${result.devices} device(s)`);
+                this.log(`Camera stop command sent to device ${deviceId}`);
                 this.updateCameraStatus('Stopping camera...');
             } else {
                 this.showError(`Failed to stop camera: ${result.error}`);
@@ -1594,10 +1638,15 @@ class RAPIClient {
         }
     }
 
-    async capturePhoto() {
+    async capturePhoto(deviceId) {
+        if (!deviceId) {
+            this.showError('No device selected for camera control');
+            return;
+        }
+
         try {
-            this.log('Capturing photo...');
-            const response = await fetch('/magic-cam/capture', {
+            this.log(`Capturing photo for device ${deviceId}...`);
+            const response = await fetch(`/${deviceId}/magic-cam/capture`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ width: 240, height: 282 })
@@ -1605,7 +1654,7 @@ class RAPIClient {
 
             const result = await response.json();
             if (response.ok) {
-                this.log(`Photo capture command sent to ${result.devices} device(s)`);
+                this.log(`Photo capture command sent to device ${deviceId}`);
                 this.updateCameraStatus('Capturing photo...');
             } else {
                 this.showError(`Failed to capture photo: ${result.error}`);
@@ -1615,16 +1664,21 @@ class RAPIClient {
         }
     }
 
-    async switchCamera() {
+    async switchCamera(deviceId) {
+        if (!deviceId) {
+            this.showError('No device selected for camera control');
+            return;
+        }
+
         try {
-            this.log('Switching camera...');
-            const response = await fetch('/magic-cam/switch', {
+            this.log(`Switching camera for device ${deviceId}...`);
+            const response = await fetch(`/${deviceId}/magic-cam/switch`, {
                 method: 'POST'
             });
 
             const result = await response.json();
             if (response.ok) {
-                this.log(`Camera switch command sent to ${result.devices} device(s)`);
+                this.log(`Camera switch command sent to device ${deviceId}`);
                 this.updateCameraStatus('Switching camera...');
             } else {
                 this.showError(`Failed to switch camera: ${result.error}`);
@@ -1634,14 +1688,19 @@ class RAPIClient {
         }
     }
 
-    async getCameraStatus() {
+    async getCameraStatus(deviceId) {
+        if (!deviceId) {
+            this.showError('No device selected for camera control');
+            return;
+        }
+
         try {
-            this.log('Getting camera status...');
-            const response = await fetch('/magic-cam/status');
+            this.log(`Getting camera status for device ${deviceId}...`);
+            const response = await fetch(`/${deviceId}/magic-cam/status`);
 
             const result = await response.json();
             if (response.ok) {
-                this.updateCameraStatus(`Connected devices: ${result.connectedDevices}, Commands: ${result.cameraCommands.join(', ')}`);
+                this.updateCameraStatus(`Device ${deviceId}: Connected=${result.connected}, Commands: ${result.cameraCommands.join(', ')}`);
                 this.log(`Camera status: ${JSON.stringify(result)}`);
             } else {
                 this.showError(`Failed to get camera status: ${result.error}`);
@@ -1697,23 +1756,48 @@ function exportLog() {
 
 // Camera control functions
 function startCamera() {
-    client.startCamera();
+    const deviceId = document.getElementById('camera-device-select').value;
+    if (!deviceId) {
+        alert('Please select a device first');
+        return;
+    }
+    client.startCamera(deviceId);
 }
 
 function stopCamera() {
-    client.stopCamera();
+    const deviceId = document.getElementById('camera-device-select').value;
+    if (!deviceId) {
+        alert('Please select a device first');
+        return;
+    }
+    client.stopCamera(deviceId);
 }
 
 function capturePhoto() {
-    client.capturePhoto();
+    const deviceId = document.getElementById('camera-device-select').value;
+    if (!deviceId) {
+        alert('Please select a device first');
+        return;
+    }
+    client.capturePhoto(deviceId);
 }
 
 function switchCamera() {
-    client.switchCamera();
+    const deviceId = document.getElementById('camera-device-select').value;
+    if (!deviceId) {
+        alert('Please select a device first');
+        return;
+    }
+    client.switchCamera(deviceId);
 }
 
 function getCameraStatus() {
-    client.getCameraStatus();
+    const deviceId = document.getElementById('camera-device-select').value;
+    if (!deviceId) {
+        alert('Please select a device first');
+        return;
+    }
+    client.getCameraStatus(deviceId);
 }
 
 // Debug tool functions
@@ -1921,8 +2005,7 @@ document.addEventListener('visibilitychange', function () {
         client.refreshStatus();
     }
 });
-// MCP Ma
-nagement Functions
+// MCP Management Functions
 function showAddServerModal() {
     document.getElementById('addServerModal').classList.add('show');
 }

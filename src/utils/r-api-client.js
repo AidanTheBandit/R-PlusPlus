@@ -61,55 +61,52 @@ class RApiClient {
     return await response.json();
   }
 
-  // Get debug devices info
-  async getDebugDevices() {
-    const response = await fetch(`${this.baseUrl}/debug/devices`);
+  // Debug methods removed - leaked device IDs and sensitive data
+  // async getDebugDevices() {
+  //   const response = await fetch(`${this.baseUrl}/debug/devices`);
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+  //   if (!response.ok) {
+  //     throw new Error(`HTTP ${response.status}`);
+  //   }
 
-    return await response.json();
-  }
+  //   return await response.json();
+  // }
 
-  // Get debug data for a specific device
-  async getDebugData(deviceId) {
-    const response = await fetch(`${this.baseUrl}/debug/data/${deviceId}`);
+  // async getDebugData(deviceId) {
+  //   const response = await fetch(`${this.baseUrl}/debug/data/${deviceId}`);
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+  //   if (!response.ok) {
+  //     throw new Error(`HTTP ${response.status}`);
+  //   }
 
-    return await response.json();
-  }
+  //   return await response.json();
+  // }
 
-  // Get debug logs for a specific device
-  async getDebugLogs(deviceId) {
-    const response = await fetch(`${this.baseUrl}/debug/logs/${deviceId}`);
+  // async getDebugLogs(deviceId) {
+  //   const response = await fetch(`${this.baseUrl}/debug/logs/${deviceId}`);
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+  //   if (!response.ok) {
+  //     throw new Error(`HTTP ${response.status}`);
+  //   }
 
-    return await response.json();
-  }
+  //   return await response.json();
+  // }
 
-  // Clear debug data for a device
-  async clearDebugData(deviceId) {
-    const response = await fetch(`${this.baseUrl}/debug/clear/${deviceId}`, {
-      method: 'POST'
-    });
+  // async clearDebugData(deviceId) {
+  //   const response = await fetch(`${this.baseUrl}/debug/clear/${deviceId}`, {
+  //     method: 'POST'
+  //   });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+  //   if (!response.ok) {
+  //     throw new Error(`HTTP ${response.status}`);
+  //   }
 
-    return await response.json();
-  }
+  //   return await response.json();
+  // }
 
-  // Magic cam controls
-  async startMagicCam(facingMode = 'user') {
-    const response = await fetch(`${this.baseUrl}/magic-cam/start`, {
+  // Magic cam controls - Device-specific
+  async startMagicCam(deviceId, facingMode = 'user') {
+    const response = await fetch(`${this.baseUrl}/${deviceId}/magic-cam/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ facingMode })
@@ -122,8 +119,8 @@ class RApiClient {
     return await response.json();
   }
 
-  async stopMagicCam() {
-    const response = await fetch(`${this.baseUrl}/magic-cam/stop`, {
+  async stopMagicCam(deviceId) {
+    const response = await fetch(`${this.baseUrl}/${deviceId}/magic-cam/stop`, {
       method: 'POST'
     });
 
@@ -134,8 +131,8 @@ class RApiClient {
     return await response.json();
   }
 
-  async captureMagicCam(width = 240, height = 282) {
-    const response = await fetch(`${this.baseUrl}/magic-cam/capture`, {
+  async captureMagicCam(deviceId, width = 240, height = 282) {
+    const response = await fetch(`${this.baseUrl}/${deviceId}/magic-cam/capture`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ width, height })
@@ -148,8 +145,8 @@ class RApiClient {
     return await response.json();
   }
 
-  async switchMagicCam() {
-    const response = await fetch(`${this.baseUrl}/magic-cam/switch`, {
+  async switchMagicCam(deviceId) {
+    const response = await fetch(`${this.baseUrl}/${deviceId}/magic-cam/switch`, {
       method: 'POST'
     });
 
@@ -160,8 +157,8 @@ class RApiClient {
     return await response.json();
   }
 
-  async getMagicCamStatus() {
-    const response = await fetch(`${this.baseUrl}/magic-cam/status`);
+  async getMagicCamStatus(deviceId) {
+    const response = await fetch(`${this.baseUrl}/${deviceId}/magic-cam/status`);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);

@@ -251,99 +251,99 @@ function setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugData
     }
   });
 
-  // Get debug data endpoint
-  app.get('/debug/data/:deviceId', (req, res) => {
-    try {
-      const { deviceId } = req.params;
-      const data = debugDataStore.get(deviceId) || { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] };
+  // Get debug data endpoint - REMOVED: Leaks device IDs and sensitive data
+  // app.get('/debug/data/:deviceId', (req, res) => {
+  //   try {
+  //     const { deviceId } = req.params;
+  //     const data = debugDataStore.get(deviceId) || { hardware: [], camera: [], llm: [], storage: [], audio: [], performance: [], device: [] };
       
-      res.json({
-        deviceId,
-        data,
-        lastUpdated: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error retrieving debug data:', error);
-      res.status(500).json({ error: 'Failed to retrieve debug data' });
-    }
-  });
+  //     res.json({
+  //       deviceId,
+  //       data,
+  //       lastUpdated: new Date().toISOString()
+  //     });
+  //   } catch (error) {
+  //     console.error('Error retrieving debug data:', error);
+  //     res.status(500).json({ error: 'Failed to retrieve debug data' });
+  //   }
+  // });
 
-  // Get device logs endpoint
-  app.get('/debug/logs/:deviceId', (req, res) => {
-    try {
-      const { deviceId } = req.params;
-      const logs = deviceLogs.get(deviceId) || [];
+  // Get device logs endpoint - REMOVED: Leaks device IDs and sensitive data
+  // app.get('/debug/logs/:deviceId', (req, res) => {
+  //   try {
+  //     const { deviceId } = req.params;
+  //     const logs = deviceLogs.get(deviceId) || [];
       
-      res.json({
-        deviceId,
-        logs,
-        count: logs.length,
-        lastUpdated: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error retrieving device logs:', error);
-      res.status(500).json({ error: 'Failed to retrieve device logs' });
-    }
-  });
+  //     res.json({
+  //       deviceId,
+  //       logs,
+  //       count: logs.length,
+  //       lastUpdated: new Date().toISOString()
+  //     });
+  //   } catch (error) {
+  //     console.error('Error retrieving device logs:', error);
+  //     res.status(500).json({ error: 'Failed to retrieve device logs' });
+  //   }
+  // });
 
-  // Get all connected devices debug summary
-  app.get('/debug/devices', (req, res) => {
-    try {
-      const devices = Array.from(connectedR1s.keys()).map(deviceId => {
-        const data = debugDataStore.get(deviceId);
-        const logs = deviceLogs.get(deviceId);
+  // Get all connected devices debug summary - REMOVED: Leaks all device IDs
+  // app.get('/debug/devices', (req, res) => {
+  //   try {
+  //     const devices = Array.from(connectedR1s.keys()).map(deviceId => {
+  //       const data = debugDataStore.get(deviceId);
+  //       const logs = deviceLogs.get(deviceId);
         
-        return {
-          deviceId,
-          connected: true,
-          dataPoints: data ? {
-            hardware: data.hardware.length,
-            camera: data.camera.length,
-            llm: data.llm.length,
-            storage: data.storage.length,
-            audio: data.audio.length,
-            performance: data.performance.length,
-            device: data.device.length
-          } : { hardware: 0, camera: 0, llm: 0, storage: 0, audio: 0, performance: 0, device: 0 },
-          logCount: logs ? logs.length : 0,
-          lastActivity: data ? Math.max(
-            ...data.hardware.map(d => new Date(d.serverTimestamp)),
-            ...data.camera.map(d => new Date(d.serverTimestamp)),
-            ...data.llm.map(d => new Date(d.serverTimestamp)),
-            ...data.storage.map(d => new Date(d.serverTimestamp)),
-            ...data.audio.map(d => new Date(d.serverTimestamp)),
-            ...data.performance.map(d => new Date(d.serverTimestamp)),
-            ...data.device.map(d => new Date(d.serverTimestamp))
-          ) : null
-        };
-      });
+  //       return {
+  //         deviceId,
+  //         connected: true,
+  //         dataPoints: data ? {
+  //           hardware: data.hardware.length,
+  //           camera: data.camera.length,
+  //           llm: data.llm.length,
+  //           storage: data.storage.length,
+  //           audio: data.audio.length,
+  //           performance: data.performance.length,
+  //           device: data.device.length
+  //         } : { hardware: 0, camera: 0, llm: 0, storage: 0, audio: 0, performance: 0, device: 0 },
+  //         logCount: logs ? logs.length : 0,
+  //         lastActivity: data ? Math.max(
+  //           ...data.hardware.map(d => new Date(d.serverTimestamp)),
+  //           ...data.camera.map(d => new Date(d.serverTimestamp)),
+  //           ...data.llm.map(d => new Date(d.serverTimestamp)),
+  //           ...data.storage.map(d => new Date(d.serverTimestamp)),
+  //           ...data.audio.map(d => new Date(d.serverTimestamp)),
+  //           ...data.performance.map(d => new Date(d.serverTimestamp)),
+  //           ...data.device.map(d => new Date(d.serverTimestamp))
+  //         ) : null
+  //       };
+  //     });
       
-      res.json({
-        devices,
-        totalDevices: devices.length,
-        serverTime: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error retrieving devices summary:', error);
-      res.status(500).json({ error: 'Failed to retrieve devices summary' });
-    }
-  });
+  //     res.json({
+  //       devices,
+  //       totalDevices: devices.length,
+  //       serverTime: new Date().toISOString()
+  //     });
+  //   } catch (error) {
+  //     console.error('Error retrieving devices summary:', error);
+  //     res.status(500).json({ error: 'Failed to retrieve devices summary' });
+  //   }
+  // });
 
-  // Clear debug data endpoint
-  app.post('/debug/clear/:deviceId', (req, res) => {
-    try {
-      const { deviceId } = req.params;
+  // Clear debug data endpoint - REMOVED: Allows clearing data for any device without auth
+  // app.post('/debug/clear/:deviceId', (req, res) => {
+  //   try {
+  //     const { deviceId } = req.params;
       
-      debugDataStore.delete(deviceId);
-      deviceLogs.delete(deviceId);
+  //     debugDataStore.delete(deviceId);
+  //     deviceLogs.delete(deviceId);
       
-      console.log(`Cleared debug data for device: ${deviceId}`);
-      res.json({ status: 'cleared', deviceId });
-    } catch (error) {
-      console.error('Error clearing debug data:', error);
-      res.status(500).json({ error: 'Failed to clear debug data' });
-    }
-  });
+  //     console.log(`Cleared debug data for device: ${deviceId}`);
+  //     res.json({ status: 'cleared', deviceId });
+  //   } catch (error) {
+  //     console.error('Error clearing debug data:', error);
+  //     res.status(500).json({ error: 'Failed to clear debug data' });
+  //   }
+  // });
 
   // System info endpoint
   app.post('/debug/system-info', (req, res) => {
