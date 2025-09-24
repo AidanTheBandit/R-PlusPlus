@@ -4,6 +4,7 @@ import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
 import ApiDocs from './components/ApiDocs';
+import PhoneLink from './components/PhoneLink';
 import Apps from './components/Apps';
 // import MCPManager from './components/MCPManager'; // Coming soon
 import './App.css';
@@ -104,6 +105,8 @@ function App() {
     switch (activeTab) {
       case 'chat':
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
+      case 'phone':
+        return <PhoneLink deviceId={deviceId} />;
       case 'api-docs':
         return <ApiDocs deviceId={deviceId} />;
       case 'mcp':

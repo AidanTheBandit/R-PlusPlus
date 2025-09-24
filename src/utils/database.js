@@ -123,6 +123,17 @@ class DatabaseManager {
         message TEXT,
         metadata TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS phone_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT NOT NULL,
+        phone_number TEXT UNIQUE NOT NULL,
+        verification_code TEXT,
+        verified BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        verified_at DATETIME,
+        FOREIGN KEY(device_id) REFERENCES devices(device_id) ON DELETE CASCADE
       )`
     ];
 
@@ -473,6 +484,40 @@ class DatabaseManager {
       params = [deviceId, limit];
     }
     return await this.all(sql, params);
+  }
+
+  // Phone links management
+  async createPhoneLink(deviceId, phoneNumber, verificationCode) {
+    const sql = `
+      INSERT OR REPLACE INTO phone_links (device_id, phone_number, verification_code, verified, verified_at)
+      VALUES (?, ?, ?, 0, NULL)
+    `;
+    return await this.run(sql, [deviceId, phoneNumber, verificationCode]);
+  }
+
+  async verifyPhoneLink(phoneNumber, verificationCode) {
+    const sql = `
+      UPDATE phone_links
+      SET verified = 1, verified_at = CURRENT_TIMESTAMP, verification_code = NULL
+      WHERE phone_number = ? AND verification_code = ?
+    `;
+    const result = await this.run(sql, [phoneNumber, verificationCode]);
+    return result.changes > 0;
+  }
+
+  async getPhoneLink(phoneNumber) {
+    const sql = `SELECT * FROM phone_links WHERE phone_number = ?`;
+    return await this.get(sql, [phoneNumber]);
+  }
+
+  async getPhoneLinksByDevice(deviceId) {
+    const sql = `SELECT * FROM phone_links WHERE device_id = ? ORDER BY created_at DESC`;
+    return await this.all(sql, [deviceId]);
+  }
+
+  async unlinkPhone(phoneNumber) {
+    const sql = `DELETE FROM phone_links WHERE phone_number = ?`;
+    return await this.run(sql, [phoneNumber]);
   }
 
   // Close database connection

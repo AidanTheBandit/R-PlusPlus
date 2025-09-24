@@ -4,12 +4,16 @@ const cors = require('cors');
 const path = require('path');
 const http = require('http');
 
+// Load environment variables
+require('dotenv').config();
+
 // Import modular components
 const { setupOpenAIRoutes } = require('./routes/openai');
 const { setupMagicCamRoutes } = require('./routes/magic-cam');
 const { setupHealthRoutes } = require('./routes/health');
 const { setupDebugRoutes } = require('./routes/debug');
 const { setupMCPRoutes } = require('./routes/mcp');
+const { setupTwilioRoutes } = require('./routes/twilio');
 const { setupSocketHandler } = require('./socket/socket-handler');
 const { DeviceIdManager } = require('./utils/device-id-manager');
 const { DatabaseManager } = require('./utils/database');
@@ -57,6 +61,7 @@ setupMagicCamRoutes(app, connectedR1s);
 setupHealthRoutes(app, connectedR1s);
 setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugDataStore, performanceMetrics);
 setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager);
+setupTwilioRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, database);
 
 // Serve React creation assets from root for proper loading
 app.use('/assets', express.static(path.join(__dirname, '..', 'creation-react', 'dist', 'assets'), {
