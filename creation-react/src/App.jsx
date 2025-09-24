@@ -28,8 +28,6 @@ function App() {
   // Device management hook
   const {
     handleRefreshDeviceInfo,
-    checkDeviceStatus,
-    testChatCompletion,
     handleDisablePin,
     handleEnablePin,
     handleChangePin
@@ -86,24 +84,10 @@ function App() {
         deviceId={deviceId}
         deviceInfo={deviceInfo}
         onRefreshDeviceInfo={handleRefreshDeviceInfo}
-        onCheckDeviceStatus={checkDeviceStatus}
-        onTestChatCompletion={testChatCompletion}
         onReconnect={handleReconnect}
         onChangePin={handleChangePin}
         onDisablePin={handleDisablePin}
         onEnablePin={handleEnablePin}
-        onSocketTest={() => {
-          if (socketRef.current && socketRef.current.connected) {
-            addConsoleLog('🧪 Testing socket communication...', 'info')
-            socketRef.current.emit('test_message', {
-              deviceId: deviceId,
-              message: 'Socket test from creation app',
-              timestamp: new Date().toISOString()
-            })
-          } else {
-            addConsoleLog('❌ Socket not connected', 'error')
-          }
-        }}
       />
 
       {/* Main Content - Activity Log */}
