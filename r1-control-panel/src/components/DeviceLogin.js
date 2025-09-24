@@ -96,7 +96,7 @@ const DeviceLogin = ({
                             iconUrl: "https://boondit.site/icons/r1a.png",
                             themeColor: "#ff61f2"
                         })}
-                        size={200}
+                        size={400}
                         fgColor="#ebdbb2"
                         bgColor="#282828"
                         level="M"
