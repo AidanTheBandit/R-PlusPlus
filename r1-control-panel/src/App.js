@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
-import MCPManager from './components/MCPManager';
+// import MCPManager from './components/MCPManager'; // Coming soon
 import './App.css';
 
 function App() {
@@ -103,7 +103,9 @@ function App() {
       case 'chat':
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
       case 'mcp':
-        return <MCPManager socket={socket} deviceId={deviceId} pinCode={pinCode} />;
+        // MCP is coming soon, redirect to chat
+        setActiveTab('chat');
+        return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
       default:
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
     }

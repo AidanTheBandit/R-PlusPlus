@@ -49,6 +49,30 @@
   background: inherit !important;
 }
 
+/* Coming Soon Tab Styles */
+.tab-btn.coming-soon {
+  opacity: 0.6;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.tab-btn.coming-soon:hover {
+  background: var(--bg2) !important;
+  transform: none !important;
+}
+
+.coming-soon-badge {
+  font-size: 0.7em;
+  background: var(--orange);
+  color: var(--bg0);
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .container {
@@ -70,5 +94,11 @@
   
   .chat-input-area .btn {
     width: 100%;
+  }
+  
+  .coming-soon-badge {
+    font-size: 0.6em;
+    padding: 1px 4px;
+    margin-left: 4px;
   }
 }
