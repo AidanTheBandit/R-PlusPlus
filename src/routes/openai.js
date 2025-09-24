@@ -264,6 +264,81 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     }
   });
 
+  // Diagnostic endpoint to check for duplicate device IDs
+  app.get('/admin/check-duplicate-devices', async (req, res) => {
+    try {
+      const connectedDevices = deviceIdManager.getConnectedDevices();
+      const deviceIdCounts = new Map();
+      const duplicates = [];
+      
+      // Count occurrences of each device ID
+      connectedDevices.forEach(device => {
+        const count = deviceIdCounts.get(device.deviceId) || 0;
+        deviceIdCounts.set(device.deviceId, count + 1);
+      });
+      
+      // Find duplicates
+      for (const [deviceId, count] of deviceIdCounts) {
+        if (count > 1) {
+          const devicesWithSameId = connectedDevices.filter(d => d.deviceId === deviceId);
+          duplicates.push({
+            deviceId,
+            count,
+            devices: devicesWithSameId
+          });
+        }
+      }
+      
+      res.json({
+        totalConnectedDevices: connectedDevices.length,
+        uniqueDeviceIds: deviceIdCounts.size,
+        duplicatesFound: duplicates.length,
+        duplicates,
+        allDevices: connectedDevices,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // EMERGENCY: Force regenerate all device IDs (security fix)
+  app.post('/admin/emergency-regenerate-device-ids', async (req, res) => {
+    try {
+      console.log('🚨 EMERGENCY: Admin triggered device ID regeneration');
+      
+      const regeneratedCount = await deviceIdManager.forceRegenerateAllDeviceIds();
+      
+      // Notify all connected devices of their new IDs
+      for (const [deviceId, socket] of connectedR1s) {
+        const deviceInfo = deviceIdManager.getDeviceInfo(deviceId);
+        if (deviceInfo && socket) {
+          socket.emit('device_id_changed', {
+            oldDeviceId: deviceInfo.regeneratedFrom || 'unknown',
+            newDeviceId: deviceId,
+            message: 'Your device ID has been regenerated for security reasons',
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: 'Emergency device ID regeneration completed',
+        regeneratedCount,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('Emergency regeneration failed:', error);
+      res.status(500).json({
+        error: 'Emergency regeneration failed',
+        message: error.message
+      });
+    }
+  });
+
   // Device status endpoint for debugging
   app.get('/:deviceId/status', async (req, res) => {
     const { deviceId } = req.params;
