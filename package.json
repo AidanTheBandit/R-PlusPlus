@@ -26,12 +26,13 @@
     "creation"
   ],
   "author": "AidanTheBandit",
-  "license": "GPL-3.0",
+  "license": "MIT",
   "dependencies": {
     "@vitejs/plugin-react": "^4.7.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
+    "pm2": "^5.3.0",
     "r1-create": "^1.0.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
