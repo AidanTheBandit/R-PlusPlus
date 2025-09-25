@@ -137,14 +137,35 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
       
       // Start or stop server (prompt injection mode)
       if (enabled) {
+        // Parse the full config from database
+        let fullConfig = {};
+        if (serverConfig.config) {
+          try {
+            fullConfig = JSON.parse(serverConfig.config);
+          } catch (error) {
+            console.warn(`Failed to parse server config for ${serverName}:`, error);
+          }
+        }
+        
+        // Merge with legacy fields
         const config = {
+          url: fullConfig.url || serverConfig.url,
+          protocolVersion: fullConfig.protocolVersion || '2025-06-18',
+          capabilities: fullConfig.capabilities || {
+            tools: {
+              enabled: true,
+              autoApprove: serverConfig.auto_approve ? JSON.parse(serverConfig.auto_approve) : []
+            }
+          },
           command: serverConfig.command,
           args: serverConfig.args ? JSON.parse(serverConfig.args) : [],
           env: serverConfig.env ? JSON.parse(serverConfig.env) : {},
-          autoApprove: serverConfig.auto_approve ? JSON.parse(serverConfig.auto_approve) : [],
-          enabled: true
+          headers: fullConfig.headers || {},
+          timeout: fullConfig.timeout || 30000,
+          enabled: true,
+          description: fullConfig.description || serverConfig.description
         };
-        await mcpManager.initializeServerTools(deviceId, serverName, config);
+        await mcpManager.initializeServer(deviceId, serverName, config);
       } else {
         await mcpManager.stopServerProcess(deviceId, serverName);
       }
@@ -304,7 +325,7 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
         });
       }
 
-      const promptInjection = mcpManager.generateMCPPromptInjection(deviceId);
+      const promptInjection = await mcpManager.generateMCPPromptInjection(deviceId);
       
       res.json({ 
         deviceId,
