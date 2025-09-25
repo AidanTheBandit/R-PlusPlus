@@ -1,7 +1,7 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 const { DeviceIdManager } = require('../utils/device-id-manager');
 
-function setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager = null, mcpManager = null) {
+function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager = null, mcpManager = null) {
   // Initialize device ID manager if not provided
   if (!deviceIdManager) {
     deviceIdManager = new DeviceIdManager();
@@ -340,21 +340,6 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
             mcpToolExecutedRequests.delete(requestId);
             console.log(`✅ Received final response after MCP tool execution`);
           }
-
-          // Store assistant response in conversation history
-          const sessionId = deviceId;
-          const history = conversationHistory.get(sessionId) || [];
-          history.push({
-            role: 'assistant',
-            content: finalResponse,
-            timestamp: new Date().toISOString()
-          });
-
-          // Keep only last 20 messages in storage
-          if (history.length > 20) {
-            history.splice(0, history.length - 20);
-          }
-          conversationHistory.set(sessionId, history);
 
           // Clear timeout and remove from pending requests
           clearTimeout(timeout);

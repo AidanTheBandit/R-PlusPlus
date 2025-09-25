@@ -1,6 +1,6 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 
-function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
+function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
   // Device-specific endpoints: /device-{deviceId}/v1/chat/completions (legacy format)
   app.post('/device-:deviceId/v1/chat/completions', async (req, res) => {
     const { deviceId } = req.params;
@@ -384,7 +384,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         const lowerMessage = userMessage.toLowerCase();
 
         // Check for explicit MCP requests
-        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool') || lowerMessage.includes('using mcp') || lowerMessage.includes('deepwiki') || lowerMessage.includes('look up')) {
+        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool') || lowerMessage.includes('using mcp')) {
           // Try to match the request to available tools
           for (const tool of tools) {
             if (tool.serverName === 'deepwiki') {
@@ -399,18 +399,18 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
                 const repoMatch = userMessage.match(pattern);
                 if (repoMatch) {
                   let repoName = repoMatch[1];
-                  
+
                   // Handle common repository shortcuts
                   if (repoName.toLowerCase() === 'vscode') {
                     repoName = 'microsoft/vscode';
                   } else if (repoName.toLowerCase() === 'react') {
                     repoName = 'facebook/react';
                   }
-                  
+
                   isMCPRequest = true;
                   mcpToolCall = {
                     server: tool.serverName,
-                    tool: tool.name, // read_wiki_structure
+                    tool: tool.name,
                     arguments: { repoName }
                   };
                   console.log(`🔧 Detected MCP request for repository ${repoName}, will execute ${tool.name} tool`);
@@ -421,13 +421,13 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
               if (isMCPRequest) break;
             }
           }
-          
+
           // Special handling for deepwiki mentions
           if (!isMCPRequest && lowerMessage.includes('deepwiki')) {
             const deepwikiTool = tools.find(t => t.serverName === 'deepwiki' && t.name === 'read_wiki_structure');
             if (deepwikiTool) {
               let repoName = 'microsoft/vscode'; // default fallback
-              
+
               // Try to extract repo name from the message
               const repoMatch = userMessage.match(/for\s+(\w+)/i);
               if (repoMatch) {
@@ -440,7 +440,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
                   repoName = `microsoft/${repoPart}`; // assume microsoft org
                 }
               }
-              
+
               isMCPRequest = true;
               mcpToolCall = {
                 server: deepwikiTool.serverName,
@@ -453,7 +453,6 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         }
 
         // Also check for implicit tool requests (e.g., "what's the weather in NYC")
-        // This can be expanded based on available tools
         if (!isMCPRequest) {
           // Example: weather tool matching
           const weatherMatch = lowerMessage.match(/(?:weather|temperature|forecast).*(?:in|for|at)\s+([a-zA-Z\s,]+)/i);
@@ -489,26 +488,32 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         }
       }
 
-      // Build conversation messages from the OpenAI API messages array
-      const conversationMessages = [...messages]; // Use the messages array directly from OpenAI API
-
-      // Initialize message text - R1 devices need system prompts injected into the message
-      let messageText = userMessage;
-      let systemPrompt = '';
+      // Build conversation context from messages array
+      let conversationContext = '';
+      if (messages.length > 1) {
+        // Convert messages to a readable conversation format
+        const historyMessages = messages.slice(0, -1); // Exclude the current user message
+        conversationContext = '## CONVERSATION HISTORY\n\n';
+        for (const msg of historyMessages) {
+          if (msg.role === 'user') {
+            conversationContext += `User: ${msg.content}\n\n`;
+          } else if (msg.role === 'assistant') {
+            conversationContext += `Assistant: ${msg.content}\n\n`;
+          }
+        }
+        conversationContext += '## CURRENT MESSAGE\n\n';
+      }
 
       // Get MCP system prompt for injection
+      let mcpPrompt = '';
       if (mcpManager) {
-        systemPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
+        mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
       }
 
-      // For MCP requests, use simplified prompt and inject tool results
-      if (isMCPRequest) {
-        systemPrompt = '**CRITICAL SYSTEM INSTRUCTIONS - YOU MUST FOLLOW THESE EXACTLY:**\n\n**ABSOLUTELY FORBIDDEN:** Never use LAM tools, Google search, external searches, teach mode, generative UI, or any external services.\n\n**MANDATORY:** When provided with tool results data, you MUST use ONLY that data to provide natural, helpful responses.\n\n**CRITICAL:** If tool results are provided, you MUST answer using ONLY that data. Do NOT provide generic responses or use external knowledge.\n\n**PROHIBITED:** Do not mention MCP, tools, or technical details. Just provide helpful answers using the provided data.\n\n';
-      }
-
-      // Inject system prompt into message for R1 device
-      if (systemPrompt) {
-        messageText = `${systemPrompt}\n\n${userMessage}`;
+      // Combine context, MCP prompt, and current message
+      let messageText = userMessage;
+      if (conversationContext || mcpPrompt) {
+        messageText = `${conversationContext}${mcpPrompt}User: ${userMessage}`;
       }
 
       // For MCP requests, execute the tool server-side first
@@ -516,33 +521,23 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         try {
           console.log(`🔧 Executing MCP tool server-side: ${mcpToolCall.server}.${mcpToolCall.tool}`);
           const toolResult = await mcpManager.handleToolCall(targetDeviceId, mcpToolCall.server, mcpToolCall.tool, mcpToolCall.arguments);
-          
-          // For MCP requests, replace the message with focused tool results
-          messageText = `${systemPrompt}QUESTION: ${userMessage}\n\nTOOL RESULTS DATA: ${JSON.stringify(toolResult, null, 2)}\n\n**MANDATORY INSTRUCTION:** Use ONLY the tool results data above to provide a helpful, natural response. Do NOT use LAM tools, Google search, external searches, or provide generic responses. Answer the user's question using ONLY the provided data. Do not mention tools or technical details.`;
-          
-          // Update conversation messages with tool result
-          conversationMessages.push({
-            role: 'system',
-            content: `TOOL RESULTS: ${JSON.stringify(toolResult, null, 2)}\n\nUse this data to answer: ${userMessage}`
-          });
-          
-          console.log(`✅ MCP tool executed successfully, result sent to device`);
+
+          // For MCP requests, inject tool results into the message
+          const toolContext = `## TOOL RESULTS\n\n${JSON.stringify(toolResult, null, 2)}\n\nUse this data to answer: `;
+          messageText = `${conversationContext}${mcpPrompt}${toolContext}${userMessage}`;
+
+          console.log(`✅ MCP tool executed successfully, result injected into message`);
         } catch (toolError) {
           console.error(`❌ MCP tool execution failed:`, toolError);
-          messageText = `${systemPrompt}ERROR: ${toolError.message}\n\nPlease respond to the user appropriately about: ${userMessage}`;
-          
-          conversationMessages.push({
-            role: 'system',
-            content: `TOOL ERROR: ${toolError.message}\n\nRespond to: ${userMessage}`
-          });
+          const errorContext = `## ERROR\n\n${toolError.message}\n\nPlease respond appropriately to: `;
+          messageText = `${conversationContext}${mcpPrompt}${errorContext}${userMessage}`;
         }
       }
       const command = {
         type: 'chat_completion',
         data: {
-          message: messageText, // Formatted message for R1
-          messages: conversationMessages, // Full conversation for context
-          originalMessage: userMessage, // Keep original for response
+          message: messageText,
+          originalMessage: userMessage,
           model,
           temperature,
           max_tokens,

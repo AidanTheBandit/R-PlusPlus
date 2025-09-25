@@ -6,7 +6,7 @@ if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
   twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 }
 
-function setupTwilioRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, database) {
+function setupTwilioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, database) {
   // Link phone number - send verification code
   app.post('/link-phone', async (req, res) => {
     const { deviceId, phoneNumber } = req.body;
