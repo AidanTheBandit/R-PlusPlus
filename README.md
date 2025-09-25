@@ -322,40 +322,34 @@ node src/tests/test-api.js
 3. **Process** → R1 Device → Generate Response
 4. **Return** → WebSocket → Response Utils → API Client
 
-## MCP (Model Context Protocol) Integration - Remote Server Mode ✅
+## Virtual R1 Test Client 🤖
 
-R-API includes MCP support through **remote server connections**, allowing R1 devices to connect to external MCP servers over HTTP:
+Test the MCP system without physical R1 hardware using OpenRouter-powered virtual devices:
 
-### Key Features
-- **Remote Server Connections**: Connect to external MCP servers over HTTP
-- **MCP Protocol Compliance**: Full implementation of MCP protocol version 2025-06-18
-- **Web-based Management**: Configure remote MCP server URLs through the control panel
-- **Real Tool Access**: Access actual tools provided by remote MCP servers
-- **Security Controls**: Auto-approval lists and manual approval workflows
-- **Real-time Monitoring**: Live status monitoring and logging
-- **Device Isolation**: Each device maintains its own MCP server connections
-- **Test Server**: Built-in test MCP server for development and testing
-
-### How It Works
-R-API connects to remote MCP servers using the official MCP protocol over HTTP. Tools are discovered dynamically from remote servers and their schemas are injected into R1 prompts. When the R1 requests tool use, R-API calls the actual remote server and returns real results.
-
-### Quick Start
-1. Open the R-API Control Panel at `https://r1a.boondit.site`
-2. Navigate to the "MCP Servers" tab
-3. Select your R1 device from the dropdown
-4. Click "Add Server" and choose the "Test MCP Server" template
-5. Your R1 will now have access to real MCP tools from the remote server
-
-### Testing MCP Integration
+### Setup
 ```bash
-# Test the MCP remote server functionality
-npm run test-mcp-remote
+# Install dependencies
+npm install
 
-# Run comprehensive MCP tests
-npm run test-mcp-comprehensive
+# Set OpenRouter API key
+export OPENROUTER_API_KEY=your_api_key_here
+
+# Run virtual R1 client
+npm run virtual-r1 <deviceId> [serverUrl]
+
+# Example
+npm run virtual-r1 virtual-r1-test http://localhost:3000
 ```
 
-See [MCP Documentation](docs/mcp.md) for detailed setup and usage instructions.
+### Testing MCP Features
+```bash
+# Run automated tests with virtual R1
+npm run test-virtual-r1
+```
+
+The virtual R1 client simulates a real R1 device, processing MCP tool results and system prompts through OpenRouter's Claude model. Perfect for testing MCP integration without physical hardware.
+
+See [Virtual R1 README](VIRTUAL-R1-README.md) for detailed setup and usage instructions.
 
 ## Documentation
 
