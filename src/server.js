@@ -785,8 +785,13 @@ const checkBuilds = () => {
 };
 
 // Initialize database before starting server
-database.init().then(() => {
+database.init().then(async () => {
   console.log('Database initialized successfully');
+  
+  // Initialize MCP manager after database is ready
+  await mcpManager.initialize();
+  console.log('MCP manager initialized successfully');
+  
   checkBuilds();
 
   server.listen(PORT, () => {

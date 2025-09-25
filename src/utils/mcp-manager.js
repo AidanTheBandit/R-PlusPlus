@@ -19,11 +19,13 @@ class MCPManager extends EventEmitter {
     this.healthCheckInterval = null;
     this.healthCheckIntervalMs = 30000; // Check every 30 seconds
     
-    // Initialize with existing server configurations
-    this.initializeFromDatabase();
-    
     // Start health monitoring
     this.startHealthMonitoring();
+  }
+
+  // Async initialization method
+  async initialize() {
+    await this.initializeFromDatabase();
   }
 
   // Start periodic health checks for all MCP servers
@@ -195,7 +197,8 @@ class MCPManager extends EventEmitter {
             const tools = dbTools.map(dbTool => ({
               name: dbTool.tool_name,
               description: dbTool.description,
-              inputSchema: JSON.parse(dbTool.input_schema)
+              inputSchema: JSON.parse(dbTool.input_schema),
+              serverName: server.server_name
             }));
             this.availableTools.set(serverKey, tools);
           }
