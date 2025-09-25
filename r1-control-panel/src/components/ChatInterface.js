@@ -8,7 +8,7 @@ const ChatInterface = ({ socket, deviceId, pinCode }) => {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    // Add initial system message
+    // No need to load chat history - OpenAI API handles conversation context
     setMessages([{
       id: Date.now(),
       type: 'system',

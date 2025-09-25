@@ -33,7 +33,6 @@ const io = new Server(server, {
 
 // Shared state
 const connectedR1s = new Map();
-const conversationHistory = new Map(); // deviceId -> array of messages
 const pendingRequests = new Map();
 const requestDeviceMap = new Map();
 
@@ -56,12 +55,12 @@ app.use(express.json());
 app.set('trust proxy', 1);
 
 // Setup routes FIRST (before static file serving)
-setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager);
+setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager);
 setupMagicCamRoutes(app, connectedR1s);
 setupHealthRoutes(app, connectedR1s);
 setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugDataStore, performanceMetrics);
 setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager);
-setupTwilioRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, database);
+setupTwilioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, database);
 
 // Serve React creation assets from root for proper loading
 app.use('/assets', express.static(path.join(__dirname, '..', 'creation-react', 'dist', 'assets'), {
@@ -740,7 +739,7 @@ app.post('/:deviceId/change-pin', async (req, res) => {
 });
 
 // Setup socket handler
-setupSocketHandler(io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager, mcpManager);
+setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager, mcpManager);
 
 // Plugin system
 const pluginManager = new PluginManager();
@@ -748,7 +747,6 @@ pluginManager.loadPlugins();
 
 const sharedState = {
   connectedR1s,
-  conversationHistory,
   pendingRequests,
   requestDeviceMap,
   debugStreams,
@@ -785,8 +783,13 @@ const checkBuilds = () => {
 };
 
 // Initialize database before starting server
-database.init().then(() => {
+database.init().then(async () => {
   console.log('Database initialized successfully');
+  
+  // Initialize MCP manager after database is ready
+  await mcpManager.initialize();
+  console.log('MCP manager initialized successfully');
+  
   checkBuilds();
 
   server.listen(PORT, () => {

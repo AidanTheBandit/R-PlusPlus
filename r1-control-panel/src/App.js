@@ -6,7 +6,7 @@ import ChatInterface from './components/ChatInterface';
 import ApiDocs from './components/ApiDocs';
 import PhoneLink from './components/PhoneLink';
 import Apps from './components/Apps';
-// import MCPManager from './components/MCPManager'; // Coming soon
+import MCPManager from './components/MCPManager';
 import './App.css';
 
 function App() {
@@ -110,9 +110,7 @@ function App() {
       case 'api-docs':
         return <ApiDocs deviceId={deviceId} />;
       case 'mcp':
-        // MCP is coming soon, redirect to chat
-        setActiveTab('chat');
-        return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
+        return <MCPManager socket={socket} deviceId={deviceId} pinCode={pinCode} />;
       default:
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
     }

@@ -16,7 +16,11 @@
     "test-blacklist": "node scripts/test-blacklist.js",
     "test-server": "node scripts/test-server.js",
     "test-mcp": "node scripts/test-mcp-prompt-injection.js",
-    "test": "npm run test-blacklist && npm run test-server && npm run test-mcp"
+    "test-mcp-remote": "node scripts/test-mcp-remote.js",
+    "test-mcp-comprehensive": "node scripts/test-mcp-comprehensive.js",
+    "test": "npm run test-blacklist && npm run test-server && npm run test-mcp && npm run test-mcp-remote && npm run test-mcp-comprehensive",
+    "virtual-r1": "node virtual-r1.js",
+    "test-virtual-r1": "node test-virtual-r1.js"
   },
   "keywords": [
     "r1",
@@ -28,10 +32,12 @@
   "author": "AidanTheBandit",
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.1",
     "@vitejs/plugin-react": "^4.7.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
+    "node-fetch": "^3.3.2",
     "pm2": "^5.3.0",
     "r1-create": "^1.0.1",
     "react": "^19.1.1",
@@ -41,6 +47,7 @@
     "sqlite3": "^5.1.6",
     "twilio": "^5.3.0",
     "vite": "^6.3.6",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zod": "^3.25.76"
   }
 }

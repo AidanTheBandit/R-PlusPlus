@@ -1,6 +1,6 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 
-function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
+function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
   // Device-specific endpoints: /device-{deviceId}/v1/chat/completions (legacy format)
   app.post('/device-:deviceId/v1/chat/completions', async (req, res) => {
     const { deviceId } = req.params;
@@ -349,7 +349,20 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
       const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
 
-      // Allow multiple concurrent requests - removed the busy check
+      // Check if target device already has a pending request
+      const existingRequests = Array.from(requestDeviceMap.entries())
+        .filter(([_, deviceId]) => deviceId === targetDeviceId);
+
+      if (existingRequests.length > 0) {
+        console.log(`❌ Device ${targetDeviceId} already has ${existingRequests.length} pending request(s)`);
+        return res.status(429).json({
+          error: {
+            message: 'Device is currently processing another request. Please wait for it to complete.',
+            type: 'device_busy'
+          }
+        });
+      }
+
       console.log(`📊 Current pending requests: ${pendingRequests.size}`);
 
       // Extract the latest user message
@@ -358,64 +371,188 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       // Generate unique request ID
       const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Get conversation history for this "session" (using a simple approach)
-      // In a real implementation, you'd use proper session management
-      const sessionId = targetDeviceId || 'default'; // For now, use a single conversation per device
-      const history = conversationHistory.get(sessionId) || [];
-
-      // Add current user message to history
-      history.push({
-        role: 'user',
-        content: userMessage,
-        timestamp: new Date().toISOString()
-      });
-
-      // Keep only last 10 messages to avoid context getting too long
-      if (history.length > 10) {
-        history.splice(0, history.length - 10);
-      }
-
-      // Update stored history
-      conversationHistory.set(sessionId, history);
-
-      // Create message with conversation context and MCP injection
-      let messageWithContext = userMessage;
-      if (history.length > 1) {
-        // Get only the last assistant response for context
-        const lastAssistantMessage = history.slice(-2).find(msg => msg.role === 'assistant');
-        if (lastAssistantMessage) {
-          messageWithContext = `Previous assistant response: ${lastAssistantMessage.content}\n\nCurrent question: ${userMessage}`;
-        }
-      }
-
-      // Inject MCP prompt if available
-      if (mcpManager) {
-        const mcpPrompt = mcpManager.generateMCPPromptInjection(targetDeviceId);
-        if (mcpPrompt) {
-          messageWithContext = mcpPrompt + '\n\n' + messageWithContext;
-        }
-      }
-
-      // Store the response callback with timeout
+      // Set up timeout for request
       const timeout = setTimeout(() => {
-        console.log(`⏰ Request ${requestId} timed out, removing from pending requests`);
         pendingRequests.delete(requestId);
         requestDeviceMap.delete(requestId);
-        console.log(`💾 Total pending requests after timeout: ${pendingRequests.size}`);
-        console.log(`Request ${requestId} timed out - sending fallback response`);
-        // Send a fallback response instead of error
-        sendOpenAIResponse(res, 'I apologize, but the R1 device is taking longer than expected to respond. This might be due to processing a complex request or temporary connectivity issues. Please try again in a moment.', userMessage, model, stream);
-      }, 60000); // 60 second timeout
+        res.status(504).json({
+          error: {
+            message: 'Request timeout - R1 device did not respond within 30 seconds',
+            type: 'timeout'
+          }
+        });
+      }, 30000);
 
+      // Store the request for response handling
       pendingRequests.set(requestId, { res, timeout, stream });
-      console.log(`💾 Stored pending request: ${requestId}, total pending: ${pendingRequests.size}`);
 
-      // Send command to R1 devices
+      // Initialize MCP request detection variables
+      let isMCPRequest = false;
+      let mcpToolCall = null;
+
+      // Check if this is an MCP tool request that should be handled server-side
+      if (mcpManager) {
+        // Get available tools for this device
+        const tools = await mcpManager.getDeviceTools(targetDeviceId);
+
+        // Analyze user message to detect MCP tool requests
+        const lowerMessage = userMessage.toLowerCase();
+
+        // Check for explicit MCP requests
+        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool') || lowerMessage.includes('using mcp')) {
+          // Try to match the request to available tools
+          for (const tool of tools) {
+            if (tool.serverName === 'deepwiki') {
+              // Handle deepwiki requests - look for repository references
+              const repoPatterns = [
+                /([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/, // owner/repo format
+                /(?:see|check|browse|explore)\s+(?:the\s+)?(?:repo|repository|github)?\s*([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/i,
+                /([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)\s+(?:using|with)\s+mcp/i
+              ];
+
+              for (const pattern of repoPatterns) {
+                const repoMatch = userMessage.match(pattern);
+                if (repoMatch) {
+                  let repoName = repoMatch[1];
+
+                  // Handle common repository shortcuts
+                  if (repoName.toLowerCase() === 'vscode') {
+                    repoName = 'microsoft/vscode';
+                  } else if (repoName.toLowerCase() === 'react') {
+                    repoName = 'facebook/react';
+                  }
+
+                  isMCPRequest = true;
+                  mcpToolCall = {
+                    server: tool.serverName,
+                    tool: tool.name,
+                    arguments: { repoName }
+                  };
+                  console.log(`🔧 Detected MCP request for repository ${repoName}, will execute ${tool.name} tool`);
+                  break;
+                }
+              }
+
+              if (isMCPRequest) break;
+            }
+          }
+
+          // Special handling for deepwiki mentions
+          if (!isMCPRequest && lowerMessage.includes('deepwiki')) {
+            const deepwikiTool = tools.find(t => t.serverName === 'deepwiki' && t.name === 'read_wiki_structure');
+            if (deepwikiTool) {
+              let repoName = 'microsoft/vscode'; // default fallback
+
+              // Try to extract repo name from the message
+              const repoMatch = userMessage.match(/for\s+(\w+)/i);
+              if (repoMatch) {
+                const repoPart = repoMatch[1].toLowerCase();
+                if (repoPart === 'vscode') {
+                  repoName = 'microsoft/vscode';
+                } else if (repoPart === 'react') {
+                  repoName = 'facebook/react';
+                } else {
+                  repoName = `microsoft/${repoPart}`; // assume microsoft org
+                }
+              }
+
+              isMCPRequest = true;
+              mcpToolCall = {
+                server: deepwikiTool.serverName,
+                tool: deepwikiTool.name,
+                arguments: { repoName }
+              };
+              console.log(`🔧 Detected deepwiki mention, will execute ${deepwikiTool.name} tool for ${repoName}`);
+            }
+          }
+        }
+
+        // Also check for implicit tool requests (e.g., "what's the weather in NYC")
+        if (!isMCPRequest) {
+          // Example: weather tool matching
+          const weatherMatch = lowerMessage.match(/(?:weather|temperature|forecast).*(?:in|for|at)\s+([a-zA-Z\s,]+)/i);
+          if (weatherMatch) {
+            const location = weatherMatch[1].trim();
+            const weatherTool = tools.find(t => t.name.includes('weather') || t.name.includes('get_weather'));
+            if (weatherTool) {
+              isMCPRequest = true;
+              mcpToolCall = {
+                server: weatherTool.serverName,
+                tool: weatherTool.name,
+                arguments: { location, units: 'celsius' }
+              };
+              console.log(`🔧 Detected weather request for ${location}, will execute ${weatherTool.name} tool`);
+            }
+          }
+
+          // Example: calculator tool matching
+          const calcMatch = lowerMessage.match(/(?:calculate|compute|what is|what's)\s+(.+)/i);
+          if (calcMatch) {
+            const expression = calcMatch[1].trim();
+            const calcTool = tools.find(t => t.name.includes('calculate') || t.name.includes('calculator'));
+            if (calcTool) {
+              isMCPRequest = true;
+              mcpToolCall = {
+                server: calcTool.serverName,
+                tool: calcTool.name,
+                arguments: { expression }
+              };
+              console.log(`🔧 Detected calculation request: ${expression}, will execute ${calcTool.name} tool`);
+            }
+          }
+        }
+      }
+
+      // Build conversation context from messages array
+      let conversationContext = '';
+      if (messages.length > 1) {
+        // Convert messages to a readable conversation format
+        const historyMessages = messages.slice(0, -1); // Exclude the current user message
+        conversationContext = '## CONVERSATION HISTORY\n\n';
+        for (const msg of historyMessages) {
+          if (msg.role === 'user') {
+            conversationContext += `User: ${msg.content}\n\n`;
+          } else if (msg.role === 'assistant') {
+            conversationContext += `Assistant: ${msg.content}\n\n`;
+          }
+        }
+        conversationContext += '## CURRENT MESSAGE\n\n';
+      }
+
+      // Get MCP system prompt for injection
+      let mcpPrompt = '';
+      if (mcpManager) {
+        mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
+      }
+
+      // Combine context, MCP prompt, and current message
+      let messageText = userMessage;
+      if (conversationContext || mcpPrompt) {
+        messageText = `${conversationContext}${mcpPrompt}User: ${userMessage}`;
+      }
+
+      // For MCP requests, execute the tool server-side first
+      if (isMCPRequest && mcpToolCall) {
+        try {
+          console.log(`🔧 Executing MCP tool server-side: ${mcpToolCall.server}.${mcpToolCall.tool}`);
+          const toolResult = await mcpManager.handleToolCall(targetDeviceId, mcpToolCall.server, mcpToolCall.tool, mcpToolCall.arguments);
+
+          // For MCP requests, inject tool results into the message
+          const toolContext = `## TOOL RESULTS\n\n${JSON.stringify(toolResult, null, 2)}\n\nUse this data to answer: `;
+          messageText = `${conversationContext}${mcpPrompt}${toolContext}${userMessage}`;
+
+          console.log(`✅ MCP tool executed successfully, result injected into message`);
+        } catch (toolError) {
+          console.error(`❌ MCP tool execution failed:`, toolError);
+          const errorContext = `## ERROR\n\n${toolError.message}\n\nPlease respond appropriately to: `;
+          messageText = `${conversationContext}${mcpPrompt}${errorContext}${userMessage}`;
+        }
+      }
       const command = {
         type: 'chat_completion',
         data: {
-          message: messageWithContext, // Use message with conversation context
-          originalMessage: userMessage, // Keep original for response
+          message: messageText,
+          originalMessage: userMessage,
           model,
           temperature,
           max_tokens,

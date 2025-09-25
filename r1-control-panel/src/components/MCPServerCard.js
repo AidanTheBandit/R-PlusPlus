@@ -2,14 +2,14 @@ import React from 'react';
 
 const MCPServerCard = ({ server, deviceId, pinCode, onToggle, onDelete }) => {
   const getStatusClass = () => {
-    if (server.running) return 'running';
+    if (server.connected) return 'running';
     if (server.enabled) return 'stopped';
     return 'disabled';
   };
 
   const getStatusText = () => {
-    if (server.running) return 'Running';
-    if (server.enabled) return 'Stopped';
+    if (server.connected) return 'Connected';
+    if (server.enabled) return 'Disconnected';
     return 'Disabled';
   };
 
@@ -92,16 +92,16 @@ const MCPServerCard = ({ server, deviceId, pinCode, onToggle, onDelete }) => {
 
       <div className="mcp-server-details">
         <div className="mcp-server-detail">
-          <span className="mcp-server-detail-label">Command:</span>
-          <span>{server.config?.command || 'N/A'}</span>
+          <span className="mcp-server-detail-label">URL:</span>
+          <span>{server.config?.url || 'N/A'}</span>
         </div>
         <div className="mcp-server-detail">
           <span className="mcp-server-detail-label">Tools:</span>
           <span>{server.tools?.length || 0}</span>
         </div>
         <div className="mcp-server-detail">
-          <span className="mcp-server-detail-label">Uptime:</span>
-          <span>{server.running && server.startTime ? formatUptime(server.startTime) : 'N/A'}</span>
+          <span className="mcp-server-detail-label">Protocol:</span>
+          <span>{server.config?.protocolVersion || '2025-06-18'}</span>
         </div>
         <div className="mcp-server-detail">
           <span className="mcp-server-detail-label">Auto-approve:</span>
@@ -117,7 +117,7 @@ const MCPServerCard = ({ server, deviceId, pinCode, onToggle, onDelete }) => {
           className={`btn btn-sm ${server.enabled ? 'btn-danger' : 'btn-success'}`}
           onClick={() => onToggle(server.name, !server.enabled)}
         >
-          {server.enabled ? 'Disable' : 'Enable'}
+          {server.enabled ? 'Disconnect' : 'Connect'}
         </button>
         <button 
           className="btn btn-secondary btn-sm"
