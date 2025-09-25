@@ -3,6 +3,94 @@
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { SSEClientTransport } = require('@modelcontextprotocol/sdk/client/sse.js');
 
+// Custom HTTP Transport for MCP protocol
+class HTTPClientTransport {
+  constructor(serverUrl, options = {}) {
+    this.serverUrl = serverUrl.replace(/\/$/, ''); // Remove trailing slash
+    this.headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...options.headers
+    };
+    this.timeout = options.timeout || 30000;
+    this.onmessage = null;
+    this.onclose = null;
+    this.onerror = null;
+  }
+
+  // Start the transport (required by MCP SDK)
+  async start() {
+    // HTTP transport is connectionless, so this is a no-op
+    console.log(`🌐 HTTP transport started for ${this.serverUrl}`);
+  }
+
+  // Send a message to the server
+  async send(message) {
+    try {
+      const response = await fetch(this.serverUrl, {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify(message),
+        signal: AbortSignal.timeout(this.timeout)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const responseData = await response.json();
+
+      // Call the message handler if it exists
+      if (this.onmessage) {
+        this.onmessage(responseData);
+      }
+
+      return responseData;
+    } catch (error) {
+      if (this.onerror) {
+        this.onerror(error);
+      }
+      throw error;
+    }
+  }
+
+  // Close the transport
+  async close() {
+    // HTTP transport is connectionless, so this is a no-op
+    console.log(`🌐 HTTP transport closed for ${this.serverUrl}`);
+    if (this.onclose) {
+      this.onclose();
+    }
+  }
+
+  // Set message handler
+  set onmessage(handler) {
+    this._onmessage = handler;
+  }
+
+  get onmessage() {
+    return this._onmessage;
+  }
+
+  // Set close handler
+  set onclose(handler) {
+    this._onclose = handler;
+  }
+
+  get onclose() {
+    return this._onclose;
+  }
+
+  // Set error handler
+  set onerror(handler) {
+    this._onerror = handler;
+  }
+
+  get onerror() {
+    return this._onerror;
+  }
+}
+
 class MCPProtocolClient {
   constructor(serverUrl, options = {}) {
     this.serverUrl = serverUrl;
@@ -24,6 +112,7 @@ class MCPProtocolClient {
     this.connected = false;
     this.initialized = false;
     this.timeout = options.timeout || 30000;
+    this.headers = options.headers || {};
   }
 
   // Initialize connection to MCP server
@@ -40,15 +129,17 @@ class MCPProtocolClient {
               headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json,text/event-stream',
-                ...this.client._options.headers
+                ...this.headers
               }
             }
           }
         );
       } else {
-        // For HTTP transport, we'll use a custom implementation
-        // since the SDK doesn't have a built-in HTTP transport
-        throw new Error('HTTP transport not yet implemented. Use /sse endpoint for now.');
+        // Use custom HTTP transport for regular HTTP endpoints
+        this.transport = new HTTPClientTransport(this.serverUrl, {
+          headers: this.headers,
+          timeout: this.timeout
+        });
       }
 
       // Connect to the server
@@ -187,7 +278,9 @@ class MCPProtocolClient {
     this.initialized = false;
 
     try {
-      await this.client.close();
+      if (this.transport) {
+        await this.transport.close();
+      }
       console.log('🔌 MCP connection closed');
     } catch (error) {
       console.error('Error closing MCP connection:', error);
