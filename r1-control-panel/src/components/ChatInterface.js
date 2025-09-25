@@ -8,18 +8,68 @@ const ChatInterface = ({ socket, deviceId, pinCode }) => {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    // Add initial system message
-    setMessages([{
-      id: Date.now(),
-      type: 'system',
-      content: `Connected to device: ${deviceId}. Start chatting with your R1!`,
-      timestamp: new Date().toISOString()
-    }]);
+    // Load chat history on mount
+    loadChatHistory();
   }, [deviceId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const loadChatHistory = async () => {
+    try {
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (pinCode) {
+        headers['Authorization'] = `Bearer ${pinCode}`;
+      }
+
+      const response = await fetch(`/${deviceId}/history`, {
+        headers: headers
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Convert server history format to component format
+        const historyMessages = data.history.map((msg, index) => ({
+          id: `history-${index}`,
+          type: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp
+        }));
+
+        // Add system message at the beginning
+        const systemMessage = {
+          id: 'system-init',
+          type: 'system',
+          content: `Connected to device: ${deviceId}. Start chatting with your R1!`,
+          timestamp: new Date().toISOString()
+        };
+
+        setMessages([systemMessage, ...historyMessages]);
+      } else {
+        // If history fetch fails, just show the system message
+        setMessages([{
+          id: Date.now(),
+          type: 'system',
+          content: `Connected to device: ${deviceId}. Start chatting with your R1!`,
+          timestamp: new Date().toISOString()
+        }]);
+      }
+    } catch (error) {
+      console.warn('Failed to load chat history:', error);
+      // Still show system message even if history fails
+      setMessages([{
+        id: Date.now(),
+        type: 'system',
+        content: `Connected to device: ${deviceId}. Start chatting with your R1!`,
+        timestamp: new Date().toISOString()
+      }]);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -104,7 +154,7 @@ const ChatInterface = ({ socket, deviceId, pinCode }) => {
     setMessages([{
       id: Date.now(),
       type: 'system',
-      content: 'Chat cleared',
+      content: 'Chat cleared. Previous messages are still available on the server.',
       timestamp: new Date().toISOString()
     }]);
   };

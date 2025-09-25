@@ -179,6 +179,47 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     }
   });
 
+  // Get chat history for a device
+  app.get('/:deviceId/history', async (req, res) => {
+    const { deviceId } = req.params;
+
+    // Check authentication
+    const authResult = await authenticateDevice(deviceId, req.headers.authorization);
+    if (!authResult.authenticated) {
+      return res.status(401).json({
+        error: {
+          message: authResult.error,
+          type: 'authentication_failed'
+        }
+      });
+    }
+
+    try {
+      const sessionId = deviceId;
+      const history = conversationHistory.get(sessionId) || [];
+
+      // Format history for the client
+      const formattedHistory = history.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp
+      }));
+
+      res.json({
+        history: formattedHistory,
+        total: formattedHistory.length
+      });
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+      res.status(500).json({
+        error: {
+          message: 'Internal server error',
+          type: 'server_error'
+        }
+      });
+    }
+  });
+
   // Test endpoint to manually send chat completion to device
   app.post('/:deviceId/test-chat', async (req, res) => {
     const { deviceId } = req.params;
@@ -374,8 +415,19 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       // Build proper conversation history in OpenAI format
       const conversationMessages = [];
 
+      // Add system message with MCP tools and instructions
+      if (mcpManager) {
+        const mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId);
+        if (mcpPrompt) {
+          conversationMessages.push({
+            role: 'system',
+            content: mcpPrompt
+          });
+        }
+      }
+
       // Initialize message text
-      let messageText = systemPrompt ? `${systemPrompt}\n\n${userMessage}` : userMessage;
+      let messageText = userMessage;
 
       // Check if this is an MCP tool request that should be handled server-side
       let isMCPRequest = false;
@@ -389,29 +441,33 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         const lowerMessage = userMessage.toLowerCase();
 
         // Check for explicit MCP requests
-        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool')) {
+        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool') || lowerMessage.includes('using mcp')) {
           // Try to match the request to available tools
           for (const tool of tools) {
             if (tool.serverName === 'deepwiki') {
-              // Handle deepwiki requests
-              if (lowerMessage.includes('see') && (lowerMessage.includes('repo') || lowerMessage.includes('repository') || lowerMessage.includes('vscode') || lowerMessage.includes('github'))) {
-                let repoName = 'microsoft/vscode'; // default
+              // Handle deepwiki requests - look for repository references
+              const repoPatterns = [
+                /([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/, // owner/repo format
+                /(?:see|check|browse|explore)\s+(?:the\s+)?(?:repo|repository|github)?\s*([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/i,
+                /([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)\s+(?:using|with)\s+mcp/i
+              ];
 
-                // Try to extract repo name from message
-                const repoMatch = userMessage.match(/([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/);
+              for (const pattern of repoPatterns) {
+                const repoMatch = userMessage.match(pattern);
                 if (repoMatch) {
-                  repoName = repoMatch[1];
+                  const repoName = repoMatch[1];
+                  isMCPRequest = true;
+                  mcpToolCall = {
+                    server: tool.serverName,
+                    tool: tool.name, // read_wiki_structure
+                    arguments: { repoName }
+                  };
+                  console.log(`🔧 Detected MCP request for repository ${repoName}, will execute ${tool.name} tool`);
+                  break;
                 }
-
-                isMCPRequest = true;
-                mcpToolCall = {
-                  server: tool.serverName,
-                  tool: tool.name, // read_wiki_structure
-                  arguments: { repoName }
-                };
-                console.log(`🔧 Detected MCP request for repository ${repoName}, will execute ${tool.name} tool`);
-                break;
               }
+
+              if (isMCPRequest) break;
             }
             // Add more tool matching logic here for other servers
           }
@@ -531,7 +587,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           .join('\n\n');
 
         if (contextText) {
-          messageText = `${systemPrompt ? systemPrompt + '\n\n' : ''}Previous conversation:\n${contextText}\n\nCurrent: ${userMessage}`;
+          messageText = `Previous conversation:\n${contextText}\n\nCurrent: ${userMessage}`;
         }
       }
 
