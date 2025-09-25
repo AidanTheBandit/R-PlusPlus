@@ -104,7 +104,7 @@ const ChatInterface = ({ socket, deviceId, pinCode }) => {
     setMessages([{
       id: Date.now(),
       type: 'system',
-      content: 'Chat cleared. Previous messages are still available on the server.',
+      content: 'Chat cleared',
       timestamp: new Date().toISOString()
     }]);
   };

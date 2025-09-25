@@ -196,8 +196,8 @@ class MCPManager extends EventEmitter {
           if (dbTools && dbTools.length > 0) {
             const tools = dbTools.map(dbTool => ({
               name: dbTool.tool_name,
-              description: dbTool.description,
-              inputSchema: JSON.parse(dbTool.input_schema),
+              description: dbTool.tool_description,
+              inputSchema: JSON.parse(dbTool.tool_schema),
               serverName: server.server_name
             }));
             this.availableTools.set(serverKey, tools);
