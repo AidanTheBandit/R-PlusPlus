@@ -142,8 +142,8 @@ const MCPManager = ({ socket, deviceId, pinCode }) => {
     <div className="card">
       <div className="mcp-header">
         <div>
-          <h2>MCP Server Management</h2>
-          <p>Manage Model Context Protocol servers for {deviceId}</p>
+          <h2>Remote MCP Server Management</h2>
+          <p>Connect to and manage remote Model Context Protocol servers for {deviceId}</p>
         </div>
         <div className="mcp-actions">
           <button 
@@ -174,8 +174,14 @@ const MCPManager = ({ socket, deviceId, pinCode }) => {
         </div>
       ) : servers.length === 0 ? (
         <div className="empty-state">
-          <h3>No MCP servers configured</h3>
-          <p>Add your first MCP server to extend your R1's capabilities</p>
+          <h3>No remote MCP servers connected</h3>
+          <p>Add your first remote MCP server to extend your R1's capabilities</p>
+          <div style={{ marginBottom: '15px', fontSize: '0.9em', color: '#666' }}>
+            <strong>Need MCP server URLs?</strong> Check out:
+            <br />• <a href="https://glama.ai/mcp/servers" target="_blank" rel="noopener noreferrer">Glama MCP Directory</a>
+            <br />• <a href="https://www.pulsemcp.com/servers" target="_blank" rel="noopener noreferrer">PulseMCP Directory</a>
+            <br />• <a href="https://modelcontextprotocol.io/examples" target="_blank" rel="noopener noreferrer">MCP Examples</a>
+          </div>
           <button className="btn" onClick={() => setShowAddModal(true)}>
             Add Your First Server
           </button>

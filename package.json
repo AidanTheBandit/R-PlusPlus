@@ -16,7 +16,9 @@
     "test-blacklist": "node scripts/test-blacklist.js",
     "test-server": "node scripts/test-server.js",
     "test-mcp": "node scripts/test-mcp-prompt-injection.js",
-    "test": "npm run test-blacklist && npm run test-server && npm run test-mcp"
+    "test-mcp-remote": "node scripts/test-mcp-remote.js",
+    "test-mcp-comprehensive": "node scripts/test-mcp-comprehensive.js",
+    "test": "npm run test-blacklist && npm run test-server && npm run test-mcp && npm run test-mcp-remote && npm run test-mcp-comprehensive"
   },
   "keywords": [
     "r1",

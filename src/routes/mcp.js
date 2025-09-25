@@ -48,10 +48,10 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
         });
       }
 
-      // Validate config structure
-      if (!config.command) {
-        return res.status(400).json({ 
-          error: { message: 'Server command is required', type: 'validation_error' } 
+      // Validate config structure for remote servers
+      if (!config.url) {
+        return res.status(400).json({
+          error: { message: 'Server URL is required for remote MCP servers', type: 'validation_error' }
         });
       }
 
@@ -309,57 +309,165 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
     const templates = [
       {
         name: 'web-search',
-        displayName: 'Web Search',
-        description: 'Search the web using various search engines',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: ['search_web'],
+        displayName: 'Web Search (Custom)',
+        description: 'Search the web using various search engines - provide your own MCP server URL',
         category: 'web'
       },
       {
         name: 'weather',
-        displayName: 'Weather Information',
-        description: 'Get current weather information for any location',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: ['get_weather'],
+        displayName: 'Weather Information (Custom)',
+        description: 'Get current weather information for any location - provide your own MCP server URL',
         category: 'information'
       },
       {
         name: 'calculator',
-        displayName: 'Calculator',
-        description: 'Perform mathematical calculations',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: ['calculate'],
+        displayName: 'Calculator (Custom)',
+        description: 'Perform mathematical calculations - provide your own MCP server URL',
         category: 'utility'
       },
       {
         name: 'time',
-        displayName: 'Time & Date',
-        description: 'Get current time and date information',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: ['get_current_time'],
+        displayName: 'Time & Date (Custom)',
+        description: 'Get current time and date information - provide your own MCP server URL',
         category: 'utility'
       },
       {
         name: 'knowledge',
-        displayName: 'Knowledge Base',
-        description: 'Search knowledge base for information',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: [],
+        displayName: 'Knowledge Base (Custom)',
+        description: 'Search knowledge base for information - provide your own MCP server URL',
         category: 'information'
       }
     ];
 
-    res.json({ templates });
+    // Add public MCP server examples
+    const publicServers = [
+      {
+        name: 'test-mcp-server',
+        displayName: 'Test MCP Server (Local)',
+        description: 'Simple test MCP server for verifying your setup works',
+        url: `http://localhost:${process.env.PORT || 5482}/mcp/test-server`,
+        category: 'test'
+      }
+    ];
+
+    res.json({ templates: [...templates, ...publicServers] });
+  });
+
+  // Test MCP server endpoint for testing MCP client connections
+  app.post('/mcp/test-server', (req, res) => {
+    try {
+      const message = req.body;
+
+      console.log('🧪 Test MCP server received:', JSON.stringify(message, null, 2));
+      console.log('🧪 Message has id:', message.hasOwnProperty('id'), 'id value:', message.id);
+      console.log('🧪 Method starts with notifications/:', message.method && message.method.startsWith('notifications/'));
+
+      // Check if this is a notification (methods starting with 'notifications/')
+      if (message.method && message.method.startsWith('notifications/')) {
+        // Notifications don't require a response
+        console.log('📢 Received notification:', message.method);
+        return res.status(202).json({}); // Accepted, no content
+      }
+
+      // Check if this is a notification (no id field)
+      if (!message.hasOwnProperty('id')) {
+        // Notifications don't require a response
+        console.log('📢 Received notification (no id):', message.method);
+        return res.status(202).json({}); // Accepted, no content
+      }
+
+      if (message.method === 'initialize') {
+        // Respond to initialize request
+        res.json({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            protocolVersion: '2025-06-18',
+            capabilities: {
+              tools: { listChanged: true },
+              resources: { listChanged: true }
+            },
+            serverInfo: {
+              name: 'R-API Test MCP Server',
+              version: '1.0.0'
+            }
+          }
+        });
+      } else if (message.method === 'tools/list') {
+        // Respond to tools/list request
+        res.json({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            tools: [
+              {
+                name: 'test_echo',
+                description: 'Echo back the input message',
+                inputSchema: {
+                  type: 'object',
+                  properties: {
+                    message: { type: 'string', description: 'Message to echo' }
+                  },
+                  required: ['message']
+                }
+              },
+              {
+                name: 'test_calculator',
+                description: 'Simple calculator that adds two numbers',
+                inputSchema: {
+                  type: 'object',
+                  properties: {
+                    a: { type: 'number', description: 'First number' },
+                    b: { type: 'number', description: 'Second number' }
+                  },
+                  required: ['a', 'b']
+                }
+              }
+            ]
+          }
+        });
+      } else if (message.method === 'tools/call') {
+        // Handle tool calls
+        const { name, arguments: args } = message.params;
+
+        if (name === 'test_echo') {
+          res.json({
+            jsonrpc: '2.0',
+            id: message.id,
+            result: {
+              content: [{ type: 'text', text: `Echo: ${args.message}` }]
+            }
+          });
+        } else if (name === 'test_calculator') {
+          const result = args.a + args.b;
+          res.json({
+            jsonrpc: '2.0',
+            id: message.id,
+            result: {
+              content: [{ type: 'text', text: `Result: ${args.a} + ${args.b} = ${result}` }]
+            }
+          });
+        } else {
+          res.status(400).json({
+            jsonrpc: '2.0',
+            id: message.id,
+            error: { code: -32601, message: 'Method not found' }
+          });
+        }
+      } else {
+        res.status(400).json({
+          jsonrpc: '2.0',
+          id: message.id,
+          error: { code: -32601, message: 'Method not found' }
+        });
+      }
+    } catch (error) {
+      console.error('Test MCP server error:', error);
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: { code: -32603, message: 'Internal error' }
+      });
+    }
   });
 
 

@@ -5,12 +5,12 @@ const TabNavigation = ({ activeTab, onTabChange }) => {
     { id: 'chat', label: '💬 Chat', description: 'Chat with your R1 device' },
     { id: 'phone', label: '📱 SMS', description: 'Link phone numbers for SMS control' },
     { id: 'api-docs', label: '📚 API Docs', description: 'View API documentation and endpoints' },
-    // { id: 'mcp', label: '� MCP, Servers', description: 'Manage MCP servers for your device' }
+    { id: 'mcp', label: '🔌 MCP Servers', description: 'Manage MCP servers for your device' }
   ];
 
   // Coming soon tabs (disabled)
   const comingSoonTabs = [
-    { id: 'mcp', label: '🔌 MCP Servers', description: 'Coming Soon - Manage MCP servers for your device' }
+    // { id: 'mcp', label: '🔌 MCP Servers', description: 'Coming Soon - Manage MCP servers for your device' }
   ];
 
   return (

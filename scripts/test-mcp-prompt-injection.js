@@ -18,27 +18,27 @@ async function testMCPPromptInjection() {
     
     const testDeviceId = 'test-device-123';
     
-    // Test 1: Initialize a web search server
+    // Test 1: Initialize a web search server (remote server)
     console.log('1. Initializing web search server...');
     const webSearchConfig = {
-      command: 'simulated',
-      args: [],
-      env: {},
+      url: 'https://httpbin.org/json', // Test endpoint
+      protocolVersion: '2025-06-18',
       autoApprove: ['search_web'],
-      enabled: true
+      enabled: false, // Don't connect during test
+      description: 'Web search server for testing'
     };
     
     await mcpManager.initializeServer(testDeviceId, 'web-search', webSearchConfig);
     console.log('✅ Web search server initialized');
     
-    // Test 2: Initialize a calculator server
+    // Test 2: Initialize a calculator server (remote server)
     console.log('\n2. Initializing calculator server...');
     const calculatorConfig = {
-      command: 'simulated',
-      args: [],
-      env: {},
+      url: 'https://httpbin.org/json', // Test endpoint
+      protocolVersion: '2025-06-18',
       autoApprove: ['calculate'],
-      enabled: true
+      enabled: false, // Don't connect during test
+      description: 'Calculator server for testing'
     };
     
     await mcpManager.initializeServer(testDeviceId, 'calculator', calculatorConfig);
