@@ -371,6 +371,21 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       // Generate unique request ID
       const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+      // Set up timeout for request
+      const timeout = setTimeout(() => {
+        pendingRequests.delete(requestId);
+        requestDeviceMap.delete(requestId);
+        res.status(504).json({
+          error: {
+            message: 'Request timeout - R1 device did not respond within 30 seconds',
+            type: 'timeout'
+          }
+        });
+      }, 30000);
+
+      // Store the request for response handling
+      pendingRequests.set(requestId, { res, timeout, stream });
+
       // Initialize MCP request detection variables
       let isMCPRequest = false;
       let mcpToolCall = null;
