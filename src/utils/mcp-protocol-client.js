@@ -15,6 +15,8 @@ class MCPProtocolClient extends EventEmitter {
     this.capabilities = options.capabilities || {
       tools: {}
     };
+    this.headers = options.headers || {};
+    this.timeout = options.timeout || 30000;
     this.messageId = 1;
     this.pendingRequests = new Map();
     this.connected = false;
@@ -120,7 +122,7 @@ class MCPProtocolClient extends EventEmitter {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(messageId);
         reject(new Error(`MCP request timeout: ${method}`));
-      }, 30000);
+      }, this.timeout);
 
       // Store pending request
       this.pendingRequests.set(messageId, { resolve, reject, timeout });
@@ -159,7 +161,8 @@ class MCPProtocolClient extends EventEmitter {
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json,text/event-stream',
-      'MCP-Protocol-Version': this.protocolVersion
+      'MCP-Protocol-Version': this.protocolVersion,
+      ...this.headers
     };
 
     if (this.sessionId) {

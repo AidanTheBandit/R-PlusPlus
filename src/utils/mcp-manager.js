@@ -61,6 +61,21 @@ class MCPManager extends EventEmitter {
     try {
       console.log(`🔌 Connecting to remote MCP server: ${config.url}`);
 
+      // Create MCP protocol client with capabilities from config
+      const clientCapabilities = {};
+      if (config.capabilities?.tools?.enabled) {
+        clientCapabilities.tools = {};
+      }
+      if (config.capabilities?.resources?.enabled) {
+        clientCapabilities.resources = {};
+      }
+      if (config.capabilities?.prompts?.enabled) {
+        clientCapabilities.prompts = {};
+      }
+      if (config.capabilities?.sampling?.enabled) {
+        clientCapabilities.sampling = {};
+      }
+
       // Create MCP protocol client
       const client = new MCPProtocolClient(config.url, {
         protocolVersion: config.protocolVersion || '2025-06-18',
@@ -68,9 +83,9 @@ class MCPManager extends EventEmitter {
           name: 'R-API-MCP-Client',
           version: '1.0.0'
         },
-        capabilities: {
-          tools: {}
-        }
+        capabilities: clientCapabilities,
+        headers: config.headers || {},
+        timeout: config.timeout || 30000
       });
 
       // Initialize the connection
@@ -178,10 +193,12 @@ class MCPManager extends EventEmitter {
         
         if (config && config.enabled !== false) {
           for (const tool of tools) {
+            // Check if tool is auto-approved based on capabilities config
+            const autoApprove = config.capabilities?.tools?.autoApprove || [];
             deviceTools.push({
               serverName,
               ...tool,
-              autoApprove: config.autoApprove?.includes(tool.name) || false
+              autoApprove: autoApprove.includes(tool.name)
             });
           }
         }
@@ -237,8 +254,8 @@ class MCPManager extends EventEmitter {
     }
 
     try {
-      // Check if tool is auto-approved
-      const autoApprove = config.autoApprove || [];
+      // Check if tool is auto-approved based on capabilities config
+      const autoApprove = config.capabilities?.tools?.autoApprove || [];
 
       if (!autoApprove.includes(toolName)) {
         // Request approval from user (this would integrate with the R1 UI)
@@ -379,9 +396,30 @@ class MCPManager extends EventEmitter {
   async getServerStatus(deviceId, serverName) {
     const serverKey = `${deviceId}-${serverName}`;
     const client = this.activeClients.get(serverKey);
-    const config = this.serverConfigs.get(serverKey);
-    const tools = this.availableTools.get(serverKey) || [];
     const dbInfo = await this.database.getMCPServer(deviceId, serverName);
+
+    let config = null;
+    if (dbInfo && dbInfo.config) {
+      try {
+        config = JSON.parse(dbInfo.config);
+      } catch (error) {
+        console.warn(`Failed to parse config for server ${serverName}:`, error);
+        // Fallback to legacy format
+        config = {
+          url: dbInfo.url,
+          protocolVersion: dbInfo.protocol_version,
+          enabled: dbInfo.enabled,
+          capabilities: {
+            tools: {
+              enabled: true,
+              autoApprove: dbInfo.auto_approve ? JSON.parse(dbInfo.auto_approve) : []
+            }
+          }
+        };
+      }
+    }
+
+    const tools = this.availableTools.get(serverKey) || [];
 
     return {
       name: serverName,

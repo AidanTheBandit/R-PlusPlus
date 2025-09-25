@@ -308,40 +308,6 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
   app.get('/mcp/templates', (req, res) => {
     const templates = [
       {
-        name: 'web-search',
-        displayName: 'Web Search (Custom)',
-        description: 'Search the web using various search engines - provide your own MCP server URL',
-        category: 'web'
-      },
-      {
-        name: 'weather',
-        displayName: 'Weather Information (Custom)',
-        description: 'Get current weather information for any location - provide your own MCP server URL',
-        category: 'information'
-      },
-      {
-        name: 'calculator',
-        displayName: 'Calculator (Custom)',
-        description: 'Perform mathematical calculations - provide your own MCP server URL',
-        category: 'utility'
-      },
-      {
-        name: 'time',
-        displayName: 'Time & Date (Custom)',
-        description: 'Get current time and date information - provide your own MCP server URL',
-        category: 'utility'
-      },
-      {
-        name: 'knowledge',
-        displayName: 'Knowledge Base (Custom)',
-        description: 'Search knowledge base for information - provide your own MCP server URL',
-        category: 'information'
-      }
-    ];
-
-    // Add public MCP server examples
-    const publicServers = [
-      {
         name: 'test-mcp-server',
         displayName: 'Test MCP Server (Local)',
         description: 'Simple test MCP server for verifying your setup works',
@@ -350,7 +316,7 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
       }
     ];
 
-    res.json({ templates: [...templates, ...publicServers] });
+    res.json({ templates });
   });
 
   // Test MCP server endpoint for testing MCP client connections
