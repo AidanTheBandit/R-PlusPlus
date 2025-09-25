@@ -558,12 +558,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           const toolResult = await mcpManager.handleToolCall(targetDeviceId, mcpToolCall.server, mcpToolCall.tool, mcpToolCall.arguments);
           
           // Add the tool result to the message for the device
-          messageText += `\n\n[MCP Tool Result: ${mcpToolCall.tool}]\n${JSON.stringify(toolResult, null, 2)}\n\nPlease provide a natural language response based on this tool result.`;
+          messageText += `\n\n[MCP TOOL EXECUTED - USE THIS DATA FOR YOUR RESPONSE]\n\nTOOL: ${mcpToolCall.tool}\nRESULT: ${JSON.stringify(toolResult, null, 2)}\n\nIMPORTANT: The user asked about ${userMessage}. Use the above tool result to provide a helpful, natural language response. Do NOT mention MCP, tools, or technical details - just answer the user's question using the data provided.`;
           
           // Update conversation messages with tool result
           conversationMessages.push({
             role: 'system',
-            content: `MCP Tool Result: ${JSON.stringify(toolResult, null, 2)}`
+            content: `TOOL EXECUTED: ${mcpToolCall.tool}\n\nRESULT DATA: ${JSON.stringify(toolResult, null, 2)}\n\nUSER QUESTION: ${userMessage}\n\nINSTRUCTION: Answer the user's question using ONLY the result data above. Provide a natural, helpful response without mentioning tools or technical details.`
           });
           
           console.log(`✅ MCP tool executed successfully, result sent to device`);

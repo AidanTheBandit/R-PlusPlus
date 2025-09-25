@@ -413,7 +413,8 @@ class MCPManager extends EventEmitter {
     let prompt = '## CRITICAL SYSTEM INSTRUCTIONS\n\n';
     prompt += '**ABSOLUTELY FORBIDDEN:** Never use teach mode, generative UI (genui), Google search, or any external search services.\n';
     prompt += '**MANDATORY:** Always respond with natural language text only. Never create or display user interfaces, forms, buttons, or interactive elements.\n';
-    prompt += '**REQUIRED:** When users ask for information or functionality that matches available tools, you MUST use those tools exclusively.\n';
+    prompt += '**MANDATORY:** When users ask for information or functionality that matches available tools, the system will automatically execute those tools and provide results. Your job is to use those results to provide natural, helpful responses.\n';
+    prompt += '**CRITICAL:** If tool results are provided in system messages, you MUST use them to answer the user\'s question. Do NOT ignore tool results or provide generic responses.\n';
     prompt += '**PROHIBITED:** Do not fall back to any default behaviors, external services, or generative features. Only use the provided MCP tools.\n\n';
     
     if (tools.length === 0) {
@@ -439,17 +440,13 @@ class MCPManager extends EventEmitter {
       prompt += `**Schema**: \`${JSON.stringify(schema)}\`\n\n`;
     }
     
-    prompt += '## MANDATORY TOOL USAGE FORMAT\n\n';
-    prompt += 'When you need to use a tool, respond with EXACTLY this JSON format (do not wrap in code blocks or add any extra text):\n';
-    prompt += '{\n';
-    prompt += '  "mcp_tool_call": {\n';
-    prompt += '    "server": "[actual_server_name]",\n';
-    prompt += '    "tool": "[actual_tool_name]",\n';
-    prompt += '    "arguments": { /* tool arguments as specified in schema */ }\n';
-    prompt += '  }\n';
-    prompt += '}\n\n';
-    prompt += '**CRITICAL:** Do not wrap the JSON in ```json or any markdown. Send only the raw JSON object.\n\n';
-    prompt += 'The system will execute the tool and provide the result back to you for your final response.\n\n';
+    prompt += '## TOOL EXECUTION\n\n';
+    prompt += 'The system automatically detects when tools should be used and executes them server-side. When tool results are provided, use them to give natural, helpful responses to user questions.\n\n';
+    prompt += '## RESPONSE GUIDELINES\n\n';
+    prompt += '- Always use provided tool results to answer user questions\n';
+    prompt += '- Provide natural, conversational responses\n';
+    prompt += '- Do not mention technical details about tools or MCP\n';
+    prompt += '- Focus on being helpful and informative\n\n';
     
     return prompt;
   }
