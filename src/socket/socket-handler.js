@@ -45,15 +45,21 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
       try {
         console.log(`🔌 Auto-connecting MCP servers for device ${deviceId}`);
         const servers = await mcpManager.getDeviceServers(deviceId);
+        console.log(`📋 Found ${servers.length} servers for device ${deviceId}:`, servers.map(s => ({ name: s.name, enabled: s.enabled, connected: s.connected })));
+        
         for (const server of servers) {
           if (server.enabled && !server.connected) {
-            console.log(`🔌 Auto-connecting server: ${server.name}`);
+            console.log(`🔌 Auto-connecting server: ${server.name} (${server.config?.url})`);
             try {
               await mcpManager.initializeServer(deviceId, server.name);
               console.log(`✅ Auto-connected MCP server: ${server.name}`);
             } catch (error) {
               console.error(`❌ Failed to auto-connect MCP server ${server.name}:`, error.message);
             }
+          } else if (server.enabled && server.connected) {
+            console.log(`ℹ️ Server ${server.name} already connected`);
+          } else {
+            console.log(`⚠️ Server ${server.name} not enabled or already connected`);
           }
         }
       } catch (error) {

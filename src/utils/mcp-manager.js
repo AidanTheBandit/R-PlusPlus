@@ -12,6 +12,74 @@ class MCPManager extends EventEmitter {
     this.availableTools = new Map(); // deviceId-serverName -> tools
     this.serverConfigs = new Map(); // deviceId-serverName -> config
     this.toolUsageStats = new Map(); // deviceId-serverName-toolName -> usage count
+    
+    // Initialize with existing server configurations
+    this.initializeFromDatabase();
+  }
+
+  // Initialize MCP manager with existing server configurations from database
+  async initializeFromDatabase() {
+    try {
+      if (!this.database) {
+        console.warn('Database not available for MCP manager initialization');
+        return;
+      }
+
+      // Load all MCP servers from database
+      const allServers = await this.database.getAll('SELECT * FROM mcp_servers');
+      
+      for (const server of allServers) {
+        const serverKey = `${server.device_id}-${server.server_name}`;
+        
+        // Parse server configuration
+        let config = null;
+        if (server.config) {
+          try {
+            config = JSON.parse(server.config);
+          } catch (error) {
+            console.warn(`Failed to parse config for server ${serverKey}:`, error);
+            continue;
+          }
+        }
+        
+        // Fallback to legacy format
+        if (!config) {
+          config = {
+            url: server.url,
+            protocolVersion: server.protocol_version,
+            enabled: server.enabled,
+            capabilities: {
+              tools: {
+                enabled: true,
+                autoApprove: server.auto_approve ? JSON.parse(server.auto_approve) : []
+              }
+            }
+          };
+        }
+        
+        // Cache server config
+        this.serverConfigs.set(serverKey, config);
+        
+        // Load tools from database if available
+        try {
+          const dbTools = await this.database.getMCPTools(server.id);
+          if (dbTools && dbTools.length > 0) {
+            const tools = dbTools.map(dbTool => ({
+              name: dbTool.tool_name,
+              description: dbTool.description,
+              inputSchema: JSON.parse(dbTool.input_schema)
+            }));
+            this.availableTools.set(serverKey, tools);
+          }
+        } catch (error) {
+          console.warn(`Failed to load tools for server ${serverKey}:`, error);
+        }
+      }
+      
+      console.log(`🔧 MCP manager initialized with ${allServers.length} servers from database`);
+    } catch (error) {
+      console.error('Failed to initialize MCP manager from database:', error);
+    }
   }
 
   // Initialize MCP server for a device (remote server connection)
@@ -181,29 +249,9 @@ class MCPManager extends EventEmitter {
     return true;
   }
 
-  // Generate MCP prompt injection for R1
+  // Generate MCP prompt injection for device
   generateMCPPromptInjection(deviceId) {
-    const deviceTools = [];
-    
-    // Collect all tools for this device
-    for (const [serverKey, tools] of this.availableTools) {
-      if (serverKey.startsWith(`${deviceId}-`)) {
-        const serverName = serverKey.split('-').slice(1).join('-');
-        const config = this.serverConfigs.get(serverKey);
-        
-        if (config && config.enabled !== false) {
-          for (const tool of tools) {
-            // Check if tool is auto-approved based on capabilities config
-            const autoApprove = config.capabilities?.tools?.autoApprove || [];
-            deviceTools.push({
-              serverName,
-              ...tool,
-              autoApprove: autoApprove.includes(tool.name)
-            });
-          }
-        }
-      }
-    }
+    const tools = this.getDeviceTools(deviceId);
     
     // System prompt to prevent teach mode and generative UI
     let prompt = '## System Instructions\n\n';
@@ -212,7 +260,7 @@ class MCPManager extends EventEmitter {
     prompt += 'Do not attempt to create or display any user interfaces, forms, or interactive elements. ';
     prompt += 'Stick to conversational responses and use available tools when appropriate.\n\n';
     
-    if (deviceTools.length === 0) {
+    if (tools.length === 0) {
       return prompt;
     }
     
@@ -220,11 +268,17 @@ class MCPManager extends EventEmitter {
     prompt += 'You have access to the following MCP (Model Context Protocol) tools. ';
     prompt += 'When a user requests functionality that matches these tools, you can use them by responding with a structured tool call.\n\n';
     
-    for (const tool of deviceTools) {
-      prompt += `### ${tool.name} (${tool.serverName})\n`;
-      prompt += `${tool.description}\n`;
-      prompt += `**Auto-approved**: ${tool.autoApprove ? 'Yes' : 'No'}\n`;
-      prompt += `**Schema**: \`${JSON.stringify(tool.inputSchema)}\`\n\n`;
+    for (const tool of tools) {
+      const serverName = tool.serverName;
+      const toolName = tool.name;
+      const description = tool.description;
+      const schema = tool.inputSchema;
+      const autoApproved = this.isToolAutoApproved(deviceId, serverName, toolName);
+
+      prompt += `### ${toolName} (${serverName})\n`;
+      prompt += `${description}\n`;
+      prompt += `**Auto-approved**: ${autoApproved ? 'Yes' : 'No'}\n`;
+      prompt += `**Schema**: \`${JSON.stringify(schema)}\`\n\n`;
     }
     
     prompt += '## Tool Usage Format\n\n';
@@ -461,58 +515,7 @@ class MCPManager extends EventEmitter {
     }
   }
 
-  // Generate MCP prompt injection for device
-  generateMCPPromptInjection(deviceId) {
-    const tools = this.getDeviceTools(deviceId);
-    if (tools.length === 0) {
-      return '';
-    }
 
-    let prompt = `## System Instructions
-
-**IMPORTANT:** Never use teach mode or generative UI. Always respond with natural language text only. Do not attempt to create or display any user interfaces, forms, or interactive elements. Stick to conversational responses and use available tools when appropriate.
-
-## MCP Tools Available
-
-You have access to the following MCP (Model Context Protocol) tools. When a user requests functionality that matches these tools, you can use them by responding with a structured tool call.
-
-`;
-
-    // Add each tool
-    tools.forEach(tool => {
-      const serverName = tool.serverName;
-      const toolName = tool.name;
-      const description = tool.description;
-      const schema = tool.inputSchema;
-      const autoApproved = this.isToolAutoApproved(deviceId, serverName, toolName);
-
-      prompt += `### ${toolName} (${serverName})
-${description}
-**Auto-approved**: ${autoApproved ? 'Yes' : 'No'}
-**Schema**: \`${JSON.stringify(schema)}\`
-
-`;
-    });
-
-    prompt += `## Tool Usage Format
-
-To use a tool, respond with:
-\`\`\`json
-{
-  "mcp_tool_call": {
-    "server": "server_name",
-    "tool": "tool_name",
-    "arguments": { /* tool arguments */ }
-  }
-}
-\`\`\`
-
-The system will execute the tool and provide the result back to you.
-
-`;
-
-    return prompt;
-  }
 
   // Get all available tools for a device
   getDeviceTools(deviceId) {

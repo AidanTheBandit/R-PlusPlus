@@ -433,6 +433,10 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       // Get MCP system prompt
       if (mcpManager) {
         systemPrompt = mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
+        console.log(`🔧 MCP prompt for device ${targetDeviceId}: ${systemPrompt.length} characters`);
+        if (systemPrompt.length > 0) {
+          console.log(`🔧 MCP prompt preview: ${systemPrompt.substring(0, 100)}...`);
+        }
       }
 
       // Format message with system prompt if available
