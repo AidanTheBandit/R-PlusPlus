@@ -5,9 +5,8 @@ const AddServerModal = ({ templates, onAdd, onClose }) => {
   const [formData, setFormData] = useState({
     serverName: '',
     description: '',
-    command: '',
-    args: '[]',
-    env: '{}',
+    url: '',
+    protocolVersion: '2025-06-18',
     autoApprove: '[]',
     enabled: true
   });
@@ -17,27 +16,25 @@ const AddServerModal = ({ templates, onAdd, onClose }) => {
     setFormData({
       serverName: template.name,
       description: template.description,
-      command: template.command,
-      args: JSON.stringify(template.args, null, 2),
-      env: JSON.stringify(template.env, null, 2),
-      autoApprove: JSON.stringify(template.autoApprove, null, 2),
+      url: template.url || '', // Use URL from template if available, otherwise empty
+      protocolVersion: '2025-06-18',
+      autoApprove: JSON.stringify(template.autoApprove || [], null, 2),
       enabled: true
     });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (!formData.serverName || !formData.command) {
-      alert('Server name and command are required');
+
+    if (!formData.serverName || !formData.url) {
+      alert('Server name and URL are required');
       return;
     }
 
     try {
       const config = {
-        command: formData.command,
-        args: JSON.parse(formData.args),
-        env: JSON.parse(formData.env),
+        url: formData.url,
+        protocolVersion: formData.protocolVersion,
         enabled: formData.enabled,
         autoApprove: JSON.parse(formData.autoApprove),
         description: formData.description
@@ -63,7 +60,7 @@ const AddServerModal = ({ templates, onAdd, onClose }) => {
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <div className="modal-title">Add MCP Server</div>
+          <div className="modal-title">Add Remote MCP Server</div>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
 
@@ -81,6 +78,7 @@ const AddServerModal = ({ templates, onAdd, onClose }) => {
                   <div className="template-description">{template.description}</div>
                   <div className={`template-category template-category-${template.category}`}>
                     {template.category}
+                    {template.url && <span className="template-url-indicator"> • Ready to use</span>}
                   </div>
                 </div>
               ))}
@@ -94,7 +92,7 @@ const AddServerModal = ({ templates, onAdd, onClose }) => {
               className="form-input"
               value={formData.serverName}
               onChange={(e) => handleInputChange('serverName', e.target.value)}
-              placeholder="e.g., filesystem, web-search"
+              placeholder="e.g., web-search, weather-api"
               required
             />
           </div>
@@ -111,37 +109,36 @@ const AddServerModal = ({ templates, onAdd, onClose }) => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Command:</label>
+            <label className="form-label">Server URL:</label>
             <input
-              type="text"
+              type="url"
               className="form-input"
-              value={formData.command}
-              onChange={(e) => handleInputChange('command', e.target.value)}
-              placeholder="e.g., uvx, python, node"
+              value={formData.url}
+              onChange={(e) => handleInputChange('url', e.target.value)}
+              placeholder="https://your-mcp-server.com/mcp"
               required
             />
+            <small className="form-help">
+              {selectedTemplate?.url
+                ? `Using URL from ${selectedTemplate.displayName} template`
+                : selectedTemplate?.category === 'directory'
+                ? `Visit ${selectedTemplate.displayName} to find and copy a specific MCP server URL`
+                : selectedTemplate?.category === 'examples'
+                ? `Visit ${selectedTemplate.displayName} to find working MCP server examples`
+                : "Enter the URL of a remote MCP server that supports the MCP protocol"}
+            </small>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Arguments (JSON array):</label>
-            <textarea
-              className="form-textarea"
-              value={formData.args}
-              onChange={(e) => handleInputChange('args', e.target.value)}
-              placeholder='["mcp-server-filesystem"]'
-              rows="3"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Environment Variables (JSON object):</label>
-            <textarea
-              className="form-textarea"
-              value={formData.env}
-              onChange={(e) => handleInputChange('env', e.target.value)}
-              placeholder='{"API_KEY": "your-key"}'
-              rows="3"
-            />
+            <label className="form-label">Protocol Version:</label>
+            <select
+              className="form-input"
+              value={formData.protocolVersion}
+              onChange={(e) => handleInputChange('protocolVersion', e.target.value)}
+            >
+              <option value="2025-06-18">2025-06-18 (Latest)</option>
+              <option value="2024-11-05">2024-11-05</option>
+            </select>
           </div>
 
           <div className="form-group">
@@ -150,9 +147,10 @@ const AddServerModal = ({ templates, onAdd, onClose }) => {
               className="form-textarea"
               value={formData.autoApprove}
               onChange={(e) => handleInputChange('autoApprove', e.target.value)}
-              placeholder='["search", "read_file"]'
+              placeholder='["search_web", "get_weather"]'
               rows="2"
             />
+            <small className="form-help">Tools that can be called without manual approval</small>
           </div>
 
           <div className="form-group">
@@ -162,8 +160,13 @@ const AddServerModal = ({ templates, onAdd, onClose }) => {
                 checked={formData.enabled}
                 onChange={(e) => handleInputChange('enabled', e.target.checked)}
               />
-              Enable server immediately
+              {formData.enabled ? 'Connect to server immediately' : 'Add server but don\'t connect yet'}
             </label>
+            <small className="form-help">
+              {formData.enabled
+                ? 'Server will attempt to connect and discover tools immediately'
+                : 'Server will be saved but you can connect later. Useful for testing URLs.'}
+            </small>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>

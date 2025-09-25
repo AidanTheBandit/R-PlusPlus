@@ -322,43 +322,37 @@ node src/tests/test-api.js
 3. **Process** → R1 Device → Generate Response
 4. **Return** → WebSocket → Response Utils → API Client
 
-## MCP (Model Context Protocol) Integration - Prompt Injection Mode
+## MCP (Model Context Protocol) Integration - Remote Server Mode ✅
 
-R-API includes MCP support through **prompt injection**, making it safe for public server deployment:
+R-API includes MCP support through **remote server connections**, allowing R1 devices to connect to external MCP servers over HTTP:
 
 ### Key Features
-- **Prompt Injection**: Tools are described in chat prompts rather than running actual processes
-- **Public Server Safe**: No file system or database access, suitable for public deployment
-- **Web-based Management**: Configure MCP tool definitions through the control panel
-- **Pre-configured Templates**: Quick setup for common tools (web search, weather, calculator, etc.)
+- **Remote Server Connections**: Connect to external MCP servers over HTTP
+- **MCP Protocol Compliance**: Full implementation of MCP protocol version 2025-06-18
+- **Web-based Management**: Configure remote MCP server URLs through the control panel
+- **Real Tool Access**: Access actual tools provided by remote MCP servers
 - **Security Controls**: Auto-approval lists and manual approval workflows
-- **Real-time Monitoring**: Live status monitoring and comprehensive logging
-- **Device-specific Configuration**: Each R1 device can have its own MCP tool setup
+- **Real-time Monitoring**: Live status monitoring and logging
+- **Device Isolation**: Each device maintains its own MCP server connections
+- **Test Server**: Built-in test MCP server for development and testing
 
 ### How It Works
-Instead of spawning actual MCP server processes, R-API injects tool descriptions directly into chat prompts. When users request functionality that matches available tools, the R1 can respond with structured tool calls that get executed as simulations.
+R-API connects to remote MCP servers using the official MCP protocol over HTTP. Tools are discovered dynamically from remote servers and their schemas are injected into R1 prompts. When the R1 requests tool use, R-API calls the actual remote server and returns real results.
 
 ### Quick Start
-1. Open the R-API Control Panel at `http://localhost:5482`
+1. Open the R-API Control Panel at `https://r1a.boondit.site`
 2. Navigate to the "MCP Servers" tab
 3. Select your R1 device from the dropdown
-4. Click "Add Server" and choose from templates (web-search, weather, calculator, etc.)
-5. Your R1 will now receive tool descriptions in chat prompts and can use them naturally
-
-### Available Tool Simulations
-- **Web Search**: Simulated web search results
-- **Weather**: Simulated weather information
-- **Calculator**: Real mathematical calculations
-- **Time & Date**: Current time and date information
-- **Knowledge Base**: Simulated knowledge base searches
+4. Click "Add Server" and choose the "Test MCP Server" template
+5. Your R1 will now have access to real MCP tools from the remote server
 
 ### Testing MCP Integration
 ```bash
-# Test the MCP prompt injection system
-npm run test-mcp
+# Test the MCP remote server functionality
+npm run test-mcp-remote
 
-# Run the example R1 client
-node examples/mcp-prompt-injection-example.js
+# Run comprehensive MCP tests
+npm run test-mcp-comprehensive
 ```
 
 See [MCP Documentation](docs/mcp.md) for detailed setup and usage instructions.

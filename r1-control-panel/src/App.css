@@ -722,3 +722,17 @@
   gap: 10px;
   justify-content: center;
 }
+
+/* Template URL Indicator */
+.template-url-indicator {
+  font-weight: bold;
+  font-size: 0.8em;
+}
+
+.template-ready {
+  color: var(--green);
+}
+
+.template-required {
+  color: var(--yellow);
+}
