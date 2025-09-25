@@ -10,6 +10,9 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
   // Get PIN configuration from environment
   const enablePin = process.env.DISABLE_PIN !== 'true'; // Default to enabled, disable if DISABLE_PIN=true
 
+  // Track requests that have had MCP tool calls executed
+  const mcpToolExecutedRequests = new Set();
+
   // Socket.IO connection handling
   io.on('connection', async (socket) => {
     // Get client info for device identification
@@ -167,14 +170,13 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
       });
     });
 
-    // Handle test messages for debugging
-    socket.on('test_message', (data) => {
-      console.log(`🧪 Test message received`);
-      // Send test event back to verify bidirectional communication
-      socket.emit('test_event', {
-        message: 'Test response from server',
-        timestamp: new Date().toISOString()
-      });
+    // Handle chat completion requests from server
+    socket.on('chat_completion', (data) => {
+      console.log(`💬 Chat completion request received`);
+      
+      // Forward to the R1 device - the R1 app should handle this
+      // The R1 device will process the messages and send back a response via 'response' event
+      console.log(`📨 Forwarding chat completion to R1 device:`, JSON.stringify(data, null, 2));
     });
 
     socket.on('message', (data) => {
@@ -202,7 +204,7 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
     });
 
     // Handle response events from R1 devices
-    socket.on('response', (data) => {
+    socket.on('response', async (data) => {
       console.log(`🔄 Socket Response received`);
 
       const { requestId, response, originalMessage, model, timestamp } = data;
@@ -221,13 +223,112 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
           return;
         }
 
-        // Clear timeout and remove from pending requests
-        clearTimeout(timeout);
-        pendingRequests.delete(requestId);
-        requestDeviceMap.delete(requestId);
-        console.log(`🗑️ Removed pending request, remaining: ${pendingRequests.size}`);
+        // Check if this is a follow-up response after MCP tool execution
+        const isMCPFollowUp = mcpToolExecutedRequests.has(requestId);
 
-        sendOpenAIResponse(res, response, originalMessage, model, stream);
+        // Check if the response contains an MCP tool call
+        let finalResponse = response;
+        let isMCPToolCall = false;
+
+        try {
+          // Try to parse the response as JSON to check for mcp_tool_call
+          const parsedResponse = JSON.parse(response);
+          if (parsedResponse && parsedResponse.mcp_tool_call) {
+            console.log(`🔧 MCP tool call detected in response`);
+            isMCPToolCall = true;
+
+            const { server: serverName, tool: toolName, arguments: toolArgs } = parsedResponse.mcp_tool_call;
+
+            if (mcpManager) {
+              try {
+                // Execute the MCP tool
+                const toolResult = await mcpManager.handleToolCall(deviceId, serverName, toolName, toolArgs || {});
+
+                // Mark this request as having had an MCP tool executed
+                mcpToolExecutedRequests.add(requestId);
+
+                // Send the tool result back to the R1 device for final response generation
+                socket.emit('mcp_tool_result', {
+                  requestId: requestId,
+                  serverName,
+                  toolName,
+                  result: toolResult,
+                  success: true,
+                  timestamp: new Date().toISOString()
+                });
+
+                // Don't send the response yet - wait for the R1 to generate the final response
+                console.log(`🔄 MCP tool executed, waiting for R1 final response`);
+                return;
+
+              } catch (toolError) {
+                console.error(`❌ MCP tool execution failed:`, toolError);
+
+                // Send error back to R1 device
+                socket.emit('mcp_tool_result', {
+                  requestId: requestId,
+                  serverName,
+                  toolName,
+                  error: toolError.message,
+                  success: false,
+                  timestamp: new Date().toISOString()
+                });
+
+                // Send error response to client
+                clearTimeout(timeout);
+                pendingRequests.delete(requestId);
+                requestDeviceMap.delete(requestId);
+                mcpToolExecutedRequests.delete(requestId);
+
+                res.status(500).json({
+                  error: {
+                    message: `MCP tool execution failed: ${toolError.message}`,
+                    type: 'mcp_error'
+                  }
+                });
+                return;
+              }
+            } else {
+              console.error(`❌ MCP manager not available`);
+              finalResponse = "Sorry, MCP functionality is not available at this time.";
+            }
+          }
+        } catch (parseError) {
+          // Response is not JSON with mcp_tool_call, use as-is
+          console.log(`📝 Response is not MCP tool call, using as normal response`);
+        }
+
+        // If this is not an MCP tool call, or if MCP execution failed, send the response
+        if (!isMCPToolCall) {
+          // If this is a follow-up response after MCP tool execution, clean up the tracking
+          if (isMCPFollowUp) {
+            mcpToolExecutedRequests.delete(requestId);
+            console.log(`✅ Received final response after MCP tool execution`);
+          }
+
+          // Store assistant response in conversation history
+          const sessionId = deviceId;
+          const history = conversationHistory.get(sessionId) || [];
+          history.push({
+            role: 'assistant',
+            content: finalResponse,
+            timestamp: new Date().toISOString()
+          });
+
+          // Keep only last 20 messages in storage
+          if (history.length > 20) {
+            history.splice(0, history.length - 20);
+          }
+          conversationHistory.set(sessionId, history);
+
+          // Clear timeout and remove from pending requests
+          clearTimeout(timeout);
+          pendingRequests.delete(requestId);
+          requestDeviceMap.delete(requestId);
+          console.log(`🗑️ Removed pending request, remaining: ${pendingRequests.size}`);
+
+          sendOpenAIResponse(res, finalResponse, originalMessage, model, stream);
+        }
       }
       else {
         console.log(`❌ No matching requests found for response`);

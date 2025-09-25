@@ -349,7 +349,20 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
       const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
 
-      // Allow multiple concurrent requests - removed the busy check
+      // Check if target device already has a pending request
+      const existingRequests = Array.from(requestDeviceMap.entries())
+        .filter(([_, deviceId]) => deviceId === targetDeviceId);
+
+      if (existingRequests.length > 0) {
+        console.log(`❌ Device ${targetDeviceId} already has ${existingRequests.length} pending request(s)`);
+        return res.status(429).json({
+          error: {
+            message: 'Device is currently processing another request. Please wait for it to complete.',
+            type: 'device_busy'
+          }
+        });
+      }
+
       console.log(`📊 Current pending requests: ${pendingRequests.size}`);
 
       // Extract the latest user message
@@ -358,43 +371,46 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       // Generate unique request ID
       const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Get conversation history for this "session" (using a simple approach)
-      // In a real implementation, you'd use proper session management
-      const sessionId = targetDeviceId || 'default'; // For now, use a single conversation per device
+      // Build proper conversation history in OpenAI format
+      const conversationMessages = [];
+
+      // Add system message with MCP tools and instructions
+      if (mcpManager) {
+        const mcpPrompt = mcpManager.generateMCPPromptInjection(targetDeviceId);
+        if (mcpPrompt) {
+          conversationMessages.push({
+            role: 'system',
+            content: mcpPrompt
+          });
+        }
+      }
+
+      // Add conversation history (excluding system messages)
+      const sessionId = targetDeviceId || 'default';
       const history = conversationHistory.get(sessionId) || [];
 
-      // Add current user message to history
+      // Add previous conversation turns (last 10 exchanges to stay within context limits)
+      const recentHistory = history.slice(-20); // Keep last 20 messages (10 exchanges)
+      conversationMessages.push(...recentHistory);
+
+      // Add current user message
+      conversationMessages.push({
+        role: 'user',
+        content: userMessage
+      });
+
+      // Update stored history with user message
       history.push({
         role: 'user',
         content: userMessage,
         timestamp: new Date().toISOString()
       });
 
-      // Keep only last 10 messages to avoid context getting too long
-      if (history.length > 10) {
-        history.splice(0, history.length - 10);
+      // Keep only last 20 messages in storage
+      if (history.length > 20) {
+        history.splice(0, history.length - 20);
       }
-
-      // Update stored history
       conversationHistory.set(sessionId, history);
-
-      // Create message with conversation context and MCP injection
-      let messageWithContext = userMessage;
-      if (history.length > 1) {
-        // Get only the last assistant response for context
-        const lastAssistantMessage = history.slice(-2).find(msg => msg.role === 'assistant');
-        if (lastAssistantMessage) {
-          messageWithContext = `Previous assistant response: ${lastAssistantMessage.content}\n\nCurrent question: ${userMessage}`;
-        }
-      }
-
-      // Inject MCP prompt if available
-      if (mcpManager) {
-        const mcpPrompt = mcpManager.generateMCPPromptInjection(targetDeviceId);
-        if (mcpPrompt) {
-          messageWithContext = mcpPrompt + '\n\n' + messageWithContext;
-        }
-      }
 
       // Store the response callback with timeout
       const timeout = setTimeout(() => {
@@ -410,11 +426,22 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       pendingRequests.set(requestId, { res, timeout, stream });
       console.log(`💾 Stored pending request: ${requestId}, total pending: ${pendingRequests.size}`);
 
+      // Create message text from conversation
+      let messageText = userMessage;
+      if (conversationMessages.length > 1) {
+        // Format the conversation for the R1 device
+        const systemMessage = conversationMessages.find(msg => msg.role === 'system');
+        if (systemMessage) {
+          messageText = `${systemMessage.content}\n\nUser: ${userMessage}`;
+        }
+      }
+
       // Send command to R1 devices
       const command = {
         type: 'chat_completion',
         data: {
-          message: messageWithContext, // Use message with conversation context
+          message: messageText, // Formatted message for R1
+          messages: conversationMessages, // Full conversation for context
           originalMessage: userMessage, // Keep original for response
           model,
           temperature,
