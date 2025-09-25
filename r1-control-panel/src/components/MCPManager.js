@@ -5,31 +5,17 @@ import LogsModal from './LogsModal';
 
 const MCPManager = ({ socket, deviceId, pinCode }) => {
   const [servers, setServers] = useState([]);
-  const [templates, setTemplates] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
 
   useEffect(() => {
-    loadTemplates();
     loadServers();
   }, [deviceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadTemplates = async () => {
-    try {
-      const response = await fetch('/mcp/templates');
-      if (response.ok) {
-        const data = await response.json();
-        setTemplates(data.templates || []);
-      }
-    } catch (error) {
-      console.error('Failed to load templates:', error);
-    }
-  };
-
   const loadServers = async () => {
     if (!deviceId) return;
-    
+
     setIsLoading(true);
     try {
       const headers = {};
@@ -142,23 +128,23 @@ const MCPManager = ({ socket, deviceId, pinCode }) => {
     <div className="card">
       <div className="mcp-header">
         <div>
-          <h2>MCP Server Management</h2>
-          <p>Manage Model Context Protocol servers for {deviceId}</p>
+          <h2>Model Context Protocol (MCP) Servers</h2>
+          <p>Connect to and manage remote MCP servers for {deviceId}</p>
         </div>
         <div className="mcp-actions">
-          <button 
+          <button
             className="btn"
             onClick={() => setShowAddModal(true)}
           >
             Add Server
           </button>
-          <button 
+          <button
             className="btn btn-secondary"
             onClick={loadServers}
           >
             Refresh
           </button>
-          <button 
+          <button
             className="btn btn-secondary"
             onClick={() => setShowLogsModal(true)}
           >
@@ -175,7 +161,7 @@ const MCPManager = ({ socket, deviceId, pinCode }) => {
       ) : servers.length === 0 ? (
         <div className="empty-state">
           <h3>No MCP servers configured</h3>
-          <p>Add your first MCP server to extend your R1's capabilities</p>
+          <p>Add your first MCP server to extend your R1's capabilities with tools, resources, and prompts.</p>
           <button className="btn" onClick={() => setShowAddModal(true)}>
             Add Your First Server
           </button>
@@ -197,7 +183,6 @@ const MCPManager = ({ socket, deviceId, pinCode }) => {
 
       {showAddModal && (
         <AddServerModal
-          templates={templates}
           onAdd={handleAddServer}
           onClose={() => setShowAddModal(false)}
         />

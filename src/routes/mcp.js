@@ -48,10 +48,10 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
         });
       }
 
-      // Validate config structure
-      if (!config.command) {
-        return res.status(400).json({ 
-          error: { message: 'Server command is required', type: 'validation_error' } 
+      // Validate config structure for remote servers
+      if (!config.url) {
+        return res.status(400).json({
+          error: { message: 'Server URL is required for remote MCP servers', type: 'validation_error' }
         });
       }
 
@@ -137,14 +137,35 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
       
       // Start or stop server (prompt injection mode)
       if (enabled) {
+        // Parse the full config from database
+        let fullConfig = {};
+        if (serverConfig.config) {
+          try {
+            fullConfig = JSON.parse(serverConfig.config);
+          } catch (error) {
+            console.warn(`Failed to parse server config for ${serverName}:`, error);
+          }
+        }
+        
+        // Merge with legacy fields
         const config = {
+          url: fullConfig.url || serverConfig.url,
+          protocolVersion: fullConfig.protocolVersion || '2025-06-18',
+          capabilities: fullConfig.capabilities || {
+            tools: {
+              enabled: true,
+              autoApprove: serverConfig.auto_approve ? JSON.parse(serverConfig.auto_approve) : []
+            }
+          },
           command: serverConfig.command,
           args: serverConfig.args ? JSON.parse(serverConfig.args) : [],
           env: serverConfig.env ? JSON.parse(serverConfig.env) : {},
-          autoApprove: serverConfig.auto_approve ? JSON.parse(serverConfig.auto_approve) : [],
-          enabled: true
+          headers: fullConfig.headers || {},
+          timeout: fullConfig.timeout || 30000,
+          enabled: true,
+          description: fullConfig.description || serverConfig.description
         };
-        await mcpManager.initializeServerTools(deviceId, serverName, config);
+        await mcpManager.initializeServer(deviceId, serverName, config);
       } else {
         await mcpManager.stopServerProcess(deviceId, serverName);
       }
@@ -207,18 +228,34 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
     }
   });
 
-  // Get MCP logs
+  // Get MCP logs (requires device authentication)
   app.get('/:deviceId/mcp/logs', async (req, res) => {
     const { deviceId } = req.params;
     const { serverName, limit = 100 } = req.query;
-    
+
     try {
+      // Verify device exists and get PIN from headers
+      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+      if (!deviceInfo) {
+        return res.status(404).json({
+          error: { message: 'Device not found', type: 'device_error' }
+        });
+      }
+
+      // Check PIN authentication
+      const providedPin = req.headers.authorization?.replace('Bearer ', '');
+      if (deviceInfo.pin_code && providedPin !== deviceInfo.pin_code) {
+        return res.status(401).json({
+          error: { message: 'Authentication required', type: 'auth_error' }
+        });
+      }
+
       const logs = await mcpManager.database.getMCPLogs(deviceId, serverName, parseInt(limit));
       res.json({ logs });
     } catch (error) {
       console.error('Error getting MCP logs:', error);
-      res.status(500).json({ 
-        error: { message: 'Internal server error', type: 'server_error' } 
+      res.status(500).json({
+        error: { message: 'Internal server error', type: 'server_error' }
       });
     }
   });
@@ -288,7 +325,7 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
         });
       }
 
-      const promptInjection = mcpManager.generateMCPPromptInjection(deviceId);
+      const promptInjection = await mcpManager.generateMCPPromptInjection(deviceId);
       
       res.json({ 
         deviceId,
@@ -304,62 +341,164 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
     }
   });
 
-  // Get MCP server templates/presets (root level - no device required)
-  app.get('/mcp/templates', (req, res) => {
-    const templates = [
-      {
-        name: 'web-search',
-        displayName: 'Web Search',
-        description: 'Search the web using various search engines',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: ['search_web'],
-        category: 'web'
-      },
-      {
-        name: 'weather',
-        displayName: 'Weather Information',
-        description: 'Get current weather information for any location',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: ['get_weather'],
-        category: 'information'
-      },
-      {
-        name: 'calculator',
-        displayName: 'Calculator',
-        description: 'Perform mathematical calculations',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: ['calculate'],
-        category: 'utility'
-      },
-      {
-        name: 'time',
-        displayName: 'Time & Date',
-        description: 'Get current time and date information',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: ['get_current_time'],
-        category: 'utility'
-      },
-      {
-        name: 'knowledge',
-        displayName: 'Knowledge Base',
-        description: 'Search knowledge base for information',
-        command: 'simulated',
-        args: [],
-        env: {},
-        autoApprove: [],
-        category: 'information'
-      }
-    ];
+    // Test MCP server connection
+  app.post('/api/mcp/test-connection', async (req, res) => {
+    try {
+      const { url, protocolVersion, capabilities, headers, timeout } = req.body;
 
-    res.json({ templates });
+      if (!url) {
+        return res.status(400).json({ success: false, message: 'URL is required' });
+      }
+
+      // Create a test MCP client
+      const { MCPProtocolClient } = require('../utils/mcp-protocol-client');
+      const client = new MCPProtocolClient(url, {
+        protocolVersion: protocolVersion || '2025-06-18',
+        clientInfo: {
+          name: 'R-API-MCP-Test-Client',
+          version: '1.0.0'
+        },
+        capabilities: capabilities || { tools: {} },
+        headers: headers || {},
+        timeout: timeout || 30000
+      });
+
+      // Try to initialize
+      const initResult = await client.initialize();
+
+      // Close the connection
+      await client.close();
+
+      res.json({
+        success: true,
+        message: `Connected successfully! Server supports MCP protocol`,
+        serverInfo: initResult
+      });
+
+    } catch (error) {
+      console.error('MCP connection test failed:', error);
+      res.status(500).json({
+        success: false,
+        message: `Connection failed: ${error.message}`
+      });
+    }
+  });
+
+  // Test MCP server endpoint for testing MCP client connections
+  app.post('/mcp/test-server', (req, res) => {
+    try {
+      const message = req.body;
+
+      console.log('🧪 Test MCP server received:', JSON.stringify(message, null, 2));
+      console.log('🧪 Message has id:', message.hasOwnProperty('id'), 'id value:', message.id);
+      console.log('🧪 Method starts with notifications/:', message.method && message.method.startsWith('notifications/'));
+
+      // Check if this is a notification (methods starting with 'notifications/')
+      if (message.method && message.method.startsWith('notifications/')) {
+        // Notifications don't require a response
+        console.log('📢 Received notification:', message.method);
+        return res.status(202).json({}); // Accepted, no content
+      }
+
+      // Check if this is a notification (no id field)
+      if (!message.hasOwnProperty('id')) {
+        // Notifications don't require a response
+        console.log('📢 Received notification (no id):', message.method);
+        return res.status(202).json({}); // Accepted, no content
+      }
+
+      if (message.method === 'initialize') {
+        // Respond to initialize request
+        res.json({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            protocolVersion: '2025-06-18',
+            capabilities: {
+              tools: { listChanged: true },
+              resources: { listChanged: true }
+            },
+            serverInfo: {
+              name: 'R-API Test MCP Server',
+              version: '1.0.0'
+            }
+          }
+        });
+      } else if (message.method === 'tools/list') {
+        // Respond to tools/list request
+        res.json({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            tools: [
+              {
+                name: 'test_echo',
+                description: 'Echo back the input message',
+                inputSchema: {
+                  type: 'object',
+                  properties: {
+                    message: { type: 'string', description: 'Message to echo' }
+                  },
+                  required: ['message']
+                }
+              },
+              {
+                name: 'test_calculator',
+                description: 'Simple calculator that adds two numbers',
+                inputSchema: {
+                  type: 'object',
+                  properties: {
+                    a: { type: 'number', description: 'First number' },
+                    b: { type: 'number', description: 'Second number' }
+                  },
+                  required: ['a', 'b']
+                }
+              }
+            ]
+          }
+        });
+      } else if (message.method === 'tools/call') {
+        // Handle tool calls
+        const { name, arguments: args } = message.params;
+
+        if (name === 'test_echo') {
+          res.json({
+            jsonrpc: '2.0',
+            id: message.id,
+            result: {
+              content: [{ type: 'text', text: `Echo: ${args.message}` }]
+            }
+          });
+        } else if (name === 'test_calculator') {
+          const result = args.a + args.b;
+          res.json({
+            jsonrpc: '2.0',
+            id: message.id,
+            result: {
+              content: [{ type: 'text', text: `Result: ${args.a} + ${args.b} = ${result}` }]
+            }
+          });
+        } else {
+          res.status(400).json({
+            jsonrpc: '2.0',
+            id: message.id,
+            error: { code: -32601, message: 'Method not found' }
+          });
+        }
+      } else {
+        res.status(400).json({
+          jsonrpc: '2.0',
+          id: message.id,
+          error: { code: -32601, message: 'Method not found' }
+        });
+      }
+    } catch (error) {
+      console.error('Test MCP server error:', error);
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: { code: -32603, message: 'Internal error' }
+      });
+    }
   });
 
 

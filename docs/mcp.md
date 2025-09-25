@@ -1,29 +1,32 @@
-# MCP (Model Context Protocol) Integration - Prompt Injection Mode
+# MCP (Model Context Protocol) Integration - Remote Server Mode ✅
 
 ## Overview
 
-The R-API includes MCP (Model Context Protocol) support through **prompt injection**, making it suitable for public server environments. Instead of spawning actual MCP server processes, the system injects tool descriptions and capabilities directly into chat prompts, allowing R1 devices to understand and use available tools through natural language responses.
+The R-API includes MCP (Model Context Protocol) support through **remote server connections**, allowing R1 devices to connect to external MCP servers over HTTP. Instead of running local MCP server processes, the system connects to remote MCP servers that implement the MCP protocol, providing access to real tools and capabilities.
+
+**Status: ✅ Fully Implemented and Working**
 
 ## Features
 
-- **Prompt Injection**: Tools are described in chat prompts rather than running actual processes
-- **Server Management**: Register, configure, and manage MCP tool definitions per device
-- **Tool Simulation**: Simulated tool responses for common functionality
+- **Remote Server Connections**: Connect to external MCP servers over HTTP
+- **MCP Protocol Compliance**: Full implementation of MCP protocol version 2025-06-18
+- **Server Management**: Register, configure, and manage remote MCP server connections per device
+- **Real Tool Access**: Access actual tools provided by remote MCP servers
 - **Security Controls**: Auto-approval lists and manual approval workflows
 - **Real-time Monitoring**: Live status monitoring and logging
-- **Template System**: Pre-configured templates for common tool types
-- **Public Server Safe**: No file system or database access, suitable for public deployment
+- **Device Isolation**: Each device maintains its own MCP server connections
 
 ## Architecture
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│ R1 Device   │────│ R-API Server│────│ Tool Sims   │
-│             │    │             │    │             │
-│ • Chat API  │    │ • Prompt    │    │ • Web Search│
-│ • Tool Calls│    │   Injection │    │ • Weather   │
-│ • Responses │    │ • Tool Sims │    │ • Calculator│
-└─────────────┘    └─────────────┘    └─────────────┘
+┌─────────────┐    ┌─────────────┐    ┌─────────────────┐
+│ R1 Device   │────│ R-API Server│────│ Remote MCP     │
+│             │    │             │    │ Servers         │
+│ • Chat API  │    │ • HTTP MCP  │    │ • Web Search    │
+│ • Tool Calls│    │   Client    │    │ • Weather API   │
+│ • Responses │    │ • Prompt    │    │ • Calculator    │
+│             │    │   Injection │    │ • File System   │
+└─────────────┘    └─────────────┘    └─────────────────┘
 ```
 
 ## Web UI Management
@@ -34,16 +37,15 @@ The R-API includes MCP (Model Context Protocol) support through **prompt injecti
 2. Navigate to the "MCP Servers" tab
 3. Select your R1 device from the dropdown
 
-### Adding MCP Servers
+### Adding Remote MCP Servers
 
 1. Click "Add Server" button
 2. Choose from pre-configured templates or create custom configuration
 3. Configure server settings:
    - **Server Name**: Unique identifier for the server
    - **Description**: Brief description of server functionality
-   - **Command**: Executable command (e.g., `uvx`, `python`, `node`)
-   - **Arguments**: Command arguments as JSON array
-   - **Environment**: Environment variables as JSON object
+   - **Server URL**: HTTP endpoint of the remote MCP server
+   - **Protocol Version**: MCP protocol version (default: 2025-06-18)
    - **Auto-approve**: Tools that don't require manual approval
 
 ### Managing Servers
@@ -56,59 +58,38 @@ The R-API includes MCP (Model Context Protocol) support through **prompt injecti
 
 ## Pre-configured Templates
 
+Templates provide starting points for common MCP server types. You'll need to provide the actual server URL when configuring.
+
 ### Web Search
-```json
-{
-  "name": "web-search",
-  "command": "simulated",
-  "args": [],
-  "description": "Search the web using various search engines",
-  "autoApprove": ["search_web"]
-}
-```
+- **Purpose**: Search the web using various search engines
+- **Example URL**: `https://api.example.com/mcp/web-search`
+- **Auto-approved Tools**: `search_web`
 
 ### Weather Information
-```json
-{
-  "name": "weather",
-  "command": "simulated",
-  "args": [],
-  "description": "Get current weather information for any location",
-  "autoApprove": ["get_weather"]
-}
-```
+- **Purpose**: Get current weather information for any location
+- **Example URL**: `https://api.example.com/mcp/weather`
+- **Auto-approved Tools**: `get_weather`
 
 ### Calculator
-```json
-{
-  "name": "calculator",
-  "command": "simulated",
-  "args": [],
-  "description": "Perform mathematical calculations",
-  "autoApprove": ["calculate"]
-}
-```
+- **Purpose**: Perform mathematical calculations
+- **Example URL**: `https://api.example.com/mcp/calculator`
+- **Auto-approved Tools**: `calculate`
 
 ### Time & Date
-```json
-{
-  "name": "time",
-  "command": "simulated",
-  "args": [],
-  "description": "Get current time and date information",
-  "autoApprove": ["get_current_time"]
-}
-```
+- **Purpose**: Get current time and date information
+- **Example URL**: `https://api.example.com/mcp/time`
+- **Auto-approved Tools**: `get_current_time`
 
 ### Knowledge Base
-```json
-{
-  "name": "knowledge",
-  "command": "simulated",
-  "args": [],
-  "description": "Search knowledge base for information"
-}
-```
+- **Purpose**: Search knowledge base for information
+- **Example URL**: `https://api.example.com/mcp/knowledge`
+- **Auto-approved Tools**: None (requires approval)
+
+### Test MCP Server
+- **Purpose**: Verify your MCP client setup works correctly
+- **URL**: `http://localhost:{PORT}/mcp/test-server` (replace {PORT} with your R-API port)
+- **Tools**: `test_echo`, `test_calculator`
+- **Description**: Local test server included with R-API for testing MCP connections
 
 ## API Endpoints
 
@@ -134,14 +115,13 @@ POST /{deviceId}/mcp/servers
 Content-Type: application/json
 
 {
-  "serverName": "filesystem",
+  "serverName": "web-search",
   "config": {
-    "command": "uvx",
-    "args": ["mcp-server-filesystem"],
-    "env": {},
+    "url": "https://api.example.com/mcp/web-search",
+    "protocolVersion": "2025-06-18",
     "enabled": true,
-    "autoApprove": ["read_file"],
-    "description": "File system access"
+    "autoApprove": ["search_web"],
+    "description": "Web search capabilities"
   }
 }
 ```
@@ -284,9 +264,10 @@ socket.emit('mcp_server_status', {
 - Encrypted at rest in database
 
 ### Process Isolation
-- Each MCP server runs in its own process
-- Automatic cleanup on device disconnect
-- Resource limits and monitoring
+- Each MCP server connection is isolated per device
+- No local process execution on the R-API server
+- Remote server handles all tool execution
+- Connection timeouts and automatic cleanup
 
 ## Troubleshooting
 
@@ -303,6 +284,13 @@ socket.emit('mcp_server_status', {
 2. Check tool name and arguments
 3. Review auto-approval settings
 4. Check network connectivity
+
+#### 400 Bad Request Errors
+1. Verify the MCP server URL is correct and accessible
+2. Check that the server supports MCP protocol over HTTP
+3. Try adding the server with "Connect to server immediately" unchecked first
+4. Use the Test MCP Server template to verify your setup works
+5. Check server logs for more detailed error information
 
 #### Performance Issues
 1. Monitor server resource usage
@@ -333,10 +321,11 @@ GET /{deviceId}/mcp/servers/{serverName}
 ## Best Practices
 
 ### Server Configuration
+- Use HTTPS URLs for remote MCP servers
+- Verify server endpoints before configuration
+- Set appropriate auto-approval lists based on trust level
+- Monitor connection status and tool usage
 - Use descriptive server names and descriptions
-- Set appropriate auto-approval lists
-- Configure environment variables securely
-- Test servers before enabling
 
 ### Tool Usage
 - Validate tool arguments before calling
@@ -365,10 +354,12 @@ GET /{deviceId}/mcp/servers/{serverName}
 4. Test with real R1 devices
 
 ### Custom MCP Servers
-1. Follow MCP protocol specification
-2. Implement proper error handling
-3. Support graceful shutdown
-4. Include comprehensive logging
+1. Implement MCP protocol over HTTP transport
+2. Follow MCP protocol specification version 2025-06-18
+3. Support JSON-RPC 2.0 message format
+4. Provide proper tool schemas and descriptions
+5. Handle connection lifecycle (initialize, tools/list, tools/call)
+6. Implement proper error handling and timeouts
 
 ### Testing
 1. Test server startup and shutdown

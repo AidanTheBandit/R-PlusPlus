@@ -322,46 +322,34 @@ node src/tests/test-api.js
 3. **Process** → R1 Device → Generate Response
 4. **Return** → WebSocket → Response Utils → API Client
 
-## MCP (Model Context Protocol) Integration - Prompt Injection Mode
+## Virtual R1 Test Client 🤖
 
-R-API includes MCP support through **prompt injection**, making it safe for public server deployment:
+Test the MCP system without physical R1 hardware using OpenRouter-powered virtual devices:
 
-### Key Features
-- **Prompt Injection**: Tools are described in chat prompts rather than running actual processes
-- **Public Server Safe**: No file system or database access, suitable for public deployment
-- **Web-based Management**: Configure MCP tool definitions through the control panel
-- **Pre-configured Templates**: Quick setup for common tools (web search, weather, calculator, etc.)
-- **Security Controls**: Auto-approval lists and manual approval workflows
-- **Real-time Monitoring**: Live status monitoring and comprehensive logging
-- **Device-specific Configuration**: Each R1 device can have its own MCP tool setup
-
-### How It Works
-Instead of spawning actual MCP server processes, R-API injects tool descriptions directly into chat prompts. When users request functionality that matches available tools, the R1 can respond with structured tool calls that get executed as simulations.
-
-### Quick Start
-1. Open the R-API Control Panel at `http://localhost:5482`
-2. Navigate to the "MCP Servers" tab
-3. Select your R1 device from the dropdown
-4. Click "Add Server" and choose from templates (web-search, weather, calculator, etc.)
-5. Your R1 will now receive tool descriptions in chat prompts and can use them naturally
-
-### Available Tool Simulations
-- **Web Search**: Simulated web search results
-- **Weather**: Simulated weather information
-- **Calculator**: Real mathematical calculations
-- **Time & Date**: Current time and date information
-- **Knowledge Base**: Simulated knowledge base searches
-
-### Testing MCP Integration
+### Setup
 ```bash
-# Test the MCP prompt injection system
-npm run test-mcp
+# Install dependencies
+npm install
 
-# Run the example R1 client
-node examples/mcp-prompt-injection-example.js
+# Set OpenRouter API key
+export OPENROUTER_API_KEY=your_api_key_here
+
+# Run virtual R1 client
+npm run virtual-r1 <deviceId> [serverUrl]
+
+# Example
+npm run virtual-r1 virtual-r1-test http://localhost:3000
 ```
 
-See [MCP Documentation](docs/mcp.md) for detailed setup and usage instructions.
+### Testing MCP Features
+```bash
+# Run automated tests with virtual R1
+npm run test-virtual-r1
+```
+
+The virtual R1 client simulates a real R1 device, processing MCP tool results and system prompts through OpenRouter's Claude model. Perfect for testing MCP integration without physical hardware.
+
+See [Virtual R1 README](VIRTUAL-R1-README.md) for detailed setup and usage instructions.
 
 ## Documentation
 

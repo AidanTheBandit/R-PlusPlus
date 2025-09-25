@@ -87,6 +87,7 @@ class DatabaseManager {
         env TEXT,
         enabled BOOLEAN DEFAULT 1,
         auto_approve TEXT,
+        config TEXT,
         description TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -165,6 +166,16 @@ class DatabaseManager {
         console.log('Adding device_secret column to devices table...');
         await this.run(`ALTER TABLE devices ADD COLUMN device_secret TEXT`);
         console.log('device_secret column added successfully');
+      }
+
+      // Check if config column exists in mcp_servers table
+      const mcpTableInfo = await this.all("PRAGMA table_info(mcp_servers)");
+      const hasConfigColumn = mcpTableInfo.some(column => column.name === 'config');
+
+      if (!hasConfigColumn) {
+        console.log('Adding config column to mcp_servers table...');
+        await this.run(`ALTER TABLE mcp_servers ADD COLUMN config TEXT`);
+        console.log('config column added successfully');
       }
     } catch (error) {
       console.warn('Migration check failed:', error);
@@ -385,8 +396,8 @@ class DatabaseManager {
   async saveMCPServer(deviceId, serverName, config) {
     const sql = `
       INSERT OR REPLACE INTO mcp_servers 
-      (device_id, server_name, server_type, command, args, env, enabled, auto_approve, description, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      (device_id, server_name, server_type, command, args, env, enabled, auto_approve, config, description, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `;
     const args = [
       deviceId,
@@ -396,7 +407,8 @@ class DatabaseManager {
       config.args ? JSON.stringify(config.args) : null,
       config.env ? JSON.stringify(config.env) : null,
       config.enabled !== false ? 1 : 0,
-      config.autoApprove ? JSON.stringify(config.autoApprove) : null,
+      config.capabilities?.tools?.autoApprove ? JSON.stringify(config.capabilities.tools.autoApprove) : null,
+      JSON.stringify(config), // Store full config
       config.description || null
     ];
     return await this.run(sql, args);
