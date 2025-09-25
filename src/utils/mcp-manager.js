@@ -399,12 +399,19 @@ class MCPManager extends EventEmitter {
     const dbInfo = await this.database.getMCPServer(deviceId, serverName);
 
     let config = null;
-    if (dbInfo && dbInfo.config) {
-      try {
-        config = JSON.parse(dbInfo.config);
-      } catch (error) {
-        console.warn(`Failed to parse config for server ${serverName}:`, error);
-        // Fallback to legacy format
+    if (dbInfo) {
+      // Try to get config from database
+      config = this.serverConfigs.get(serverKey);
+      if (!config && dbInfo.config) {
+        try {
+          config = JSON.parse(dbInfo.config);
+        } catch (error) {
+          console.warn(`Failed to parse config for server ${serverName}:`, error);
+        }
+      }
+
+      // Fallback to legacy format if needed
+      if (!config) {
         config = {
           url: dbInfo.url,
           protocolVersion: dbInfo.protocol_version,

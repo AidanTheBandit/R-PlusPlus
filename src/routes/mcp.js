@@ -207,18 +207,34 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
     }
   });
 
-  // Get MCP logs
+  // Get MCP logs (requires device authentication)
   app.get('/:deviceId/mcp/logs', async (req, res) => {
     const { deviceId } = req.params;
     const { serverName, limit = 100 } = req.query;
-    
+
     try {
+      // Verify device exists and get PIN from headers
+      const deviceInfo = await deviceIdManager.getDeviceInfoFromDB(deviceId);
+      if (!deviceInfo) {
+        return res.status(404).json({
+          error: { message: 'Device not found', type: 'device_error' }
+        });
+      }
+
+      // Check PIN authentication
+      const providedPin = req.headers.authorization?.replace('Bearer ', '');
+      if (deviceInfo.pin_code && providedPin !== deviceInfo.pin_code) {
+        return res.status(401).json({
+          error: { message: 'Authentication required', type: 'auth_error' }
+        });
+      }
+
       const logs = await mcpManager.database.getMCPLogs(deviceId, serverName, parseInt(limit));
       res.json({ logs });
     } catch (error) {
       console.error('Error getting MCP logs:', error);
-      res.status(500).json({ 
-        error: { message: 'Internal server error', type: 'server_error' } 
+      res.status(500).json({
+        error: { message: 'Internal server error', type: 'server_error' }
       });
     }
   });
@@ -304,16 +320,10 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
     }
   });
 
-  // Get MCP server templates/presets (root level - no device required)
+    // Get MCP server templates/presets (root level - no device required)
   app.get('/mcp/templates', (req, res) => {
     const templates = [
-      {
-        name: 'test-mcp-server',
-        displayName: 'Test MCP Server (Local)',
-        description: 'Simple test MCP server for verifying your setup works',
-        url: `http://localhost:${process.env.PORT || 5482}/mcp/test-server`,
-        category: 'test'
-      }
+      // No preset templates - users must configure their own MCP servers
     ];
 
     res.json({ templates });
