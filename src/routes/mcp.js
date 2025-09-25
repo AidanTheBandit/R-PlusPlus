@@ -320,13 +320,47 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
     }
   });
 
-    // Get MCP server templates/presets (root level - no device required)
-  app.get('/mcp/templates', (req, res) => {
-    const templates = [
-      // No preset templates - users must configure their own MCP servers
-    ];
+    // Test MCP server connection
+  app.post('/api/mcp/test-connection', async (req, res) => {
+    try {
+      const { url, protocolVersion, capabilities, headers, timeout } = req.body;
 
-    res.json({ templates });
+      if (!url) {
+        return res.status(400).json({ success: false, message: 'URL is required' });
+      }
+
+      // Create a test MCP client
+      const { MCPProtocolClient } = require('../utils/mcp-protocol-client');
+      const client = new MCPProtocolClient(url, {
+        protocolVersion: protocolVersion || '2025-06-18',
+        clientInfo: {
+          name: 'R-API-MCP-Test-Client',
+          version: '1.0.0'
+        },
+        capabilities: capabilities || { tools: {} },
+        headers: headers || {},
+        timeout: timeout || 30000
+      });
+
+      // Try to initialize
+      const initResult = await client.initialize();
+
+      // Close the connection
+      await client.close();
+
+      res.json({
+        success: true,
+        message: `Connected successfully! Server supports MCP protocol`,
+        serverInfo: initResult
+      });
+
+    } catch (error) {
+      console.error('MCP connection test failed:', error);
+      res.status(500).json({
+        success: false,
+        message: `Connection failed: ${error.message}`
+      });
+    }
   });
 
   // Test MCP server endpoint for testing MCP client connections
