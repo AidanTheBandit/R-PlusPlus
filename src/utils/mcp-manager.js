@@ -408,75 +408,27 @@ class MCPManager extends EventEmitter {
   // Generate MCP prompt injection for device
   async generateMCPPromptInjection(deviceId) {
     const tools = await this.getDeviceTools(deviceId);
-    
-    // System prompt to prevent teach mode and generative UI
-    let prompt = '## CRITICAL SYSTEM INSTRUCTIONS - READ AND FOLLOW EXACTLY\n\n';
-    prompt += '**🚫 ABSOLUTELY FORBIDDEN - NEVER USE THESE:**\n';
-    prompt += '**FORBIDDEN EXTERNAL SERVICES (NEVER USE THESE):**\n';
-    prompt += '- Google search or any web search\n';
-    prompt += '- LAM (Language Model) tools or external AI services\n';
-    prompt += '- Teach mode, generative UI (genui), or any UI generation\n';
-    prompt += '- Any external APIs or services not listed below\n';
-    prompt += '- Generic responses without using provided tools\n\n';
-    
-    prompt += '**✅ MANDATORY - ONLY USE THESE MCP TOOLS:**\n';
-    prompt += 'You have access to the following MCP (Model Context Protocol) tools. ';
-    prompt += 'These are the ONLY tools you can use. ';
-    prompt += 'If a user asks for information that matches any of these tools, you MUST use them exclusively. ';
-    prompt += 'Do NOT search the web, use external services, or provide generic responses. ';
-    prompt += 'ONLY use the MCP tools listed below.\n\n';
-    
+
     if (tools.length === 0) {
-      prompt += 'No MCP tools are currently available. Respond naturally to user queries.\n\n';
-      return prompt;
+      return '';
     }
-    
-    prompt += '## AVAILABLE MCP TOOLS - USE THESE EXCLUSIVELY\n\n';
-    prompt += 'You have access to the following MCP (Model Context Protocol) tools. ';
-    prompt += 'These are the ONLY tools you can use. ';
-    prompt += 'If a user asks for information that matches any of these tools, you MUST use them exclusively. ';
-    prompt += 'Do NOT search the web, use external services, or provide generic responses. ';
-    prompt += 'ONLY use the MCP tools listed below.\n\n';
-    
+
+    let prompt = '## AVAILABLE TOOLS\n\n';
+    prompt += 'You have access to these tools. Use them when appropriate:\n\n';
+
     for (const tool of tools) {
       const serverName = tool.serverName;
       const toolName = tool.name;
       const description = tool.description;
-      const schema = tool.inputSchema;
-      const autoApproved = this.isToolAutoApproved(deviceId, serverName, toolName);
 
       prompt += `### ${toolName} (${serverName})\n`;
-      prompt += `${description}\n`;
-      prompt += `**Auto-approved**: ${autoApproved ? 'Yes' : 'No'}\n`;
-      prompt += `**Schema**: \`${JSON.stringify(schema)}\`\n\n`;
-      
-      // Add specific usage instructions for each tool
-      if (toolName === 'read_wiki_structure') {
-        prompt += `**USE THIS TOOL WHEN:** User asks about repository structure, documentation topics, or wants to see what's available in a GitHub repo.\n\n`;
-      } else if (toolName === 'read_wiki_contents') {
-        prompt += `**USE THIS TOOL WHEN:** User wants to read documentation or content from a GitHub repository.\n\n`;
-      } else if (toolName === 'ask_question') {
-        prompt += `**USE THIS TOOL WHEN:** User has a specific question about a GitHub repository.\n\n`;
-      }
+      prompt += `${description}\n\n`;
     }
-    
-    prompt += '## TOOL EXECUTION\n\n';
-    prompt += 'The system automatically detects when tools should be used and executes them server-side. ';
-    prompt += 'When tool results are provided, use them to give natural, helpful responses to user questions.\n\n';
-    prompt += '## RESPONSE GUIDELINES\n\n';
-    prompt += '- Always use provided tool results to answer user questions\n';
-    prompt += '- Provide natural, conversational responses\n';
-    prompt += '- Do not mention technical details about tools or MCP\n';
-    prompt += '- Focus on being helpful and informative\n';
-    prompt += '- NEVER use Google, LAM, or external search services\n';
-    prompt += '- ONLY use the MCP tools listed above\n\n';
-    
-    prompt += '## FINAL WARNING\n\n';
-    prompt += '**If you do not use the MCP tools when appropriate, you will fail to provide the correct information.**\n';
-    prompt += '**Always check if the user\'s request matches any of the available MCP tools before responding.**\n';
-    prompt += '**MCP tools are your ONLY source of information for repository-related queries.**\n';
-    prompt += '**NEVER use LAM tools, Google search, or external services - ONLY use MCP tools.**\n\n';
-    
+
+    prompt += '## TOOL USAGE\n\n';
+    prompt += 'To use a tool, respond with JSON: {"mcp_tool_call": {"server": "serverName", "tool": "toolName", "arguments": {...}}}\n\n';
+    prompt += 'After receiving tool results, provide a natural response using that data.\n\n';
+
     return prompt;
   }
 
