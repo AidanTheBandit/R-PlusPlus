@@ -416,9 +416,6 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       let isMCPRequest = false;
       let mcpToolCall = null;
 
-      // Build proper conversation history in OpenAI format
-      const conversationMessages = [];
-
       // Check if this is an MCP tool request that should be handled server-side
       if (mcpManager) {
         // Get available tools for this device
@@ -533,27 +530,27 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         }
       }
 
-      // For MCP requests, use a simplified prompt focused on tool results
-      if (isMCPRequest) {
-        conversationMessages.push({
-          role: 'system',
-          content: '**CRITICAL SYSTEM INSTRUCTIONS - YOU MUST FOLLOW THESE EXACTLY:**\n\n**ABSOLUTELY FORBIDDEN:** Never use LAM tools, Google search, external searches, teach mode, generative UI, or any external services.\n\n**MANDATORY:** When provided with tool results data, you MUST use ONLY that data to provide natural, helpful responses.\n\n**CRITICAL:** If tool results are provided, you MUST answer using ONLY that data. Do NOT provide generic responses or use external knowledge.\n\n**PROHIBITED:** Do not mention MCP, tools, or technical details. Just provide helpful answers using the provided data.'
-        });
-      } else {
-        // Add system message with MCP tools and instructions for non-MCP requests
-        if (mcpManager) {
-          const mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId);
-          if (mcpPrompt) {
-            conversationMessages.push({
-              role: 'system',
-              content: mcpPrompt
-            });
-          }
-        }
+      // Build proper conversation history in OpenAI format
+      const conversationMessages = [];
+
+      // Initialize message text - R1 devices need system prompts injected into the message
+      let messageText = userMessage;
+      let systemPrompt = '';
+
+      // Get MCP system prompt for injection
+      if (mcpManager) {
+        systemPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
       }
 
-      // Initialize message text
-      let messageText = userMessage;
+      // For MCP requests, use simplified prompt and inject tool results
+      if (isMCPRequest) {
+        systemPrompt = '**CRITICAL SYSTEM INSTRUCTIONS - YOU MUST FOLLOW THESE EXACTLY:**\n\n**ABSOLUTELY FORBIDDEN:** Never use LAM tools, Google search, external searches, teach mode, generative UI, or any external services.\n\n**MANDATORY:** When provided with tool results data, you MUST use ONLY that data to provide natural, helpful responses.\n\n**CRITICAL:** If tool results are provided, you MUST answer using ONLY that data. Do NOT provide generic responses or use external knowledge.\n\n**PROHIBITED:** Do not mention MCP, tools, or technical details. Just provide helpful answers using the provided data.\n\n';
+      }
+
+      // Inject system prompt into message for R1 device
+      if (systemPrompt) {
+        messageText = `${systemPrompt}\n\n${userMessage}`;
+      }
 
       // Add conversation history (excluding system messages)
       const sessionId = targetDeviceId || 'default';
@@ -603,7 +600,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           const toolResult = await mcpManager.handleToolCall(targetDeviceId, mcpToolCall.server, mcpToolCall.tool, mcpToolCall.arguments);
           
           // For MCP requests, replace the message with focused tool results
-          messageText = `QUESTION: ${userMessage}\n\nTOOL RESULTS DATA: ${JSON.stringify(toolResult, null, 2)}\n\n**MANDATORY INSTRUCTION:** Use ONLY the tool results data above to provide a helpful, natural response. Do NOT use LAM tools, Google search, external searches, or provide generic responses. Answer the user's question using ONLY the provided data. Do not mention tools or technical details.`;
+          messageText = `${systemPrompt}QUESTION: ${userMessage}\n\nTOOL RESULTS DATA: ${JSON.stringify(toolResult, null, 2)}\n\n**MANDATORY INSTRUCTION:** Use ONLY the tool results data above to provide a helpful, natural response. Do NOT use LAM tools, Google search, external searches, or provide generic responses. Answer the user's question using ONLY the provided data. Do not mention tools or technical details.`;
           
           // Update conversation messages with tool result
           conversationMessages.push({
@@ -614,7 +611,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           console.log(`✅ MCP tool executed successfully, result sent to device`);
         } catch (toolError) {
           console.error(`❌ MCP tool execution failed:`, toolError);
-          messageText = `ERROR: ${toolError.message}\n\nPlease respond to the user appropriately about: ${userMessage}`;
+          messageText = `${systemPrompt}ERROR: ${toolError.message}\n\nPlease respond to the user appropriately about: ${userMessage}`;
           
           conversationMessages.push({
             role: 'system',
@@ -632,7 +629,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           .join('\n\n');
 
         if (contextText) {
-          messageText = `Previous conversation:\n${contextText}\n\nCurrent: ${userMessage}`;
+          messageText = `${systemPrompt}Previous conversation:\n${contextText}\n\nCurrent: ${userMessage}`;
         }
       }
 
