@@ -17,8 +17,28 @@ const AddServerModal = ({ onAdd, onClose }) => {
     enabled: true
   });
 
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [headersText, setHeadersText] = useState('{}');
+  const [showTemplates, setShowTemplates] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+
+  // Available MCP server templates
+  const templates = [
+    {
+      id: 'deepwiki',
+      name: 'DeepWiki MCP Server',
+      description: 'Access GitHub repository documentation and ask questions about codebases',
+      url: 'https://mcp.deepwiki.com/sse',
+      tools: ['read_wiki_structure', 'read_wiki_contents', 'ask_question'],
+      category: 'documentation'
+    },
+    {
+      id: 'test-server',
+      name: 'Local Test Server',
+      description: 'Built-in test MCP server for development and testing',
+      url: `http://localhost:${window.location.port || 3000}/mcp/test-server`,
+      tools: ['test_echo', 'test_calculator'],
+      category: 'test'
+    }
+  ];
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -92,6 +112,85 @@ const AddServerModal = ({ onAdd, onClose }) => {
     }
   };
 
+  const testConnection = async () => {
+    if (!formData.url) {
+      setConnectionTestResult({ success: false, message: 'URL is required for connection test' });
+      return;
+    }
+
+    setTestingConnection(true);
+    setConnectionTestResult(null);
+
+    try {
+      // Parse headers if provided
+      let parsedHeaders = {};
+      if (headersText.trim()) {
+        parsedHeaders = JSON.parse(headersText);
+      }
+
+      // Create a test MCP client configuration
+      const testConfig = {
+        url: formData.url,
+        protocolVersion: formData.protocolVersion,
+        capabilities: formData.capabilities,
+        headers: parsedHeaders,
+        timeout: formData.timeout
+      };
+
+      // Test the connection by making a request to initialize
+      const response = await fetch(formData.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'MCP-Protocol-Version': formData.protocolVersion,
+          ...parsedHeaders
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'initialize',
+          params: {
+            protocolVersion: formData.protocolVersion,
+            capabilities: formData.capabilities,
+            clientInfo: {
+              name: 'R-API-MCP-Test-Client',
+              version: '1.0.0'
+            }
+          }
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.result && result.result.protocolVersion) {
+          setConnectionTestResult({
+            success: true,
+            message: `Connected successfully! Server supports MCP ${result.result.protocolVersion}`,
+            serverInfo: result.result.serverInfo
+          });
+        } else {
+          setConnectionTestResult({
+            success: false,
+            message: 'Server responded but does not appear to be a valid MCP server'
+          });
+        }
+      } else {
+        const errorText = await response.text();
+        setConnectionTestResult({
+          success: false,
+          message: `Connection failed: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`
+        });
+      }
+    } catch (error) {
+      setConnectionTestResult({
+        success: false,
+        message: `Connection error: ${error.message}`
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
   const validateUrl = (url) => {
     try {
       new URL(url);
@@ -110,6 +209,83 @@ const AddServerModal = ({ onAdd, onClose }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {/* Template Selection */}
+          <div className="form-section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3>Quick Setup</h3>
+              <button
+                type="button"
+                className="btn btn-secondary small"
+                onClick={() => setShowTemplates(!showTemplates)}
+              >
+                {showTemplates ? 'Hide Templates' : 'Show Templates'}
+              </button>
+            </div>
+
+            {showTemplates && (
+              <div className="templates-grid">
+                {templates.map(template => (
+                  <div
+                    key={template.id}
+                    className={`template-card ${selectedTemplate === template.id ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedTemplate(template.id);
+                      setFormData(prev => ({
+                        ...prev,
+                        serverName: template.id,
+                        description: template.description,
+                        url: template.url,
+                        capabilities: {
+                          tools: { enabled: true, autoApprove: template.tools || [] },
+                          resources: { enabled: false, autoApprove: [] },
+                          prompts: { enabled: false, autoApprove: [] },
+                          sampling: { enabled: false }
+                        }
+                      }));
+                    }}
+                  >
+                    <h4>{template.name}</h4>
+                    <p>{template.description}</p>
+                    <div className="template-meta">
+                      <span className="category">{template.category}</span>
+                      {template.tools && (
+                        <span className="tools-count">{template.tools.length} tools</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {selectedTemplate && (
+              <div className="selected-template-notice">
+                <strong>Template selected:</strong> {templates.find(t => t.id === selectedTemplate)?.name}
+                <button
+                  type="button"
+                  className="btn btn-secondary small"
+                  onClick={() => {
+                    setSelectedTemplate(null);
+                    setFormData(prev => ({
+                      ...prev,
+                      serverName: '',
+                      description: '',
+                      url: '',
+                      capabilities: {
+                        tools: { enabled: true, autoApprove: [] },
+                        resources: { enabled: false, autoApprove: [] },
+                        prompts: { enabled: false, autoApprove: [] },
+                        sampling: { enabled: false }
+                      }
+                    }));
+                  }}
+                  style={{ marginLeft: '10px' }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Basic Configuration */}
           <div className="form-section">
             <h3>Basic Configuration</h3>
@@ -121,7 +297,7 @@ const AddServerModal = ({ onAdd, onClose }) => {
                 className="form-input"
                 value={formData.serverName}
                 onChange={(e) => handleInputChange('serverName', e.target.value)}
-                placeholder="e.g., web-search, weather-api, file-system"
+                placeholder="e.g., deepwiki, weather-api, file-system"
                 required
               />
               <small className="form-help">Unique identifier for this MCP server</small>
@@ -140,20 +316,44 @@ const AddServerModal = ({ onAdd, onClose }) => {
 
             <div className="form-group">
               <label className="form-label">Server URL:</label>
-              <input
-                type="url"
-                className={`form-input ${formData.url && !validateUrl(formData.url) ? 'error' : ''}`}
-                value={formData.url}
-                onChange={(e) => handleInputChange('url', e.target.value)}
-                placeholder="https://your-mcp-server.com/mcp"
-                required
-              />
-              <small className="form-help">
-                Full URL to the MCP server endpoint supporting HTTP transport
-                {formData.url && !validateUrl(formData.url) && (
-                  <span style={{ color: '#ff6b6b' }}> • Invalid URL format</span>
-                )}
-              </small>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="url"
+                    className={`form-input ${formData.url && !validateUrl(formData.url) ? 'error' : ''}`}
+                    value={formData.url}
+                    onChange={(e) => handleInputChange('url', e.target.value)}
+                    placeholder="https://your-mcp-server.com/mcp"
+                    required
+                  />
+                  <small className="form-help">
+                    Full URL to the MCP server endpoint supporting HTTP transport
+                    {formData.url && !validateUrl(formData.url) && (
+                      <span style={{ color: '#ff6b6b' }}> • Invalid URL format</span>
+                    )}
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={testConnection}
+                  disabled={testingConnection || !formData.url || !validateUrl(formData.url)}
+                  style={{ minWidth: '120px' }}
+                >
+                  {testingConnection ? 'Testing...' : 'Test Connection'}
+                </button>
+              </div>
+
+              {connectionTestResult && (
+                <div className={`connection-test-result ${connectionTestResult.success ? 'success' : 'error'}`}>
+                  <strong>{connectionTestResult.success ? '✅ Success:' : '❌ Failed:'}</strong> {connectionTestResult.message}
+                  {connectionTestResult.serverInfo && (
+                    <div style={{ marginTop: '5px', fontSize: '0.9em' }}>
+                      Server: {connectionTestResult.serverInfo.name} v{connectionTestResult.serverInfo.version}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="form-group">
