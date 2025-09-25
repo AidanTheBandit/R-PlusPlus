@@ -13,9 +13,6 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
   // Track requests that have had MCP tools executed (for follow-up responses)
   const mcpToolExecutedRequests = new Set();
 
-  // Track requests that have had MCP tool calls executed
-  const mcpToolExecutedRequests = new Set();
-
   // Socket.IO connection handling
   io.on('connection', async (socket) => {
     // Get client info for device identification
