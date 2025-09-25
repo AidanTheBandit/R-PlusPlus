@@ -10,6 +10,9 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
   // Get PIN configuration from environment
   const enablePin = process.env.DISABLE_PIN !== 'true'; // Default to enabled, disable if DISABLE_PIN=true
 
+  // Track requests that have had MCP tools executed (for follow-up responses)
+  const mcpToolExecutedRequests = new Set();
+
   // Track requests that have had MCP tool calls executed
   const mcpToolExecutedRequests = new Set();
 
@@ -39,6 +42,27 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
 
     console.log(`R1 device ${isReconnection ? 'reconnected' : 'connected'}`);
     console.log(`Total connected devices: ${connectedR1s.size}`);
+
+    // Auto-connect enabled MCP servers for this device
+    if (mcpManager && !isReconnection) {
+      try {
+        console.log(`🔌 Auto-connecting MCP servers for device ${deviceId}`);
+        const servers = await mcpManager.getDeviceServers(deviceId);
+        for (const server of servers) {
+          if (server.enabled && !server.connected) {
+            console.log(`🔌 Auto-connecting server: ${server.name}`);
+            try {
+              await mcpManager.initializeServer(deviceId, server.name);
+              console.log(`✅ Auto-connected MCP server: ${server.name}`);
+            } catch (error) {
+              console.error(`❌ Failed to auto-connect MCP server ${server.name}:`, error.message);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Error auto-connecting MCP servers for ${deviceId}:`, error.message);
+      }
+    }
 
     // Don't broadcast device connections to prevent device ID leakage
 
