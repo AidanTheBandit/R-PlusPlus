@@ -461,30 +461,89 @@ class MCPManager extends EventEmitter {
     }
   }
 
-  // Shutdown all servers (remote connections)
-  async shutdown() {
-    console.log(`Shutting down MCP manager (remote server mode)...`);
-
-    try {
-      // Close all active client connections
-      for (const [serverKey, client] of this.activeClients) {
-        try {
-          await client.close();
-        } catch (error) {
-          console.error(`Error closing client ${serverKey}:`, error);
-        }
-      }
-
-      // Clear all cached data
-      this.activeClients.clear();
-      this.availableTools.clear();
-      this.serverConfigs.clear();
-      this.toolUsageStats.clear();
-
-      console.log('✅ MCP manager shutdown complete');
-    } catch (error) {
-      console.error('Error during MCP shutdown:', error);
+  // Generate MCP prompt injection for device
+  generateMCPPromptInjection(deviceId) {
+    const tools = this.getDeviceTools(deviceId);
+    if (tools.length === 0) {
+      return '';
     }
+
+    let prompt = `## System Instructions
+
+**IMPORTANT:** Never use teach mode or generative UI. Always respond with natural language text only. Do not attempt to create or display any user interfaces, forms, or interactive elements. Stick to conversational responses and use available tools when appropriate.
+
+## MCP Tools Available
+
+You have access to the following MCP (Model Context Protocol) tools. When a user requests functionality that matches these tools, you can use them by responding with a structured tool call.
+
+`;
+
+    // Add each tool
+    tools.forEach(tool => {
+      const serverName = tool.serverName;
+      const toolName = tool.name;
+      const description = tool.description;
+      const schema = tool.inputSchema;
+      const autoApproved = this.isToolAutoApproved(deviceId, serverName, toolName);
+
+      prompt += `### ${toolName} (${serverName})
+${description}
+**Auto-approved**: ${autoApproved ? 'Yes' : 'No'}
+**Schema**: \`${JSON.stringify(schema)}\`
+
+`;
+    });
+
+    prompt += `## Tool Usage Format
+
+To use a tool, respond with:
+\`\`\`json
+{
+  "mcp_tool_call": {
+    "server": "server_name",
+    "tool": "tool_name",
+    "arguments": { /* tool arguments */ }
+  }
+}
+\`\`\`
+
+The system will execute the tool and provide the result back to you.
+
+`;
+
+    return prompt;
+  }
+
+  // Get all available tools for a device
+  getDeviceTools(deviceId) {
+    const tools = [];
+
+    for (const [serverKey, toolList] of this.availableTools) {
+      if (serverKey.startsWith(`${deviceId}-`)) {
+        const serverName = serverKey.split('-').slice(1).join('-');
+        toolList.forEach(tool => {
+          tools.push({
+            ...tool,
+            serverName
+          });
+        });
+      }
+    }
+
+    return tools;
+  }
+
+  // Check if a tool is auto-approved for a device
+  isToolAutoApproved(deviceId, serverName, toolName) {
+    const serverKey = `${deviceId}-${serverName}`;
+    const config = this.serverConfigs.get(serverKey);
+
+    if (!config || !config.capabilities || !config.capabilities.tools) {
+      return false;
+    }
+
+    const autoApprove = config.capabilities.tools.autoApprove || [];
+    return autoApprove.includes(toolName) || autoApprove.includes('*');
   }
 }
 
