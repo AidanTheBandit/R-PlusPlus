@@ -412,27 +412,14 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       // Generate unique request ID
       const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Build proper conversation history in OpenAI format
-      const conversationMessages = [];
-
-      // Add system message with MCP tools and instructions
-      if (mcpManager) {
-        const mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId);
-        if (mcpPrompt) {
-          conversationMessages.push({
-            role: 'system',
-            content: mcpPrompt
-          });
-        }
-      }
-
-      // Initialize message text
-      let messageText = userMessage;
-
-      // Check if this is an MCP tool request that should be handled server-side
+      // Initialize MCP request detection variables
       let isMCPRequest = false;
       let mcpToolCall = null;
 
+      // Build proper conversation history in OpenAI format
+      const conversationMessages = [];
+
+      // Check if this is an MCP tool request that should be handled server-side
       if (mcpManager) {
         // Get available tools for this device
         const tools = await mcpManager.getDeviceTools(targetDeviceId);
@@ -441,7 +428,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         const lowerMessage = userMessage.toLowerCase();
 
         // Check for explicit MCP requests
-        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool') || lowerMessage.includes('using mcp')) {
+        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool') || lowerMessage.includes('using mcp') || lowerMessage.includes('deepwiki') || lowerMessage.includes('look up')) {
           // Try to match the request to available tools
           for (const tool of tools) {
             if (tool.serverName === 'deepwiki') {
@@ -455,7 +442,15 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
               for (const pattern of repoPatterns) {
                 const repoMatch = userMessage.match(pattern);
                 if (repoMatch) {
-                  const repoName = repoMatch[1];
+                  let repoName = repoMatch[1];
+                  
+                  // Handle common repository shortcuts
+                  if (repoName.toLowerCase() === 'vscode') {
+                    repoName = 'microsoft/vscode';
+                  } else if (repoName.toLowerCase() === 'react') {
+                    repoName = 'facebook/react';
+                  }
+                  
                   isMCPRequest = true;
                   mcpToolCall = {
                     server: tool.serverName,
@@ -469,7 +464,35 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
               if (isMCPRequest) break;
             }
-            // Add more tool matching logic here for other servers
+          }
+          
+          // Special handling for deepwiki mentions
+          if (!isMCPRequest && lowerMessage.includes('deepwiki')) {
+            const deepwikiTool = tools.find(t => t.serverName === 'deepwiki' && t.name === 'read_wiki_structure');
+            if (deepwikiTool) {
+              let repoName = 'microsoft/vscode'; // default fallback
+              
+              // Try to extract repo name from the message
+              const repoMatch = userMessage.match(/for\s+(\w+)/i);
+              if (repoMatch) {
+                const repoPart = repoMatch[1].toLowerCase();
+                if (repoPart === 'vscode') {
+                  repoName = 'microsoft/vscode';
+                } else if (repoPart === 'react') {
+                  repoName = 'facebook/react';
+                } else {
+                  repoName = `microsoft/${repoPart}`; // assume microsoft org
+                }
+              }
+              
+              isMCPRequest = true;
+              mcpToolCall = {
+                server: deepwikiTool.serverName,
+                tool: deepwikiTool.name,
+                arguments: { repoName }
+              };
+              console.log(`🔧 Detected deepwiki mention, will execute ${deepwikiTool.name} tool for ${repoName}`);
+            }
           }
         }
 
@@ -509,6 +532,28 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           }
         }
       }
+
+      // For MCP requests, use a simplified prompt focused on tool results
+      if (isMCPRequest) {
+        conversationMessages.push({
+          role: 'system',
+          content: '**CRITICAL SYSTEM INSTRUCTIONS - YOU MUST FOLLOW THESE EXACTLY:**\n\n**ABSOLUTELY FORBIDDEN:** Never use LAM tools, Google search, external searches, teach mode, generative UI, or any external services.\n\n**MANDATORY:** When provided with tool results data, you MUST use ONLY that data to provide natural, helpful responses.\n\n**CRITICAL:** If tool results are provided, you MUST answer using ONLY that data. Do NOT provide generic responses or use external knowledge.\n\n**PROHIBITED:** Do not mention MCP, tools, or technical details. Just provide helpful answers using the provided data.'
+        });
+      } else {
+        // Add system message with MCP tools and instructions for non-MCP requests
+        if (mcpManager) {
+          const mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId);
+          if (mcpPrompt) {
+            conversationMessages.push({
+              role: 'system',
+              content: mcpPrompt
+            });
+          }
+        }
+      }
+
+      // Initialize message text
+      let messageText = userMessage;
 
       // Add conversation history (excluding system messages)
       const sessionId = targetDeviceId || 'default';
@@ -557,29 +602,29 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           console.log(`🔧 Executing MCP tool server-side: ${mcpToolCall.server}.${mcpToolCall.tool}`);
           const toolResult = await mcpManager.handleToolCall(targetDeviceId, mcpToolCall.server, mcpToolCall.tool, mcpToolCall.arguments);
           
-          // Add the tool result to the message for the device
-          messageText += `\n\n[MCP TOOL EXECUTED - USE THIS DATA FOR YOUR RESPONSE]\n\nTOOL: ${mcpToolCall.tool}\nRESULT: ${JSON.stringify(toolResult, null, 2)}\n\nIMPORTANT: The user asked about ${userMessage}. Use the above tool result to provide a helpful, natural language response. Do NOT mention MCP, tools, or technical details - just answer the user's question using the data provided.`;
+          // For MCP requests, replace the message with focused tool results
+          messageText = `QUESTION: ${userMessage}\n\nTOOL RESULTS DATA: ${JSON.stringify(toolResult, null, 2)}\n\n**MANDATORY INSTRUCTION:** Use ONLY the tool results data above to provide a helpful, natural response. Do NOT use LAM tools, Google search, external searches, or provide generic responses. Answer the user's question using ONLY the provided data. Do not mention tools or technical details.`;
           
           // Update conversation messages with tool result
           conversationMessages.push({
             role: 'system',
-            content: `TOOL EXECUTED: ${mcpToolCall.tool}\n\nRESULT DATA: ${JSON.stringify(toolResult, null, 2)}\n\nUSER QUESTION: ${userMessage}\n\nINSTRUCTION: Answer the user's question using ONLY the result data above. Provide a natural, helpful response without mentioning tools or technical details.`
+            content: `TOOL RESULTS: ${JSON.stringify(toolResult, null, 2)}\n\nUse this data to answer: ${userMessage}`
           });
           
           console.log(`✅ MCP tool executed successfully, result sent to device`);
         } catch (toolError) {
           console.error(`❌ MCP tool execution failed:`, toolError);
-          messageText += `\n\n[MCP Tool Error: ${toolError.message}]\nPlease respond appropriately to the user.`;
+          messageText = `ERROR: ${toolError.message}\n\nPlease respond to the user appropriately about: ${userMessage}`;
           
           conversationMessages.push({
             role: 'system',
-            content: `MCP Tool Error: ${toolError.message}`
+            content: `TOOL ERROR: ${toolError.message}\n\nRespond to: ${userMessage}`
           });
         }
       }
 
-      // For conversation context, include recent history
-      if (conversationMessages.length > 1) {
+      // For conversation context, include recent history (but not for MCP requests with tool results)
+      if (conversationMessages.length > 1 && !isMCPRequest) {
         const recentMessages = conversationMessages.slice(-6); // Last 3 exchanges
         const contextText = recentMessages
           .filter(msg => msg.role !== 'system') // Exclude system messages from context
