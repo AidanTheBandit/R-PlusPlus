@@ -179,47 +179,6 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
     }
   });
 
-  // Get chat history for a device
-  app.get('/:deviceId/history', async (req, res) => {
-    const { deviceId } = req.params;
-
-    // Check authentication
-    const authResult = await authenticateDevice(deviceId, req.headers.authorization);
-    if (!authResult.authenticated) {
-      return res.status(401).json({
-        error: {
-          message: authResult.error,
-          type: 'authentication_failed'
-        }
-      });
-    }
-
-    try {
-      const sessionId = deviceId;
-      const history = conversationHistory.get(sessionId) || [];
-
-      // Format history for the client
-      const formattedHistory = history.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp
-      }));
-
-      res.json({
-        history: formattedHistory,
-        total: formattedHistory.length
-      });
-    } catch (error) {
-      console.error('Error fetching chat history:', error);
-      res.status(500).json({
-        error: {
-          message: 'Internal server error',
-          type: 'server_error'
-        }
-      });
-    }
-  });
-
   // Test endpoint to manually send chat completion to device
   app.post('/:deviceId/test-chat', async (req, res) => {
     const { deviceId } = req.params;
@@ -530,8 +489,8 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         }
       }
 
-      // Build proper conversation history in OpenAI format
-      const conversationMessages = [];
+      // Build conversation messages from the OpenAI API messages array
+      const conversationMessages = [...messages]; // Use the messages array directly from OpenAI API
 
       // Initialize message text - R1 devices need system prompts injected into the message
       let messageText = userMessage;
@@ -552,48 +511,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
         messageText = `${systemPrompt}\n\n${userMessage}`;
       }
 
-      // Add conversation history (excluding system messages)
-      const sessionId = targetDeviceId || 'default';
-      const history = conversationHistory.get(sessionId) || [];
-
-      // Add previous conversation turns (last 10 exchanges to stay within context limits)
-      const recentHistory = history.slice(-20); // Keep last 20 messages (10 exchanges)
-      conversationMessages.push(...recentHistory);
-
-      // Add current user message
-      conversationMessages.push({
-        role: 'user',
-        content: userMessage
-      });
-
-      // Update stored history with user message
-      history.push({
-        role: 'user',
-        content: userMessage,
-        timestamp: new Date().toISOString()
-      });
-
-      // Keep only last 20 messages in storage
-      if (history.length > 20) {
-        history.splice(0, history.length - 20);
-      }
-      conversationHistory.set(sessionId, history);
-
-      // Store the response callback with timeout
-      const timeout = setTimeout(() => {
-        console.log(`⏰ Request ${requestId} timed out, removing from pending requests`);
-        pendingRequests.delete(requestId);
-        requestDeviceMap.delete(requestId);
-        console.log(`💾 Total pending requests after timeout: ${pendingRequests.size}`);
-        console.log(`Request ${requestId} timed out - sending fallback response`);
-        // Send a fallback response instead of error
-        sendOpenAIResponse(res, 'I apologize, but the R1 device is taking longer than expected to respond. This might be due to processing a complex request or temporary connectivity issues. Please try again in a moment.', userMessage, model, stream);
-      }, 60000); // 60 second timeout
-
-      pendingRequests.set(requestId, { res, timeout, stream });
-      console.log(`💾 Stored pending request: ${requestId}, total pending: ${pendingRequests.size}`);
-
-      // If this is an MCP request, execute the tool server-side first
+      // For MCP requests, execute the tool server-side first
       if (isMCPRequest && mcpToolCall) {
         try {
           console.log(`🔧 Executing MCP tool server-side: ${mcpToolCall.server}.${mcpToolCall.tool}`);
@@ -619,21 +537,6 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
           });
         }
       }
-
-      // For conversation context, include recent history (but not for MCP requests with tool results)
-      if (conversationMessages.length > 1 && !isMCPRequest) {
-        const recentMessages = conversationMessages.slice(-6); // Last 3 exchanges
-        const contextText = recentMessages
-          .filter(msg => msg.role !== 'system') // Exclude system messages from context
-          .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-          .join('\n\n');
-
-        if (contextText) {
-          messageText = `${systemPrompt}Previous conversation:\n${contextText}\n\nCurrent: ${userMessage}`;
-        }
-      }
-
-      // Send command to R1 devices
       const command = {
         type: 'chat_completion',
         data: {
