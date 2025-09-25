@@ -202,6 +202,17 @@ class MCPManager extends EventEmitter {
         } catch (error) {
           console.warn(`Failed to load tools for server ${serverKey}:`, error);
         }
+
+        // If server is enabled, try to connect to it
+        if (config.enabled !== false && config.url) {
+          console.log(`🔄 Auto-connecting to enabled server: ${serverKey}`);
+          try {
+            await this.connectToRemoteServer(server.device_id, server.server_name, config);
+          } catch (connectionError) {
+            console.log(`⚠️ Failed to auto-connect to ${serverKey} during initialization: ${connectionError.message}`);
+            // Don't throw - server config is still loaded, just not connected
+          }
+        }
       }
       
       console.log(`🔧 MCP manager initialized with ${allServers.length} servers from database`);
@@ -292,7 +303,13 @@ class MCPManager extends EventEmitter {
 
       // Get available tools from the server
       const toolsResponse = await client.listTools();
-      const tools = toolsResponse.tools || [];
+      const rawTools = toolsResponse.tools || [];
+
+      // Add serverName to each tool for consistency
+      const tools = rawTools.map(tool => ({
+        ...tool,
+        serverName: serverName
+      }));
 
       // Cache tools
       this.availableTools.set(serverKey, tools);
@@ -420,17 +437,17 @@ class MCPManager extends EventEmitter {
     }
     
     prompt += '## MANDATORY TOOL USAGE FORMAT\n\n';
-    prompt += 'When you need to use a tool, respond with EXACTLY this JSON format:\n';
+    prompt += 'When you need to use a tool, respond with EXACTLY this JSON format (replace the actual server name and tool name from the list above):\n';
     prompt += '```json\n';
     prompt += '{\n';
     prompt += '  "mcp_tool_call": {\n';
-    prompt += '    "server": "server_name",\n';
-    prompt += '    "tool": "tool_name",\n';
-    prompt += '    "arguments": { /* tool arguments */ }\n';
+    prompt += '    "server": "[actual_server_name]",\n';
+    prompt += '    "tool": "[actual_tool_name]",\n';
+    prompt += '    "arguments": { /* tool arguments as specified in schema */ }\n';
     prompt += '  }\n';
     prompt += '}\n';
     prompt += '```\n\n';
-    prompt += '**CRITICAL:** Do not include any other text, explanations, or natural language in your response when calling tools. Only the JSON object.\n\n';
+    prompt += '**CRITICAL:** Do not use placeholder values like "server_name" or "tool_name". Use the actual names from the tool list above.\n\n';
     prompt += 'The system will execute the tool and provide the result back to you for your final response.\n\n';
     
     return prompt;
@@ -456,12 +473,27 @@ class MCPManager extends EventEmitter {
     }
 
     if (!config) {
-      throw new Error(`Server ${serverName} not configured on any device`);
+      const error = `Server ${serverName} not configured on any device`;
+      console.error(`MCP Tool Call Error: ${error}`);
+      await this.database.saveMCPLog(deviceId, serverName, 'error', error);
+      throw new Error(error);
     }
 
     const client = this.activeClients.get(serverKey);
     if (!client) {
-      throw new Error(`Server ${serverName} not connected`);
+      const error = `Server ${serverName} not connected`;
+      console.error(`MCP Tool Call Error: ${error}`);
+      await this.database.saveMCPLog(actualDeviceId, serverName, 'error', error);
+      
+      // Attempt to reconnect
+      console.log(`Attempting to reconnect to ${serverName} for tool call`);
+      try {
+        await this.connectToRemoteServer(actualDeviceId, serverName, config);
+        // If reconnection successful, continue with tool call
+      } catch (reconnectError) {
+        console.error(`MCP Reconnection failed: ${reconnectError.message}`);
+        throw new Error(`Server connection lost. Reconnection failed: ${reconnectError.message}`);
+      }
     }
 
     try {
@@ -472,10 +504,14 @@ class MCPManager extends EventEmitter {
         // Request approval from user (this would integrate with the R1 UI)
         const approved = await this.requestToolApproval(actualDeviceId, serverName, { name: toolName, arguments: toolArgs });
         if (!approved) {
-          throw new Error('Tool call not approved by user');
+          const error = 'Tool call not approved by user';
+          await this.database.saveMCPLog(actualDeviceId, serverName, 'warning', error);
+          throw new Error(error);
         }
       }
 
+      console.log(`Executing MCP tool: ${serverName}.${toolName} with args:`, toolArgs);
+      
       // Call tool on remote server
       const result = await client.callTool(toolName, toolArgs);
 
@@ -494,11 +530,14 @@ class MCPManager extends EventEmitter {
         }
       }
 
+      console.log(`MCP tool executed successfully: ${serverName}.${toolName}`);
       await this.database.saveMCPLog(actualDeviceId, serverName, 'info', `Tool ${toolName} executed successfully`);
 
       return result;
 
     } catch (error) {
+      console.error(`MCP Tool Execution Error: ${error.message}`);
+      
       // Check if this is a connection-related error that should trigger reconnection
       if (error.message.includes('connect') || error.message.includes('timeout') || error.message.includes('ECONNREFUSED')) {
         console.warn(`Connection error during tool call for ${serverKey}, triggering reconnection: ${error.message}`);
@@ -625,21 +664,35 @@ class MCPManager extends EventEmitter {
           config = JSON.parse(dbInfo.config);
         } catch (error) {
           console.warn(`Failed to parse config for server ${serverName}:`, error);
+          // Create a basic config from legacy fields if parsing fails
+          config = {
+            url: dbInfo.url || null,
+            protocolVersion: dbInfo.protocol_version || '2025-06-18',
+            enabled: dbInfo.enabled || false,
+            capabilities: {
+              tools: {
+                enabled: true,
+                autoApprove: dbInfo.auto_approve ? JSON.parse(dbInfo.auto_approve) : []
+              }
+            },
+            description: dbInfo.description || null
+          };
         }
       }
 
-      // Fallback to legacy format if needed
+      // If still no config, create a default one
       if (!config) {
         config = {
-          url: dbInfo.url,
-          protocolVersion: dbInfo.protocol_version,
-          enabled: dbInfo.enabled,
+          url: null,
+          protocolVersion: '2025-06-18',
+          enabled: dbInfo ? dbInfo.enabled : false,
           capabilities: {
             tools: {
               enabled: true,
-              autoApprove: dbInfo.auto_approve ? JSON.parse(dbInfo.auto_approve) : []
+              autoApprove: []
             }
-          }
+          },
+          description: dbInfo ? dbInfo.description : null
         };
       }
     }
@@ -653,6 +706,10 @@ class MCPManager extends EventEmitter {
       startTime: config ? Date.now() : null,
       tools: tools,
       config: dbInfo,
+      url: config ? config.url : 'N/A',
+      description: config ? config.description : null,
+      protocolVersion: config ? config.protocolVersion : null,
+      autoApprove: config && config.capabilities && config.capabilities.tools ? config.capabilities.tools.autoApprove : [],
       mode: 'remote_server'
     };
   }
