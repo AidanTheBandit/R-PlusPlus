@@ -428,11 +428,28 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
       // Create message text from conversation
       let messageText = userMessage;
+      let systemPrompt = '';
+
+      // Get MCP system prompt
+      if (mcpManager) {
+        systemPrompt = mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
+      }
+
+      // Format message with system prompt if available
+      if (systemPrompt) {
+        messageText = `${systemPrompt}\n\n${userMessage}`;
+      }
+
+      // For conversation context, include recent history
       if (conversationMessages.length > 1) {
-        // Format the conversation for the R1 device
-        const systemMessage = conversationMessages.find(msg => msg.role === 'system');
-        if (systemMessage) {
-          messageText = `${systemMessage.content}\n\nUser: ${userMessage}`;
+        const recentMessages = conversationMessages.slice(-6); // Last 3 exchanges
+        const contextText = recentMessages
+          .filter(msg => msg.role !== 'system') // Exclude system messages from context
+          .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+          .join('\n\n');
+
+        if (contextText) {
+          messageText = `${systemPrompt ? systemPrompt + '\n\n' : ''}Previous conversation:\n${contextText}\n\nCurrent: ${userMessage}`;
         }
       }
 
