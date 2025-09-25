@@ -1,4 +1,12 @@
-// MCP (Model Context Protocol) Manager for R1 devices - Remote Server Support
+// MCP (Model Context Protocol) Manager for R1 devices - Remote Se                const tools = dbTools.map(dbTool => ({
+              name: dbTool.tool_name,
+              description: dbTool.tool_description,
+              inputSchema: dbTool.tool_schema ? JSON.parse(dbTool.tool_schema) : {}
+            }));   const tools = dbTools.map(dbTool => ({
+              name: dbTool.tool_name,
+              description: dbTool.tool_description,
+              inputSchema: dbTool.tool_schema ? JSON.parse(dbTool.tool_schema) : {}
+            }));Support
 const { EventEmitter } = require('events');
 const { MCPProtocolClient } = require('./mcp-protocol-client');
 const crypto = require('crypto');
@@ -26,7 +34,7 @@ class MCPManager extends EventEmitter {
       }
 
       // Load all MCP servers from database
-      const allServers = await this.database.getAll('SELECT * FROM mcp_servers');
+      const allServers = await this.database.all('SELECT * FROM mcp_servers');
       
       for (const server of allServers) {
         const serverKey = `${server.device_id}-${server.server_name}`;
