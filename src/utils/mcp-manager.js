@@ -1,12 +1,4 @@
-// MCP (Model Context Protocol) Manager for R1 devices - Remote Se                const tools = dbTools.map(dbTool => ({
-              name: dbTool.tool_name,
-              description: dbTool.tool_description,
-              inputSchema: dbTool.tool_schema ? JSON.parse(dbTool.tool_schema) : {}
-            }));   const tools = dbTools.map(dbTool => ({
-              name: dbTool.tool_name,
-              description: dbTool.tool_description,
-              inputSchema: dbTool.tool_schema ? JSON.parse(dbTool.tool_schema) : {}
-            }));Support
+// MCP (Model Context Protocol) Manager for R1 devices - Remote Support
 const { EventEmitter } = require('events');
 const { MCPProtocolClient } = require('./mcp-protocol-client');
 const crypto = require('crypto');
@@ -21,8 +13,136 @@ class MCPManager extends EventEmitter {
     this.serverConfigs = new Map(); // deviceId-serverName -> config
     this.toolUsageStats = new Map(); // deviceId-serverName-toolName -> usage count
     
+    // Reconnection management
+    this.reconnectionAttempts = new Map(); // deviceId-serverName -> attempt count
+    this.reconnectionTimers = new Map(); // deviceId-serverName -> timer
+    this.healthCheckInterval = null;
+    this.healthCheckIntervalMs = 30000; // Check every 30 seconds
+    
     // Initialize with existing server configurations
     this.initializeFromDatabase();
+    
+    // Start health monitoring
+    this.startHealthMonitoring();
+  }
+
+  // Start periodic health checks for all MCP servers
+  startHealthMonitoring() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+    
+    this.healthCheckInterval = setInterval(() => {
+      this.performHealthChecks();
+    }, this.healthCheckIntervalMs);
+    
+    console.log(`🔍 Started MCP server health monitoring (every ${this.healthCheckIntervalMs/1000}s)`);
+  }
+
+  // Stop health monitoring
+  stopHealthMonitoring() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+      console.log('🔍 Stopped MCP server health monitoring');
+    }
+  }
+
+  // Perform health checks on all connected servers
+  async performHealthChecks() {
+    for (const [serverKey, client] of this.activeClients) {
+      if (!client || !client.connected) {
+        continue;
+      }
+      
+      try {
+        // Try to ping the server to check if it's still responsive
+        await client.ping();
+      } catch (error) {
+        console.warn(`⚠️ Health check failed for ${serverKey}: ${error.message}`);
+        // Mark as disconnected and attempt reconnection
+        this.handleServerDisconnection(serverKey);
+      }
+    }
+  }
+
+  // Handle server disconnection and initiate reconnection
+  async handleServerDisconnection(serverKey) {
+    const [deviceId, serverName] = serverKey.split('-', 2);
+    
+    // Remove from active clients
+    const client = this.activeClients.get(serverKey);
+    if (client) {
+      try {
+        await client.close();
+      } catch (error) {
+        console.warn(`Error closing disconnected client ${serverKey}: ${error.message}`);
+      }
+      this.activeClients.delete(serverKey);
+    }
+    
+    // Clear cached tools
+    this.availableTools.delete(serverKey);
+    
+    // Log disconnection
+    await this.database.saveMCPLog(deviceId, serverName, 'warning', 'Server disconnected unexpectedly, attempting reconnection');
+    
+    // Start reconnection process
+    this.attemptReconnection(deviceId, serverName);
+  }
+
+  // Attempt to reconnect to a server with exponential backoff
+  async attemptReconnection(deviceId, serverName) {
+    const serverKey = `${deviceId}-${serverName}`;
+    const config = this.serverConfigs.get(serverKey);
+    
+    if (!config || !config.url) {
+      console.warn(`Cannot reconnect ${serverKey}: no configuration or URL available`);
+      return;
+    }
+    
+    // Get current attempt count
+    const attemptCount = this.reconnectionAttempts.get(serverKey) || 0;
+    
+    // Clear any existing reconnection timer
+    const existingTimer = this.reconnectionTimers.get(serverKey);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    
+    // Calculate delay with exponential backoff (30s, 1m, 2m, 4m, 8m, then every 8m)
+    const baseDelay = 30000; // 30 seconds
+    const maxDelay = 480000; // 8 minutes
+    const delay = Math.min(baseDelay * Math.pow(2, attemptCount), maxDelay);
+    
+    console.log(`🔄 Scheduling reconnection attempt ${attemptCount + 1} for ${serverKey} in ${delay/1000}s`);
+    
+    const timer = setTimeout(async () => {
+      try {
+        console.log(`🔄 Attempting to reconnect ${serverKey} (attempt ${attemptCount + 1})`);
+        
+        // Attempt reconnection
+        await this.connectToRemoteServer(deviceId, serverName, config);
+        
+        // Success - reset attempt count and clear timer
+        this.reconnectionAttempts.delete(serverKey);
+        this.reconnectionTimers.delete(serverKey);
+        
+        await this.database.saveMCPLog(deviceId, serverName, 'info', `Successfully reconnected after ${attemptCount + 1} attempts`);
+        console.log(`✅ Successfully reconnected ${serverKey}`);
+        
+        this.emit('serverReconnected', { deviceId, serverName });
+        
+      } catch (error) {
+        console.warn(`❌ Reconnection attempt ${attemptCount + 1} failed for ${serverKey}: ${error.message}`);
+        
+        // Increment attempt count and schedule next attempt
+        this.reconnectionAttempts.set(serverKey, attemptCount + 1);
+        this.attemptReconnection(deviceId, serverName);
+      }
+    }, delay);
+    
+    this.reconnectionTimers.set(serverKey, timer);
   }
 
   // Initialize MCP manager with existing server configurations from database
@@ -236,6 +356,14 @@ class MCPManager extends EventEmitter {
         }
       }
 
+      // Clear reconnection state
+      this.reconnectionAttempts.delete(serverKey);
+      const timer = this.reconnectionTimers.get(serverKey);
+      if (timer) {
+        clearTimeout(timer);
+        this.reconnectionTimers.delete(serverKey);
+      }
+
       if (this.database) {
         await this.database.saveMCPLog(deviceId, serverName, 'info', 'Disconnected from remote MCP server');
       }
@@ -262,19 +390,21 @@ class MCPManager extends EventEmitter {
     const tools = this.getDeviceTools(deviceId);
     
     // System prompt to prevent teach mode and generative UI
-    let prompt = '## System Instructions\n\n';
-    prompt += '**IMPORTANT:** Never use teach mode or generative UI. ';
-    prompt += 'Always respond with natural language text only. ';
-    prompt += 'Do not attempt to create or display any user interfaces, forms, or interactive elements. ';
-    prompt += 'Stick to conversational responses and use available tools when appropriate.\n\n';
+    let prompt = '## CRITICAL SYSTEM INSTRUCTIONS\n\n';
+    prompt += '**ABSOLUTELY FORBIDDEN:** Never use teach mode, generative UI (genui), Google search, or any external search services.\n';
+    prompt += '**MANDATORY:** Always respond with natural language text only. Never create or display user interfaces, forms, buttons, or interactive elements.\n';
+    prompt += '**REQUIRED:** When users ask for information or functionality that matches available tools, you MUST use those tools exclusively.\n';
+    prompt += '**PROHIBITED:** Do not fall back to any default behaviors, external services, or generative features. Only use the provided MCP tools.\n\n';
     
     if (tools.length === 0) {
+      prompt += 'No MCP tools are currently available. Respond naturally to user queries.\n\n';
       return prompt;
     }
     
-    prompt += '## MCP Tools Available\n\n';
+    prompt += '## AVAILABLE MCP TOOLS - USE THESE EXCLUSIVELY\n\n';
     prompt += 'You have access to the following MCP (Model Context Protocol) tools. ';
-    prompt += 'When a user requests functionality that matches these tools, you can use them by responding with a structured tool call.\n\n';
+    prompt += 'When a user requests functionality that matches these tools, you MUST use them and NOTHING else. ';
+    prompt += 'Do not use Google, genui, or any other external services.\n\n';
     
     for (const tool of tools) {
       const serverName = tool.serverName;
@@ -289,8 +419,8 @@ class MCPManager extends EventEmitter {
       prompt += `**Schema**: \`${JSON.stringify(schema)}\`\n\n`;
     }
     
-    prompt += '## Tool Usage Format\n\n';
-    prompt += 'To use a tool, respond with:\n';
+    prompt += '## MANDATORY TOOL USAGE FORMAT\n\n';
+    prompt += 'When you need to use a tool, respond with EXACTLY this JSON format:\n';
     prompt += '```json\n';
     prompt += '{\n';
     prompt += '  "mcp_tool_call": {\n';
@@ -300,7 +430,8 @@ class MCPManager extends EventEmitter {
     prompt += '  }\n';
     prompt += '}\n';
     prompt += '```\n\n';
-    prompt += 'The system will execute the tool and provide the result back to you.\n\n';
+    prompt += '**CRITICAL:** Do not include any other text, explanations, or natural language in your response when calling tools. Only the JSON object.\n\n';
+    prompt += 'The system will execute the tool and provide the result back to you for your final response.\n\n';
     
     return prompt;
   }
@@ -350,6 +481,13 @@ class MCPManager extends EventEmitter {
       return result;
 
     } catch (error) {
+      // Check if this is a connection-related error that should trigger reconnection
+      if (error.message.includes('connect') || error.message.includes('timeout') || error.message.includes('ECONNREFUSED')) {
+        console.warn(`Connection error during tool call for ${serverKey}, triggering reconnection: ${error.message}`);
+        this.handleServerDisconnection(serverKey);
+        throw new Error(`Server connection lost during tool call. Reconnection initiated. Please retry the operation.`);
+      }
+      
       await this.database.saveMCPLog(deviceId, serverName, 'error', `Tool call failed: ${error.message}`);
       throw error;
     }
@@ -555,6 +693,35 @@ class MCPManager extends EventEmitter {
 
     const autoApprove = config.capabilities.tools.autoApprove || [];
     return autoApprove.includes(toolName) || autoApprove.includes('*');
+  }
+
+  // Shutdown the MCP manager and clean up all resources
+  async shutdown() {
+    console.log('🛑 Shutting down MCP manager...');
+    
+    // Stop health monitoring
+    this.stopHealthMonitoring();
+    
+    // Clear all reconnection timers
+    for (const timer of this.reconnectionTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.reconnectionTimers.clear();
+    this.reconnectionAttempts.clear();
+    
+    // Close all active connections
+    const shutdownPromises = [];
+    for (const [serverKey, client] of this.activeClients) {
+      const [deviceId, serverName] = serverKey.split('-', 2);
+      shutdownPromises.push(this.stopServerProcess(deviceId, serverName));
+    }
+    
+    try {
+      await Promise.all(shutdownPromises);
+      console.log('✅ MCP manager shutdown complete');
+    } catch (error) {
+      console.error('❌ Error during MCP manager shutdown:', error);
+    }
   }
 }
 
