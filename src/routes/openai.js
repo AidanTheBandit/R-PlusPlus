@@ -376,7 +376,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
       // Add system message with MCP tools and instructions
       if (mcpManager) {
-        const mcpPrompt = mcpManager.generateMCPPromptInjection(targetDeviceId);
+        const mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId);
         if (mcpPrompt) {
           conversationMessages.push({
             role: 'system',
@@ -432,7 +432,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
 
       // Get MCP system prompt
       if (mcpManager) {
-        systemPrompt = mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
+        systemPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
         console.log(`🔧 MCP prompt for device ${targetDeviceId}: ${systemPrompt.length} characters`);
         if (systemPrompt.length > 0) {
           console.log(`🔧 MCP prompt preview: ${systemPrompt.substring(0, 100)}...`);

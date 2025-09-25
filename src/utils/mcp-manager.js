@@ -153,7 +153,7 @@ class MCPManager extends EventEmitter {
         return;
       }
 
-      // Load all MCP servers from database
+      // Load all MCP servers from database (from all devices)
       const allServers = await this.database.all('SELECT * FROM mcp_servers');
       
       for (const server of allServers) {
@@ -386,8 +386,8 @@ class MCPManager extends EventEmitter {
   }
 
   // Generate MCP prompt injection for device
-  generateMCPPromptInjection(deviceId) {
-    const tools = this.getDeviceTools(deviceId);
+  async generateMCPPromptInjection(deviceId) {
+    const tools = await this.getDeviceTools(deviceId);
     
     // System prompt to prevent teach mode and generative UI
     let prompt = '## CRITICAL SYSTEM INSTRUCTIONS\n\n';
@@ -436,14 +436,32 @@ class MCPManager extends EventEmitter {
     return prompt;
   }
 
-  // Handle tool call (remote MCP server)
+  // Handle tool call (remote MCP server) - works with servers from any device
   async handleToolCall(deviceId, serverName, toolName, toolArgs) {
-    const serverKey = `${deviceId}-${serverName}`;
-    const client = this.activeClients.get(serverKey);
-    const config = this.serverConfigs.get(serverKey);
+    // Find the server config - first check current device, then any device
+    let serverKey = `${deviceId}-${serverName}`;
+    let config = this.serverConfigs.get(serverKey);
+    let actualDeviceId = deviceId;
 
-    if (!client || !config) {
-      throw new Error('Server not connected or configured');
+    if (!config) {
+      // Look for the server in any device's config
+      for (const [key, serverConfig] of this.serverConfigs) {
+        if (key.endsWith(`-${serverName}`)) {
+          config = serverConfig;
+          actualDeviceId = key.split('-')[0];
+          serverKey = key;
+          break;
+        }
+      }
+    }
+
+    if (!config) {
+      throw new Error(`Server ${serverName} not configured on any device`);
+    }
+
+    const client = this.activeClients.get(serverKey);
+    if (!client) {
+      throw new Error(`Server ${serverName} not connected`);
     }
 
     try {
@@ -452,7 +470,7 @@ class MCPManager extends EventEmitter {
 
       if (!autoApprove.includes(toolName)) {
         // Request approval from user (this would integrate with the R1 UI)
-        const approved = await this.requestToolApproval(deviceId, serverName, { name: toolName, arguments: toolArgs });
+        const approved = await this.requestToolApproval(actualDeviceId, serverName, { name: toolName, arguments: toolArgs });
         if (!approved) {
           throw new Error('Tool call not approved by user');
         }
@@ -467,7 +485,7 @@ class MCPManager extends EventEmitter {
       this.toolUsageStats.set(usageKey, currentUsage + 1);
 
       // Update database usage stats
-      const serverInfo = await this.database.getMCPServer(deviceId, serverName);
+      const serverInfo = await this.database.getMCPServer(actualDeviceId, serverName);
       if (serverInfo) {
         const tools = await this.database.getMCPTools(serverInfo.id);
         const dbTool = tools.find(t => t.tool_name === toolName);
@@ -476,7 +494,7 @@ class MCPManager extends EventEmitter {
         }
       }
 
-      await this.database.saveMCPLog(deviceId, serverName, 'info', `Tool ${toolName} executed successfully`);
+      await this.database.saveMCPLog(actualDeviceId, serverName, 'info', `Tool ${toolName} executed successfully`);
 
       return result;
 
@@ -487,8 +505,8 @@ class MCPManager extends EventEmitter {
         this.handleServerDisconnection(serverKey);
         throw new Error(`Server connection lost during tool call. Reconnection initiated. Please retry the operation.`);
       }
-      
-      await this.database.saveMCPLog(deviceId, serverName, 'error', `Tool call failed: ${error.message}`);
+
+      await this.database.saveMCPLog(actualDeviceId, serverName, 'error', `Tool call failed: ${error.message}`);
       throw error;
     }
   }
@@ -663,36 +681,76 @@ class MCPManager extends EventEmitter {
 
 
 
-  // Get all available tools for a device
-  getDeviceTools(deviceId) {
-    const tools = [];
+  // Get all available tools for a device (including cached tools from all devices)
+  async getDeviceTools(deviceId) {
+    const tools = new Map(); // Use Map to avoid duplicates by serverName-toolName key
 
+    // First, add tools from actively connected servers (for any device)
     for (const [serverKey, toolList] of this.availableTools) {
-      if (serverKey.startsWith(`${deviceId}-`)) {
-        const serverName = serverKey.split('-').slice(1).join('-');
-        toolList.forEach(tool => {
-          tools.push({
-            ...tool,
-            serverName
-          });
-        });
+      toolList.forEach(tool => {
+        const key = `${tool.serverName}-${tool.name}`;
+        tools.set(key, tool);
+      });
+    }
+
+    // If no connected servers have tools, try to load cached tools from database for all devices
+    if (tools.size === 0) {
+      try {
+        // Get all enabled servers from all devices
+        const allServers = await this.database.all('SELECT * FROM mcp_servers WHERE enabled = 1');
+        
+        for (const server of allServers) {
+          const dbTools = await this.database.getMCPTools(server.id);
+          if (dbTools && dbTools.length > 0) {
+            dbTools.forEach(dbTool => {
+              try {
+                const toolSchema = JSON.parse(dbTool.input_schema || dbTool.tool_schema);
+                const tool = {
+                  name: dbTool.tool_name,
+                  description: dbTool.description || dbTool.tool_description,
+                  inputSchema: toolSchema,
+                  serverName: server.server_name
+                };
+                const key = `${server.server_name}-${dbTool.tool_name}`;
+                tools.set(key, tool);
+              } catch (error) {
+                console.warn(`Failed to parse tool schema for ${dbTool.tool_name}:`, error);
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to load cached tools:`, error);
       }
     }
 
-    return tools;
+    return Array.from(tools.values());
   }
 
-  // Check if a tool is auto-approved for a device
+  // Check if a tool is auto-approved for any device
   isToolAutoApproved(deviceId, serverName, toolName) {
+    // Check current device's config first
     const serverKey = `${deviceId}-${serverName}`;
-    const config = this.serverConfigs.get(serverKey);
+    let config = this.serverConfigs.get(serverKey);
 
-    if (!config || !config.capabilities || !config.capabilities.tools) {
-      return false;
+    if (config && config.capabilities && config.capabilities.tools) {
+      const autoApprove = config.capabilities.tools.autoApprove || [];
+      if (autoApprove.includes(toolName) || autoApprove.includes('*')) {
+        return true;
+      }
     }
 
-    const autoApprove = config.capabilities.tools.autoApprove || [];
-    return autoApprove.includes(toolName) || autoApprove.includes('*');
+    // If not found, check configs from all devices
+    for (const [key, serverConfig] of this.serverConfigs) {
+      if (key.endsWith(`-${serverName}`) && serverConfig.capabilities?.tools?.autoApprove) {
+        const autoApprove = serverConfig.capabilities.tools.autoApprove;
+        if (autoApprove.includes(toolName) || autoApprove.includes('*')) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   // Shutdown the MCP manager and clean up all resources

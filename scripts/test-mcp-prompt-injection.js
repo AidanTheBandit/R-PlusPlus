@@ -46,7 +46,7 @@ async function testMCPPromptInjection() {
     
     // Test 3: Generate prompt injection
     console.log('\n3. Generating prompt injection...');
-    const promptInjection = mcpManager.generateMCPPromptInjection(testDeviceId);
+    const promptInjection = await mcpManager.generateMCPPromptInjection(testDeviceId);
     console.log('Prompt injection length:', promptInjection.length);
     console.log('Prompt injection preview:');
     console.log(promptInjection.substring(0, 500) + '...\n');
