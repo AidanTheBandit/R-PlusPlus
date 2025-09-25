@@ -128,6 +128,16 @@ const AddServerModal = ({ onAdd, onClose }) => {
     }));
   };
 
+  const handleAuthConfigChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      authConfig: {
+        ...prev.authConfig,
+        [field]: value
+      }
+    }));
+  };
+
   const handleAutoApproveChange = (capability, value) => {
     try {
       const parsed = JSON.parse(value);
