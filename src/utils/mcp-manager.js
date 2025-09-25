@@ -440,17 +440,15 @@ class MCPManager extends EventEmitter {
     }
     
     prompt += '## MANDATORY TOOL USAGE FORMAT\n\n';
-    prompt += 'When you need to use a tool, respond with EXACTLY this JSON format (replace the actual server name and tool name from the list above):\n';
-    prompt += '```json\n';
+    prompt += 'When you need to use a tool, respond with EXACTLY this JSON format (do not wrap in code blocks or add any extra text):\n';
     prompt += '{\n';
     prompt += '  "mcp_tool_call": {\n';
     prompt += '    "server": "[actual_server_name]",\n';
     prompt += '    "tool": "[actual_tool_name]",\n';
     prompt += '    "arguments": { /* tool arguments as specified in schema */ }\n';
     prompt += '  }\n';
-    prompt += '}\n';
-    prompt += '```\n\n';
-    prompt += '**CRITICAL:** Do not use placeholder values like "server_name" or "tool_name". Use the actual names from the tool list above.\n\n';
+    prompt += '}\n\n';
+    prompt += '**CRITICAL:** Do not wrap the JSON in ```json or any markdown. Send only the raw JSON object.\n\n';
     prompt += 'The system will execute the tool and provide the result back to you for your final response.\n\n';
     
     return prompt;

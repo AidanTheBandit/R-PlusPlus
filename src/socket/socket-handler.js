@@ -258,8 +258,16 @@ function setupSocketHandler(io, connectedR1s, conversationHistory, pendingReques
         let isMCPToolCall = false;
 
         try {
+          // Strip markdown code blocks if present
+          let cleanResponse = response.trim();
+          if (cleanResponse.startsWith('```json') && cleanResponse.endsWith('```')) {
+            cleanResponse = cleanResponse.slice(7, -3).trim(); // Remove ```json and ```
+          } else if (cleanResponse.startsWith('```') && cleanResponse.endsWith('```')) {
+            cleanResponse = cleanResponse.slice(3, -3).trim(); // Remove ``` and ```
+          }
+
           // Try to parse the response as JSON to check for mcp_tool_call
-          const parsedResponse = JSON.parse(response);
+          const parsedResponse = JSON.parse(cleanResponse);
           if (parsedResponse && parsedResponse.mcp_tool_call) {
             console.log(`🔧 MCP tool call detected in response`);
             isMCPToolCall = true;

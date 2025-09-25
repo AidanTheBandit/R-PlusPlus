@@ -374,14 +374,83 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       // Build proper conversation history in OpenAI format
       const conversationMessages = [];
 
-      // Add system message with MCP tools and instructions
+      // Initialize message text
+      let messageText = systemPrompt ? `${systemPrompt}\n\n${userMessage}` : userMessage;
+
+      // Check if this is an MCP tool request that should be handled server-side
+      let isMCPRequest = false;
+      let mcpToolCall = null;
+
       if (mcpManager) {
-        const mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId);
-        if (mcpPrompt) {
-          conversationMessages.push({
-            role: 'system',
-            content: mcpPrompt
-          });
+        // Get available tools for this device
+        const tools = await mcpManager.getDeviceTools(targetDeviceId);
+
+        // Analyze user message to detect MCP tool requests
+        const lowerMessage = userMessage.toLowerCase();
+
+        // Check for explicit MCP requests
+        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool')) {
+          // Try to match the request to available tools
+          for (const tool of tools) {
+            if (tool.serverName === 'deepwiki') {
+              // Handle deepwiki requests
+              if (lowerMessage.includes('see') && (lowerMessage.includes('repo') || lowerMessage.includes('repository') || lowerMessage.includes('vscode') || lowerMessage.includes('github'))) {
+                let repoName = 'microsoft/vscode'; // default
+
+                // Try to extract repo name from message
+                const repoMatch = userMessage.match(/([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/);
+                if (repoMatch) {
+                  repoName = repoMatch[1];
+                }
+
+                isMCPRequest = true;
+                mcpToolCall = {
+                  server: tool.serverName,
+                  tool: tool.name, // read_wiki_structure
+                  arguments: { repoName }
+                };
+                console.log(`🔧 Detected MCP request for repository ${repoName}, will execute ${tool.name} tool`);
+                break;
+              }
+            }
+            // Add more tool matching logic here for other servers
+          }
+        }
+
+        // Also check for implicit tool requests (e.g., "what's the weather in NYC")
+        // This can be expanded based on available tools
+        if (!isMCPRequest) {
+          // Example: weather tool matching
+          const weatherMatch = lowerMessage.match(/(?:weather|temperature|forecast).*(?:in|for|at)\s+([a-zA-Z\s,]+)/i);
+          if (weatherMatch) {
+            const location = weatherMatch[1].trim();
+            const weatherTool = tools.find(t => t.name.includes('weather') || t.name.includes('get_weather'));
+            if (weatherTool) {
+              isMCPRequest = true;
+              mcpToolCall = {
+                server: weatherTool.serverName,
+                tool: weatherTool.name,
+                arguments: { location, units: 'celsius' }
+              };
+              console.log(`🔧 Detected weather request for ${location}, will execute ${weatherTool.name} tool`);
+            }
+          }
+
+          // Example: calculator tool matching
+          const calcMatch = lowerMessage.match(/(?:calculate|compute|what is|what's)\s+(.+)/i);
+          if (calcMatch) {
+            const expression = calcMatch[1].trim();
+            const calcTool = tools.find(t => t.name.includes('calculate') || t.name.includes('calculator'));
+            if (calcTool) {
+              isMCPRequest = true;
+              mcpToolCall = {
+                server: calcTool.serverName,
+                tool: calcTool.name,
+                arguments: { expression }
+              };
+              console.log(`🔧 Detected calculation request: ${expression}, will execute ${calcTool.name} tool`);
+            }
+          }
         }
       }
 
@@ -426,22 +495,31 @@ function setupOpenAIRoutes(app, io, connectedR1s, conversationHistory, pendingRe
       pendingRequests.set(requestId, { res, timeout, stream });
       console.log(`💾 Stored pending request: ${requestId}, total pending: ${pendingRequests.size}`);
 
-      // Create message text from conversation
-      let messageText = userMessage;
-      let systemPrompt = '';
-
-      // Get MCP system prompt
-      if (mcpManager) {
-        systemPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
-        console.log(`🔧 MCP prompt for device ${targetDeviceId}: ${systemPrompt.length} characters`);
-        if (systemPrompt.length > 0) {
-          console.log(`🔧 MCP prompt preview: ${systemPrompt.substring(0, 100)}...`);
+      // If this is an MCP request, execute the tool server-side first
+      if (isMCPRequest && mcpToolCall) {
+        try {
+          console.log(`🔧 Executing MCP tool server-side: ${mcpToolCall.server}.${mcpToolCall.tool}`);
+          const toolResult = await mcpManager.handleToolCall(targetDeviceId, mcpToolCall.server, mcpToolCall.tool, mcpToolCall.arguments);
+          
+          // Add the tool result to the message for the device
+          messageText += `\n\n[MCP Tool Result: ${mcpToolCall.tool}]\n${JSON.stringify(toolResult, null, 2)}\n\nPlease provide a natural language response based on this tool result.`;
+          
+          // Update conversation messages with tool result
+          conversationMessages.push({
+            role: 'system',
+            content: `MCP Tool Result: ${JSON.stringify(toolResult, null, 2)}`
+          });
+          
+          console.log(`✅ MCP tool executed successfully, result sent to device`);
+        } catch (toolError) {
+          console.error(`❌ MCP tool execution failed:`, toolError);
+          messageText += `\n\n[MCP Tool Error: ${toolError.message}]\nPlease respond appropriately to the user.`;
+          
+          conversationMessages.push({
+            role: 'system',
+            content: `MCP Tool Error: ${toolError.message}`
+          });
         }
-      }
-
-      // Format message with system prompt if available
-      if (systemPrompt) {
-        messageText = `${systemPrompt}\n\n${userMessage}`;
       }
 
       // For conversation context, include recent history
