@@ -14,11 +14,27 @@ const AddServerModal = ({ onAdd, onClose }) => {
     },
     headers: {},
     timeout: 30000,
-    enabled: true
+    enabled: true,
+    // Authentication
+    authType: 'none', // 'none', 'bearer', 'basic', 'api-key', 'oauth'
+    authConfig: {
+      bearerToken: '',
+      username: '',
+      password: '',
+      apiKey: '',
+      apiKeyHeader: 'X-API-Key',
+      oauthClientId: '',
+      oauthClientSecret: '',
+      oauthTokenUrl: ''
+    }
   });
 
   const [showTemplates, setShowTemplates] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [headersText, setHeadersText] = useState('{}');
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState(null);
 
   // Available MCP server templates
   const templates = [
@@ -29,14 +45,6 @@ const AddServerModal = ({ onAdd, onClose }) => {
       url: 'https://mcp.deepwiki.com/sse',
       tools: ['read_wiki_structure', 'read_wiki_contents', 'ask_question'],
       category: 'documentation'
-    },
-    {
-      id: 'test-server',
-      name: 'Local Test Server',
-      description: 'Built-in test MCP server for development and testing',
-      url: `http://localhost:${window.location.port || 3000}/mcp/test-server`,
-      tools: ['test_echo', 'test_calculator'],
-      category: 'test'
     }
   ];
 
@@ -55,14 +63,20 @@ const AddServerModal = ({ onAdd, onClose }) => {
         parsedHeaders = JSON.parse(headersText);
       }
 
+      // Build authentication headers
+      const authHeaders = buildAuthHeaders();
+      const finalHeaders = { ...parsedHeaders, ...authHeaders };
+
       const config = {
         url: formData.url,
         protocolVersion: formData.protocolVersion,
         capabilities: formData.capabilities,
-        headers: parsedHeaders,
+        headers: finalHeaders,
         timeout: formData.timeout,
         enabled: formData.enabled,
-        description: formData.description
+        description: formData.description,
+        authType: formData.authType,
+        authConfig: formData.authConfig
       };
 
       onAdd({
@@ -94,6 +108,26 @@ const AddServerModal = ({ onAdd, onClose }) => {
     }));
   };
 
+  const handleAuthTypeChange = (authType) => {
+    setFormData(prev => ({
+      ...prev,
+      authType,
+      authConfig: {
+        ...prev.authConfig,
+        // Reset auth config when changing type
+        ...(authType === 'none' && {
+          bearerToken: '',
+          username: '',
+          password: '',
+          apiKey: '',
+          oauthClientId: '',
+          oauthClientSecret: '',
+          oauthTokenUrl: ''
+        })
+      }
+    }));
+  };
+
   const handleAutoApproveChange = (capability, value) => {
     try {
       const parsed = JSON.parse(value);
@@ -112,6 +146,39 @@ const AddServerModal = ({ onAdd, onClose }) => {
     }
   };
 
+  // Build authentication headers
+  const buildAuthHeaders = () => {
+    const headers = { ...formData.headers };
+
+    switch (formData.authType) {
+      case 'bearer':
+        if (formData.authConfig.bearerToken) {
+          headers['Authorization'] = `Bearer ${formData.authConfig.bearerToken}`;
+        }
+        break;
+      case 'basic':
+        if (formData.authConfig.username && formData.authConfig.password) {
+          const credentials = btoa(`${formData.authConfig.username}:${formData.authConfig.password}`);
+          headers['Authorization'] = `Basic ${credentials}`;
+        }
+        break;
+      case 'api-key':
+        if (formData.authConfig.apiKey && formData.authConfig.apiKeyHeader) {
+          headers[formData.authConfig.apiKeyHeader] = formData.authConfig.apiKey;
+        }
+        break;
+      case 'oauth':
+        // OAuth headers would be handled by the OAuth flow
+        // For now, we'll assume the token is already obtained
+        if (formData.authConfig.bearerToken) {
+          headers['Authorization'] = `Bearer ${formData.authConfig.bearerToken}`;
+        }
+        break;
+    }
+
+    return headers;
+  };
+
   const testConnection = async () => {
     if (!formData.url) {
       setConnectionTestResult({ success: false, message: 'URL is required for connection test' });
@@ -122,69 +189,43 @@ const AddServerModal = ({ onAdd, onClose }) => {
     setConnectionTestResult(null);
 
     try {
-      // Parse headers if provided
-      let parsedHeaders = {};
-      if (headersText.trim()) {
-        parsedHeaders = JSON.parse(headersText);
-      }
-
-      // Create a test MCP client configuration
-      const testConfig = {
-        url: formData.url,
-        protocolVersion: formData.protocolVersion,
-        capabilities: formData.capabilities,
-        headers: parsedHeaders,
-        timeout: formData.timeout
-      };
-
-      // Test the connection by making a request to initialize
-      const response = await fetch(formData.url, {
+      // Use the backend API to test the connection (avoids CORS issues)
+      const testResponse = await fetch('/api/mcp/test-connection', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'MCP-Protocol-Version': formData.protocolVersion,
-          ...parsedHeaders
         },
         body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'initialize',
-          params: {
-            protocolVersion: formData.protocolVersion,
-            capabilities: formData.capabilities,
-            clientInfo: {
-              name: 'R-API-MCP-Test-Client',
-              version: '1.0.0'
-            }
-          }
+          url: formData.url,
+          protocolVersion: formData.protocolVersion,
+          capabilities: formData.capabilities,
+          headers: buildAuthHeaders(),
+          timeout: formData.timeout
         })
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.result && result.result.protocolVersion) {
-          setConnectionTestResult({
-            success: true,
-            message: `Connected successfully! Server supports MCP ${result.result.protocolVersion}`,
-            serverInfo: result.result.serverInfo
-          });
-        } else {
-          setConnectionTestResult({
-            success: false,
-            message: 'Server responded but does not appear to be a valid MCP server'
-          });
-        }
+      if (!testResponse.ok) {
+        throw new Error(`Test request failed: ${testResponse.status}`);
+      }
+
+      const result = await testResponse.json();
+
+      if (result.success) {
+        setConnectionTestResult({
+          success: true,
+          message: result.message,
+          serverInfo: result.serverInfo
+        });
       } else {
-        const errorText = await response.text();
         setConnectionTestResult({
           success: false,
-          message: `Connection failed: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`
+          message: result.message
         });
       }
     } catch (error) {
       setConnectionTestResult({
         success: false,
-        message: `Connection error: ${error.message}`
+        message: `Connection test failed: ${error.message}`
       });
     } finally {
       setTestingConnection(false);
@@ -502,24 +543,139 @@ const AddServerModal = ({ onAdd, onClose }) => {
             )}
           </div>
 
-          {/* Connection Settings */}
+          {/* Authentication Configuration */}
           <div className="form-section">
-            <h3>Connection Settings</h3>
+            <h3>Authentication</h3>
+            <p className="form-help">Configure authentication for this MCP server</p>
+
             <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={formData.enabled}
-                  onChange={(e) => handleInputChange('enabled', e.target.checked)}
-                />
-                {formData.enabled ? 'Connect to server immediately' : 'Add server but don\'t connect yet'}
-              </label>
-              <small className="form-help">
-                {formData.enabled
-                  ? 'Server will attempt to connect and discover capabilities immediately'
-                  : 'Server will be saved but you can connect later. Useful for testing configurations.'}
-              </small>
+              <label className="form-label">Authentication Type:</label>
+              <select
+                className="form-input"
+                value={formData.authType}
+                onChange={(e) => handleAuthTypeChange(e.target.value)}
+              >
+                <option value="none">No Authentication</option>
+                <option value="bearer">Bearer Token</option>
+                <option value="basic">Basic Authentication</option>
+                <option value="api-key">API Key</option>
+                <option value="oauth">OAuth 2.0</option>
+              </select>
+              <small className="form-help">Choose the authentication method required by the server</small>
             </div>
+
+            {formData.authType === 'bearer' && (
+              <div className="form-group">
+                <label className="form-label">Bearer Token:</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  value={formData.authConfig.bearerToken}
+                  onChange={(e) => handleAuthConfigChange('bearerToken', e.target.value)}
+                  placeholder="Enter your bearer token"
+                />
+                <small className="form-help">Token will be sent as "Authorization: Bearer &lt;token&gt;"</small>
+              </div>
+            )}
+
+            {formData.authType === 'basic' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Username:</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.authConfig.username}
+                    onChange={(e) => handleAuthConfigChange('username', e.target.value)}
+                    placeholder="Enter username"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Password:</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    value={formData.authConfig.password}
+                    onChange={(e) => handleAuthConfigChange('password', e.target.value)}
+                    placeholder="Enter password"
+                  />
+                  <small className="form-help">Credentials will be base64 encoded for Basic auth</small>
+                </div>
+              </>
+            )}
+
+            {formData.authType === 'api-key' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">API Key Header:</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.authConfig.apiKeyHeader}
+                    onChange={(e) => handleAuthConfigChange('apiKeyHeader', e.target.value)}
+                    placeholder="X-API-Key"
+                  />
+                  <small className="form-help">HTTP header name for the API key</small>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">API Key:</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    value={formData.authConfig.apiKey}
+                    onChange={(e) => handleAuthConfigChange('apiKey', e.target.value)}
+                    placeholder="Enter your API key"
+                  />
+                </div>
+              </>
+            )}
+
+            {formData.authType === 'oauth' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Client ID:</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.authConfig.oauthClientId}
+                    onChange={(e) => handleAuthConfigChange('oauthClientId', e.target.value)}
+                    placeholder="OAuth client ID"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Client Secret:</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    value={formData.authConfig.oauthClientSecret}
+                    onChange={(e) => handleAuthConfigChange('oauthClientSecret', e.target.value)}
+                    placeholder="OAuth client secret"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Token URL:</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    value={formData.authConfig.oauthTokenUrl}
+                    onChange={(e) => handleAuthConfigChange('oauthTokenUrl', e.target.value)}
+                    placeholder="https://auth.example.com/oauth/token"
+                  />
+                  <small className="form-help">OAuth token endpoint URL</small>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Access Token:</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    value={formData.authConfig.bearerToken}
+                    onChange={(e) => handleAuthConfigChange('bearerToken', e.target.value)}
+                    placeholder="Enter obtained access token"
+                  />
+                  <small className="form-help">If you already have an access token, enter it here</small>
+                </div>
+              </>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
