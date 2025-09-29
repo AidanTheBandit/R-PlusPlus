@@ -532,6 +532,13 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         messageText = `${conversationContext}${mcpPrompt}User: ${userMessage}`;
       }
 
+      // For json_object format, add instruction to return only JSON (but not for MCP requests)
+      let processedMessage = messageText;
+      if (response_format && response_format.type === 'json_object' && !isMCPRequest) {
+        // Add explicit instruction to return only JSON
+        processedMessage = `${messageText}\n\nIMPORTANT: Respond with ONLY a valid JSON object. Do not include any other text, markdown, or explanation.`;
+      }
+
       // For MCP requests, execute the tool server-side first
       if (isMCPRequest && mcpToolCall) {
         try {
@@ -552,7 +559,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       const command = {
         type: 'chat_completion',
         data: {
-          message: messageText,
+          message: processedMessage,
           originalMessage: userMessage,
           model,
           temperature,

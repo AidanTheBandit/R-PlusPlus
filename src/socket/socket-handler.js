@@ -1,5 +1,53 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 const { DeviceIdManager } = require('../utils/device-id-manager');
+const fetch = require('node-fetch');
+
+// Function to convert text response to JSON using Groq API
+async function convertToJsonWithGroq(textResponse, originalRequest) {
+  try {
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
+      console.log('No GROQ_API_KEY found, skipping JSON conversion');
+      return null;
+    }
+
+    const prompt = `Convert the following text response to a valid JSON object. The response should be in this exact format: {"move": "chess_move", "reasoning": "explanation"}
+
+Text to convert: "${textResponse}"
+
+Return ONLY the JSON object, no additional text or explanation.`;
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 200
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const jsonText = data.choices[0].message.content.trim();
+    
+    // Validate that it's valid JSON
+    const parsed = JSON.parse(jsonText);
+    console.log('✅ Successfully converted response to JSON using Groq');
+    return parsed;
+  } catch (error) {
+    console.error('❌ Failed to convert response to JSON with Groq:', error.message);
+    return null;
+  }
+}
+const axios = require('axios');
 
 function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager = null, mcpManager = null) {
   // Initialize device ID manager if not provided
@@ -306,19 +354,27 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
               finalResponse = cleanResponse; // Use the clean response
               console.log(`✅ Valid JSON response for json_object format`);
             } catch (jsonError) {
-              console.error(`❌ Invalid JSON response for json_object format:`, jsonError.message);
-              // Send error response
-              clearTimeout(timeout);
-              pendingRequests.delete(requestId);
-              requestDeviceMap.delete(requestId);
+              console.log(`⚠️ Invalid JSON response for json_object format, attempting conversion with Groq`);
               
-              res.status(400).json({
-                error: {
-                  message: 'Invalid JSON response from device',
-                  type: 'invalid_json_response'
-                }
-              });
-              return;
+              // Try to convert using Groq
+              const convertedJson = await convertToJsonWithGroq(cleanResponse, { requestId, model, originalMessage });
+              if (convertedJson) {
+                finalResponse = JSON.stringify(convertedJson);
+                console.log(`✅ Successfully converted response to JSON`);
+              } else {
+                console.error(`❌ Failed to convert response to JSON, sending error`);
+                clearTimeout(timeout);
+                pendingRequests.delete(requestId);
+                requestDeviceMap.delete(requestId);
+                
+                res.status(400).json({
+                  error: {
+                    message: 'Invalid JSON response from device and conversion failed',
+                    type: 'invalid_json_response'
+                  }
+                });
+                return;
+              }
             }
           } else {
             // Try to parse the response as JSON to check for mcp_tool_call
