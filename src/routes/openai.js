@@ -347,7 +347,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         });
       }
 
-      const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
+      const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false, response_format } = req.body;
 
       // Check if target device already has a pending request
       const existingRequests = Array.from(requestDeviceMap.entries())
@@ -373,6 +373,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
       // Set up timeout for request
       const timeout = setTimeout(() => {
+        console.log(`⏰ Request ${requestId} timed out after 30 seconds`);
         pendingRequests.delete(requestId);
         requestDeviceMap.delete(requestId);
         res.status(504).json({
@@ -384,7 +385,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       }, 30000);
 
       // Store the request for response handling
-      pendingRequests.set(requestId, { res, timeout, stream });
+      pendingRequests.set(requestId, { res, timeout, stream, response_format });
 
       // Initialize MCP request detection variables
       let isMCPRequest = false;
@@ -556,6 +557,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
           model,
           temperature,
           max_tokens,
+          response_format,
           requestId,
           timestamp: new Date().toISOString()
         }
