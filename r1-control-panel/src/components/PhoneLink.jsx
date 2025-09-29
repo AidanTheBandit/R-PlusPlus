@@ -10,6 +10,8 @@ const PhoneLink = ({ deviceId }) => {
   const [showVerification, setShowVerification] = useState(false);
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
   const [phoneToUnlink, setPhoneToUnlink] = useState('');
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [showConsentDetails, setShowConsentDetails] = useState(false);
 
   useEffect(() => {
     loadLinkedPhones();
@@ -180,25 +182,86 @@ const PhoneLink = ({ deviceId }) => {
         )}
 
         {!showVerification ? (
-          <form onSubmit={handleLinkPhone} className="link-form">
-            <div className="form-group">
-              <label htmlFor="phoneNumber">Phone Number:</label>
-              <input
-                type="tel"
-                id="phoneNumber"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+1234567890"
-                required
-                pattern="^\+?[1-9]\d{1,14}$"
-                title="Please enter a valid phone number (e.g., +1234567890)"
-              />
-              <small>Include country code (e.g., +1 for US)</small>
+          <div className="opt-in-section">
+            <div className="consent-notice">
+              <h3>📱 SMS Messaging Consent</h3>
+              <p>By linking your phone number, you consent to receive SMS messages from R1 for device control and notifications.</p>
+              
+              <div className="consent-details">
+                <strong>What you'll receive:</strong>
+                <ul>
+                  <li>Verification codes for phone linking</li>
+                  <li>Responses to your R1 device commands</li>
+                  <li>Device status notifications (rare)</li>
+                </ul>
+                
+                <strong>Message frequency:</strong>
+                <ul>
+                  <li>Verification: Only when you request phone linking</li>
+                  <li>Commands: Only when you send messages to your R1</li>
+                  <li>Notifications: Less than 10 messages per month</li>
+                </ul>
+                
+                <strong>Standard rates may apply.</strong> You can opt-out at any time by texting <code>!unlink!</code> or using the unlink button below.
+              </div>
+              
+              <div className="privacy-links">
+                <a href="#" onClick={(e) => { e.preventDefault(); setShowConsentDetails(!showConsentDetails); }}>
+                  {showConsentDetails ? 'Hide' : 'Show'} detailed consent information
+                </a>
+              </div>
+              
+              {showConsentDetails && (
+                <div className="consent-expanded">
+                  <h4>Privacy & Consent Details</h4>
+                  <p>Your phone number will be stored securely and used only for R1 device communication. We comply with SMS regulations and require explicit consent for messaging.</p>
+                  <p><strong>Data Collection:</strong> Phone number, message timestamps, and device association</p>
+                  <p><strong>Data Usage:</strong> SMS delivery for device control and verification</p>
+                  <p><strong>Data Retention:</strong> Phone links are retained until you unlink them</p>
+                  <p><strong>Opt-out:</strong> Text "!unlink!" to your linked number or use the unlink button</p>
+                  <p>For more information, see our <a href="#" target="_blank">Privacy Policy</a> and <a href="#" target="_blank">Terms of Service</a>.</p>
+                </div>
+              )}
             </div>
-            <button type="submit" disabled={isLoading} className="btn">
-              {isLoading ? 'Sending...' : 'Send Verification Code'}
-            </button>
-          </form>
+            
+            <form onSubmit={handleLinkPhone} className="link-form">
+              <div className="form-group">
+                <label htmlFor="phoneNumber">Phone Number:</label>
+                <input
+                  type="tel"
+                  id="phoneNumber"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+1234567890"
+                  required
+                  pattern="^\+?[1-9]\d{1,14}$"
+                  title="Please enter a valid phone number (e.g., +1234567890)"
+                />
+                <small>Include country code (e.g., +1 for US)</small>
+              </div>
+              
+              <div className="consent-checkbox">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={consentGiven}
+                    onChange={(e) => setConsentGiven(e.target.checked)}
+                    required
+                  />
+                  <span className="checkmark"></span>
+                  I consent to receive SMS messages from R1 for device control and notifications. I understand I can opt-out at any time.
+                </label>
+              </div>
+              
+              <button type="submit" disabled={isLoading || !consentGiven} className="btn">
+                {isLoading ? 'Sending...' : 'Send Verification Code'}
+              </button>
+              
+              {!consentGiven && (
+                <small className="consent-required">Please check the consent box to continue</small>
+              )}
+            </form>
+          </div>
         ) : (
           <form onSubmit={handleVerifyPhone} className="verify-form">
             <div className="form-group">
@@ -259,14 +322,25 @@ const PhoneLink = ({ deviceId }) => {
         </div>
 
         <div className="instructions">
-          <h3>How it works:</h3>
+          <h3>How SMS Integration Works:</h3>
           <ol>
+            <li>Review the consent information above and check the consent box</li>
             <li>Enter your phone number and click "Send Verification Code"</li>
-            <li>Check your SMS for a 6-digit code</li>
+            <li>Check your SMS for a 6-digit verification code</li>
             <li>Enter the code to verify and link your phone</li>
             <li>Send text messages to control your R1 device</li>
-            <li>Text <code>!unlink!</code> to remove the link</li>
           </ol>
+          
+          <div className="opt-out-info">
+            <h4>🔄 Managing Your Consent</h4>
+            <p><strong>To opt-out/stop receiving messages:</strong></p>
+            <ul>
+              <li>Text <code>!unlink!</code> to your linked number</li>
+              <li>Use the "Unlink" button next to your phone number below</li>
+              <li>Contact support if you need assistance</li>
+            </ul>
+            <p>Once unlinked, you won't receive any more messages from R1.</p>
+          </div>
         </div>
       </div>
     </div>
