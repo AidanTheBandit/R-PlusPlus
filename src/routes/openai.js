@@ -347,7 +347,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         });
       }
 
-      const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false } = req.body;
+      const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false, response_format } = req.body;
 
       // Check if target device already has a pending request
       const existingRequests = Array.from(requestDeviceMap.entries())
@@ -373,6 +373,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
       // Set up timeout for request
       const timeout = setTimeout(() => {
+        console.log(`⏰ Request ${requestId} timed out after 30 seconds`);
         pendingRequests.delete(requestId);
         requestDeviceMap.delete(requestId);
         res.status(504).json({
@@ -384,7 +385,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       }, 30000);
 
       // Store the request for response handling
-      pendingRequests.set(requestId, { res, timeout, stream });
+      pendingRequests.set(requestId, { res, timeout, stream, response_format });
 
       // Initialize MCP request detection variables
       let isMCPRequest = false;
@@ -531,6 +532,13 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         messageText = `${conversationContext}${mcpPrompt}User: ${userMessage}`;
       }
 
+      // For json_object format, add instruction to return only JSON (but not for MCP requests)
+      let processedMessage = messageText;
+      if (response_format && response_format.type === 'json_object' && !isMCPRequest) {
+        // Add explicit instruction to return only JSON
+        processedMessage = `${messageText}\n\nIMPORTANT: Respond with ONLY a valid JSON object. Do not include any other text, markdown, or explanation.`;
+      }
+
       // For MCP requests, execute the tool server-side first
       if (isMCPRequest && mcpToolCall) {
         try {
@@ -551,11 +559,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       const command = {
         type: 'chat_completion',
         data: {
-          message: messageText,
+          message: processedMessage,
           originalMessage: userMessage,
           model,
           temperature,
           max_tokens,
+          response_format,
           requestId,
           timestamp: new Date().toISOString()
         }

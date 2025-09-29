@@ -1,5 +1,53 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 const { DeviceIdManager } = require('../utils/device-id-manager');
+const fetch = require('node-fetch');
+
+// Function to convert text response to JSON using Groq API
+async function convertToJsonWithGroq(textResponse, originalRequest) {
+  try {
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
+      console.log('No GROQ_API_KEY found, skipping JSON conversion');
+      return null;
+    }
+
+    const prompt = `Convert the following text response to a valid JSON object. The response should be in this exact format: {"move": "chess_move", "reasoning": "explanation"}
+
+Text to convert: "${textResponse}"
+
+Return ONLY the JSON object, no additional text or explanation.`;
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 200
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const jsonText = data.choices[0].message.content.trim();
+    
+    // Validate that it's valid JSON
+    const parsed = JSON.parse(jsonText);
+    console.log('✅ Successfully converted response to JSON using Groq');
+    return parsed;
+  } catch (error) {
+    console.error('❌ Failed to convert response to JSON with Groq:', error.message);
+    return null;
+  }
+}
+const axios = require('axios');
 
 function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager = null, mcpManager = null) {
   // Initialize device ID manager if not provided
@@ -84,6 +132,38 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
     // Handle disconnection
     socket.on('disconnect', () => {
       console.log(`R1 device disconnected`);
+      
+      // Clean up any pending requests for this device
+      const requestsToClean = [];
+      for (const [requestId, deviceIdMapped] of requestDeviceMap.entries()) {
+        if (deviceIdMapped === deviceId) {
+          requestsToClean.push(requestId);
+        }
+      }
+      
+      for (const requestId of requestsToClean) {
+        if (pendingRequests.has(requestId)) {
+          const { res, timeout } = pendingRequests.get(requestId);
+          
+          // Clear the timeout
+          clearTimeout(timeout);
+          
+          // Remove from maps
+          pendingRequests.delete(requestId);
+          requestDeviceMap.delete(requestId);
+          
+          // Send timeout response to client
+          res.status(504).json({
+            error: {
+              message: 'Device disconnected - request cancelled',
+              type: 'device_disconnected'
+            }
+          });
+          
+          console.log(`🧹 Cleaned up pending request ${requestId} due to device disconnect`);
+        }
+      }
+      
       connectedR1s.delete(deviceId);
       deviceIdManager.unregisterDevice(socket.id);
 
@@ -95,6 +175,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
       }
 
       console.log(`Total connected devices after disconnect: ${connectedR1s.size}`);
+      console.log(`Cleaned up ${requestsToClean.length} pending requests`);
     });
 
     // Debug data streaming handlers - store locally only
@@ -241,7 +322,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
       // Only process responses with valid request IDs to prevent cross-contamination
       if (requestId && pendingRequests.has(requestId)) {
         console.log(`✅ Found matching request, sending response to client`);
-        const { res, timeout, stream } = pendingRequests.get(requestId);
+        const { res, timeout, stream, response_format } = pendingRequests.get(requestId);
 
         // Verify this request was actually sent to this device
         const expectedDeviceId = requestDeviceMap.get(requestId);
@@ -266,71 +347,102 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
             cleanResponse = cleanResponse.slice(3, -3).trim(); // Remove ``` and ```
           }
 
-          // Try to parse the response as JSON to check for mcp_tool_call
-          const parsedResponse = JSON.parse(cleanResponse);
-          if (parsedResponse && parsedResponse.mcp_tool_call) {
-            console.log(`🔧 MCP tool call detected in response`);
-            isMCPToolCall = true;
-
-            const { server: serverName, tool: toolName, arguments: toolArgs } = parsedResponse.mcp_tool_call;
-
-            if (mcpManager) {
-              try {
-                // Execute the MCP tool
-                const toolResult = await mcpManager.handleToolCall(deviceId, serverName, toolName, toolArgs || {});
-
-                // Mark this request as having had an MCP tool executed
-                mcpToolExecutedRequests.add(requestId);
-
-                // Send the tool result back to the R1 device for final response generation
-                socket.emit('mcp_tool_result', {
-                  requestId: requestId,
-                  serverName,
-                  toolName,
-                  result: toolResult,
-                  success: true,
-                  timestamp: new Date().toISOString()
-                });
-
-                // Don't send the response yet - wait for the R1 to generate the final response
-                console.log(`🔄 MCP tool executed, waiting for R1 final response`);
-                return;
-
-              } catch (toolError) {
-                console.error(`❌ MCP tool execution failed:`, toolError);
-
-                // Send error back to R1 device
-                socket.emit('mcp_tool_result', {
-                  requestId: requestId,
-                  serverName,
-                  toolName,
-                  error: toolError.message,
-                  success: false,
-                  timestamp: new Date().toISOString()
-                });
-
-                // Send error response to client
+          // For JSON responses, validate the JSON format
+          if (response_format && response_format.type === 'json_object') {
+            try {
+              JSON.parse(cleanResponse);
+              finalResponse = cleanResponse; // Use the clean response
+              console.log(`✅ Valid JSON response for json_object format`);
+            } catch (jsonError) {
+              console.log(`⚠️ Invalid JSON response for json_object format, attempting conversion with Groq`);
+              
+              // Try to convert using Groq
+              const convertedJson = await convertToJsonWithGroq(cleanResponse, { requestId, model, originalMessage });
+              if (convertedJson) {
+                finalResponse = JSON.stringify(convertedJson);
+                console.log(`✅ Successfully converted response to JSON`);
+              } else {
+                console.error(`❌ Failed to convert response to JSON, sending error`);
                 clearTimeout(timeout);
                 pendingRequests.delete(requestId);
                 requestDeviceMap.delete(requestId);
-                mcpToolExecutedRequests.delete(requestId);
-
-                res.status(500).json({
+                
+                res.status(400).json({
                   error: {
-                    message: `MCP tool execution failed: ${toolError.message}`,
-                    type: 'mcp_error'
+                    message: 'Invalid JSON response from device and conversion failed',
+                    type: 'invalid_json_response'
                   }
                 });
                 return;
               }
-            } else {
-              console.error(`❌ MCP manager not available`);
-              finalResponse = "Sorry, MCP functionality is not available at this time.";
+            }
+          } else {
+            // Try to parse the response as JSON to check for mcp_tool_call
+            const parsedResponse = JSON.parse(cleanResponse);
+            if (parsedResponse && parsedResponse.mcp_tool_call) {
+              console.log(`🔧 MCP tool call detected in response`);
+              isMCPToolCall = true;
+
+              const { server: serverName, tool: toolName, arguments: toolArgs } = parsedResponse.mcp_tool_call;
+
+              if (mcpManager) {
+                try {
+                  // Execute the MCP tool
+                  const toolResult = await mcpManager.handleToolCall(deviceId, serverName, toolName, toolArgs || {});
+
+                  // Mark this request as having had an MCP tool executed
+                  mcpToolExecutedRequests.add(requestId);
+
+                  // Send the tool result back to the R1 device for final response generation
+                  socket.emit('mcp_tool_result', {
+                    requestId: requestId,
+                    serverName,
+                    toolName,
+                    result: toolResult,
+                    success: true,
+                    timestamp: new Date().toISOString()
+                  });
+
+                  // Don't send the response yet - wait for the R1 to generate the final response
+                  console.log(`🔄 MCP tool executed, waiting for R1 final response`);
+                  return;
+
+                } catch (toolError) {
+                  console.error(`❌ MCP tool execution failed:`, toolError);
+
+                  // Send error back to R1 device
+                  socket.emit('mcp_tool_result', {
+                    requestId: requestId,
+                    serverName,
+                    toolName,
+                    error: toolError.message,
+                    success: false,
+                    timestamp: new Date().toISOString()
+                  });
+
+                  // Send error response to client
+                  clearTimeout(timeout);
+                  pendingRequests.delete(requestId);
+                  requestDeviceMap.delete(requestId);
+                  mcpToolExecutedRequests.delete(requestId);
+
+                  res.status(500).json({
+                    error: {
+                      message: `MCP tool execution failed: ${toolError.message}`,
+                      type: 'mcp_error'
+                    }
+                  });
+                  return;
+                }
+              } else {
+                console.error(`❌ MCP manager not available`);
+                finalResponse = "Sorry, MCP functionality is not available at this time.";
+              }
             }
           }
         } catch (parseError) {
-          // Response is not JSON with mcp_tool_call, use as-is
-          console.log(`📝 Response is not MCP tool call, using as normal response`);
+          // Response is not JSON, use as-is
+          console.log(`📝 Response is not JSON, using as normal response`);
         }
 
         // If this is not an MCP tool call, or if MCP execution failed, send the response
