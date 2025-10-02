@@ -199,11 +199,24 @@ export function useSocket(addConsoleLog, sendErrorToServer) {
       addConsoleLog(`🎵🎵🎵 TEXT-TO-SPEECH EVENT RECEIVED! 🎵🎵🎵`, 'info')
       addConsoleLog(`📥 Received TTS request: ${JSON.stringify(data, null, 2)}`)
 
-      // Emit event for R1 SDK hook to handle
+      // Check if handler is available
       if (window.handleTextToSpeech) {
-        window.handleTextToSpeech(data, socketRef.current, addConsoleLog, sendErrorToServer)
+        addConsoleLog(`✅ TTS handler available, calling it...`, 'info')
+        try {
+          window.handleTextToSpeech(data, socketRef.current, addConsoleLog, sendErrorToServer)
+          addConsoleLog(`✅ TTS handler called successfully`, 'info')
+        } catch (error) {
+          addConsoleLog(`❌ TTS handler threw error: ${error.message}`, 'error')
+          addConsoleLog(`❌ TTS handler error stack: ${error.stack}`, 'error')
+        }
       } else {
-        addConsoleLog('❌ No text-to-speech handler available', 'error')
+        addConsoleLog('❌ No text-to-speech handler available - this is the problem!', 'error')
+        // Send error response immediately
+        socketRef.current.emit('tts_error', {
+          requestId: data.requestId || data.data?.requestId,
+          error: 'TTS handler not available on device',
+          deviceId: socketRef.current._deviceId
+        })
       }
     })
 
