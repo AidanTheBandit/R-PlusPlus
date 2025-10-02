@@ -162,12 +162,17 @@ function setupTwilioRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       requestDeviceMap.set(requestId, deviceId);
 
       // Send to R1
-      socket.emit('chat_request', {
-        id: requestId,
-        messages: [{ role: 'user', content: message }],
-        model: 'r1-command',
-        temperature: 0.7,
-        max_tokens: 150
+      socket.emit('chat_completion', {
+        type: 'chat_completion',
+        data: {
+          message: message,
+          originalMessage: message,
+          model: 'r1-command',
+          temperature: 0.7,
+          max_tokens: 150,
+          requestId,
+          timestamp: new Date().toISOString()
+        }
       });
 
       // Wait for response with timeout
@@ -178,18 +183,19 @@ function setupTwilioRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         }, timeout);
 
         const responseHandler = (data) => {
-          if (data.id === requestId) {
+          const { requestId: responseId, response, originalMessage, model } = data;
+          if (responseId === requestId) {
             clearTimeout(timeoutId);
-            socket.off('chat_response', responseHandler);
-            resolve(data);
+            socket.off('response', responseHandler);
+            resolve({ response, originalMessage, model });
           }
         };
 
-        socket.on('chat_response', responseHandler);
+        socket.on('response', responseHandler);
       });
 
       try {
-        const response = await responsePromise;
+        const responseData = await responsePromise;
 
         // Mark request as completed
         await database.completePendingRequest(requestId);
@@ -197,12 +203,7 @@ function setupTwilioRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         requestDeviceMap.delete(requestId);
 
         // Send response back via SMS
-        let responseText = '';
-        if (response.choices && response.choices[0] && response.choices[0].message) {
-          responseText = response.choices[0].message.content;
-        } else {
-          responseText = 'Sorry, I couldn\'t generate a response.';
-        }
+        let responseText = responseData.response || 'Sorry, I couldn\'t generate a response.';
 
         // Truncate if too long for SMS
         if (responseText.length > 1600) {
