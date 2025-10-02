@@ -350,16 +350,20 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
       const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150, stream = false, response_format } = req.body;
 
-      // Check if target device already has a pending request
-      const existingRequests = Array.from(requestDeviceMap.entries())
-        .filter(([_, deviceId]) => deviceId === targetDeviceId);
+      // Check if target device already has a pending TEXT request
+      const existingTextRequests = Array.from(requestDeviceMap.entries())
+        .filter(([_, deviceId]) => deviceId === targetDeviceId)
+        .filter(([requestId]) => {
+          const request = pendingRequests.get(requestId);
+          return request && !request.isTTS; // Only count non-TTS requests
+        });
 
-      if (existingRequests.length > 0) {
-        console.log(`❌ Device ${targetDeviceId} already has ${existingRequests.length} pending request(s)`);
+      if (existingTextRequests.length > 0) {
+        console.log(`❌ Device ${targetDeviceId} already has ${existingTextRequests.length} pending text request(s)`);
         return res.status(429).json({
           error: {
-            message: 'Device is currently processing another request. Please wait for it to complete.',
-            type: 'device_busy'
+            message: 'Device is currently processing another text request. Please wait for it to complete.',
+            type: 'device_busy_text'
           }
         });
       }

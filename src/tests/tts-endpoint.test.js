@@ -42,7 +42,7 @@ describe('TTS Endpoint Tests', () => {
     setupAudioRoutes(app, null, mockConnectedR1s, mockPendingRequests, mockRequestDeviceMap, mockDeviceIdManager, mockMcpManager);
   });
 
-  test('should accept valid TTS request', () => {
+  test('should accept valid TTS request', (done) => {
     // Mock device as connected
     mockDeviceIdManager.hasDevice.mockReturnValue(true);
     mockDeviceIdManager.getDeviceInfoFromDB.mockResolvedValue({ pin_code: null });
@@ -55,7 +55,7 @@ describe('TTS Endpoint Tests', () => {
     };
     mockConnectedR1s.set('test-device', mockSocket);
 
-    return request(app)
+    request(app)
       .post('/test-device/v1/audio/speech')
       .set('x-test-request', 'true')
       .send({
@@ -65,9 +65,11 @@ describe('TTS Endpoint Tests', () => {
         response_format: 'mp3',
         speed: 1.0
       })
-      .then((response) => {
-        // Should queue the request (429 = device busy, but request was accepted)
-        expect(response.status).toBe(429);
+      .end((err, response) => {
+        if (err) return done(err);
+
+        // Should accept the request
+        expect(response.status).toBe(200);
 
         // Check that socket.emit was called with correct TTS data
         expect(mockSocket.emit).toHaveBeenCalledWith('text_to_speech', expect.objectContaining({
@@ -80,7 +82,19 @@ describe('TTS Endpoint Tests', () => {
             speed: 1.0
           })
         }));
+
+        done();
       });
+
+    // Manually resolve the pending TTS request
+    setTimeout(() => {
+      const requestId = mockSocket.emit.mock.calls[0][1].data.requestId;
+      if (mockPendingRequests.has(requestId)) {
+        const { res } = mockPendingRequests.get(requestId);
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.send(Buffer.from('mock-audio-data'));
+      }
+    }, 100);
   });
 
   test('should reject TTS request without input', async () => {
@@ -98,7 +112,7 @@ describe('TTS Endpoint Tests', () => {
     expect(response.body.error.message).toContain('Input text is required');
   });
 
-  test('should use default values for optional parameters', () => {
+  test('should use default values for optional parameters', (done) => {
     // Mock device as connected
     mockDeviceIdManager.hasDevice.mockReturnValue(true);
     mockDeviceIdManager.getDeviceInfoFromDB.mockResolvedValue({ pin_code: null });
@@ -111,15 +125,17 @@ describe('TTS Endpoint Tests', () => {
     };
     mockConnectedR1s.set('test-device', mockSocket);
 
-    return request(app)
+    request(app)
       .post('/test-device/v1/audio/speech')
       .set('x-test-request', 'true')
       .send({
         input: 'Test message'
       })
-      .then((response) => {
-        // Should queue the request
-        expect(response.status).toBe(429);
+      .end((err, response) => {
+        if (err) return done(err);
+
+        // Should accept the request
+        expect(response.status).toBe(200);
 
         // Check that socket.emit was called with default values
         expect(mockSocket.emit).toHaveBeenCalledWith('text_to_speech', expect.objectContaining({
@@ -132,7 +148,19 @@ describe('TTS Endpoint Tests', () => {
             speed: 1.0
           })
         }));
+
+        done();
       });
+
+    // Manually resolve the pending TTS request
+    setTimeout(() => {
+      const requestId = mockSocket.emit.mock.calls[0][1].data.requestId;
+      if (mockPendingRequests.has(requestId)) {
+        const { res } = mockPendingRequests.get(requestId);
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.send(Buffer.from('mock-audio-data'));
+      }
+    }, 100);
   });
 
   test('should handle PIN authentication for TTS', async () => {
@@ -149,7 +177,7 @@ describe('TTS Endpoint Tests', () => {
     expect(response.body.error.message).toContain('PIN code required');
   });
 
-  test('should accept valid PIN for TTS', () => {
+  test('should accept valid PIN for TTS', (done) => {
     // Mock device with PIN required
     mockDeviceIdManager.hasDevice.mockReturnValue(true);
     mockDeviceIdManager.getDeviceInfoFromDB.mockResolvedValue({ pin_code: '123456' });
@@ -162,16 +190,30 @@ describe('TTS Endpoint Tests', () => {
     };
     mockConnectedR1s.set('test-device', mockSocket);
 
-    return request(app)
+    request(app)
       .post('/test-device/v1/audio/speech')
       .set('Authorization', 'Bearer 123456')
       .set('x-test-request', 'true')
       .send({
         input: 'Hello world'
       })
-      .then((response) => {
-        // Should queue the request
-        expect(response.status).toBe(429);
+      .end((err, response) => {
+        if (err) return done(err);
+
+        // Should accept the request
+        expect(response.status).toBe(200);
+
+        done();
       });
+
+    // Manually resolve the pending TTS request
+    setTimeout(() => {
+      const requestId = mockSocket.emit.mock.calls[0][1].data.requestId;
+      if (mockPendingRequests.has(requestId)) {
+        const { res } = mockPendingRequests.get(requestId);
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.send(Buffer.from('mock-audio-data'));
+      }
+    }, 100);
   });
 });

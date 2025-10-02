@@ -287,6 +287,15 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
       console.log(`📨 Forwarding chat completion to R1 device:`, JSON.stringify(data, null, 2));
     });
 
+    // Handle text-to-speech requests from server
+    socket.on('text_to_speech', (data) => {
+      console.log(`🎵 Text-to-speech request received`);
+      
+      // Forward to the R1 device - the R1 app should handle this
+      // The R1 device will process the TTS request and send back audio via 'tts_response' event
+      console.log(`📨 Forwarding TTS request to R1 device:`, JSON.stringify(data, null, 2));
+    });
+
     socket.on('message', (data) => {
       try {
         const message = JSON.parse(data);

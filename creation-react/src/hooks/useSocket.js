@@ -194,6 +194,19 @@ export function useSocket(addConsoleLog, sendErrorToServer) {
       }
     })
 
+    // Handle incoming text-to-speech requests
+    socketRef.current.on('text_to_speech', (data) => {
+      addConsoleLog(`🎵🎵🎵 TEXT-TO-SPEECH EVENT RECEIVED! 🎵🎵🎵`, 'info')
+      addConsoleLog(`📥 Received TTS request: ${JSON.stringify(data, null, 2)}`)
+
+      // Emit event for R1 SDK hook to handle
+      if (window.handleTextToSpeech) {
+        window.handleTextToSpeech(data, socketRef.current, addConsoleLog, sendErrorToServer)
+      } else {
+        addConsoleLog('❌ No text-to-speech handler available', 'error')
+      }
+    })
+
     // Handle server errors/notifications
     socketRef.current.on('error', (data) => {
       addConsoleLog(`❌ Server error: ${JSON.stringify(data)}`, 'error')

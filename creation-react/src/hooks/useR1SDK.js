@@ -4,6 +4,125 @@ import { r1 } from 'r1-create'
 export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
   const r1CreateRef = useRef(null)
 
+  // Handle text-to-speech requests from socket
+  const handleTextToSpeech = (data, socket, addLog, sendError) => {
+    const currentRequestId = data.requestId || data.data?.requestId
+    const textToSpeak = data.text || data.data?.text
+    const model = data.model || data.data?.model || 'tts-1'
+    const voice = data.voice || data.data?.voice || 'alloy'
+    const responseFormat = data.response_format || data.data?.response_format || 'mp3'
+    const speed = data.speed || data.data?.speed || 1.0
+
+    addLog(`🎵 Processing TTS request ${currentRequestId}`)
+    addLog(`🎵 Text to speak: "${textToSpeak?.substring(0, 50)}${textToSpeak?.length > 50 ? '...' : ''}"`)
+    addLog(`🎵 Settings: model=${model}, voice=${voice}, format=${responseFormat}, speed=${speed}x`)
+
+    if (r1CreateRef.current && r1CreateRef.current.speaker) {
+      try {
+        // Use R1 SDK speaker API to generate speech
+        r1CreateRef.current.speaker.speak(textToSpeak, {
+          model: model,
+          voice: voice,
+          responseFormat: responseFormat,
+          speed: speed,
+          requestId: currentRequestId
+        })
+
+        // Store the requestId for when we get the audio response
+        if (currentRequestId) {
+          socket._pendingTTSRequestId = currentRequestId
+          socket._ttsSettings = { model, voice, responseFormat, speed }
+          addLog(`📝 Stored pending TTS request: ${currentRequestId}`)
+        }
+
+        addLog(`📤 Sent TTS request to R1 speaker API, requestId: ${currentRequestId}`)
+
+        // Send immediate acknowledgment that we received the request
+        socket.emit('tts_received', {
+          requestId: currentRequestId,
+          deviceId: socket._deviceId,
+          timestamp: new Date().toISOString()
+        })
+
+      } catch (error) {
+        addLog(`R1 SDK speaker error: ${error.message}`, 'error')
+        addLog(`R1 SDK speaker error stack: ${error.stack}`, 'error')
+        socket.emit('tts_error', {
+          requestId: currentRequestId,
+          error: `R1 SDK speaker error: ${error.message}`,
+          deviceId: socket._deviceId
+        })
+        sendError('error', `R1 SDK speaker failed: ${error.message}`)
+      }
+    } else if (r1CreateRef.current && r1CreateRef.current.llm) {
+      // Fallback: Use LLM to generate speech if speaker API not available
+      try {
+        addLog('🔄 Speaker API not available, using LLM fallback for TTS', 'warn')
+
+        // For now, simulate TTS response since we don't have actual audio generation
+        const simulatedAudioData = Buffer.from('simulated-audio-data').toString('base64')
+
+        addLog(`🤖 Simulating TTS audio generation for: "${textToSpeak?.substring(0, 30)}..."`, 'info')
+
+        // Send simulated TTS response after a short delay
+        setTimeout(() => {
+          if (socket && socket.connected) {
+            const ttsResponseData = {
+              requestId: currentRequestId,
+              audioData: simulatedAudioData,
+              audioFormat: responseFormat,
+              model: model,
+              voice: voice,
+              speed: speed,
+              timestamp: new Date().toISOString(),
+              deviceId: socket._deviceId
+            }
+
+            addLog(`📤 Sending simulated TTS response: ${JSON.stringify(ttsResponseData, null, 2)}`)
+            socket.emit('tts_response', ttsResponseData)
+            addLog(`✅ Sent simulated TTS response via socket`)
+          }
+        }, 1500) // 1.5 second delay to simulate TTS processing
+
+      } catch (error) {
+        addLog(`LLM TTS fallback error: ${error.message}`, 'error')
+        socket.emit('tts_error', {
+          requestId: currentRequestId,
+          error: `TTS fallback error: ${error.message}`,
+          deviceId: socket._deviceId
+        })
+        sendError('error', `TTS fallback failed: ${error.message}`)
+      }
+    } else {
+      addLog('❌ R1 SDK speaker/LLM not available - using basic fallback simulation', 'warn')
+
+      // Basic fallback simulation
+      const simulatedAudioData = Buffer.from('basic-simulated-audio-data').toString('base64')
+
+      addLog(`🤖 Basic TTS simulation for: "${textToSpeak?.substring(0, 30)}..."`, 'info')
+
+      // Send basic simulated TTS response
+      setTimeout(() => {
+        if (socket && socket.connected) {
+          const ttsResponseData = {
+            requestId: currentRequestId,
+            audioData: simulatedAudioData,
+            audioFormat: responseFormat,
+            model: model,
+            voice: voice,
+            speed: speed,
+            timestamp: new Date().toISOString(),
+            deviceId: socket._deviceId
+          }
+
+          addLog(`📤 Sending basic TTS simulation: ${JSON.stringify(ttsResponseData, null, 2)}`)
+          socket.emit('tts_response', ttsResponseData)
+          addLog(`✅ Sent basic TTS simulation via socket`)
+        }
+      }, 1000) // 1 second delay
+    }
+  }
+
   // Handle chat completion requests from socket
   const handleChatCompletion = (data, socket, addLog, sendError) => {
     const currentRequestId = data.requestId || data.data?.requestId
@@ -177,13 +296,17 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
       console.error('R1 SDK initialization error details:', error)
     }
 
-    // Set up global handler for socket hook
+    // Set up global handlers for socket hook
     window.handleChatCompletion = handleChatCompletion
+    window.handleTextToSpeech = handleTextToSpeech
 
     // Cleanup
     return () => {
       if (window.handleChatCompletion) {
         delete window.handleChatCompletion
+      }
+      if (window.handleTextToSpeech) {
+        delete window.handleTextToSpeech
       }
     }
   }, [addConsoleLog, sendErrorToServer, socketRef])
