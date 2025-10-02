@@ -17,63 +17,20 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
     addLog(`🎵 Text to speak: "${textToSpeak?.substring(0, 50)}${textToSpeak?.length > 50 ? '...' : ''}"`)
     addLog(`🎵 Settings: model=${model}, voice=${voice}, format=${responseFormat}, speed=${speed}x`)
 
-    if (r1CreateRef.current && r1CreateRef.current.tts) {
+    if (r1CreateRef.current && r1CreateRef.current.messaging && typeof r1CreateRef.current.messaging.speakText === 'function') {
       try {
-        // Use R1 SDK TTS API (version 1.2.0+)
-        addLog(`🎵 Using R1 TTS API (v1.2.0+)`)
-        let audioResult;
+        // Use R1 SDK messaging.speakText for direct text-to-speech
+        addLog(`🎵 Using R1 messaging.speakText API for direct TTS`)
+        await r1CreateRef.current.messaging.speakText(textToSpeak)
 
-        if (typeof r1CreateRef.current.tts.speak === 'function') {
-          audioResult = await r1CreateRef.current.tts.speak(textToSpeak, {
-            model: model,
-            voice: voice,
-            responseFormat: responseFormat,
-            speed: speed
-          })
-        } else if (typeof r1CreateRef.current.tts.speakText === 'function') {
-          audioResult = await r1CreateRef.current.tts.speakText(textToSpeak, {
-            model: model,
-            voice: voice,
-            responseFormat: responseFormat,
-            speed: speed
-          })
-        } else {
-          throw new Error('TTS API available but no speak/speakText method found')
-        }
-
-        addLog(`🎵 TTS API returned result: ${!!audioResult}`)
-
-        // If TTS API returns audio data directly, send it immediately
-        if (audioResult) {
-          const audioData = typeof audioResult === 'string' ? audioResult :
-                           audioResult.audioData || audioResult.data ||
-                           Buffer.from(audioResult).toString('base64')
-
-          const ttsResponseData = {
-            requestId: currentRequestId,
-            audioData: audioData,
-            audioFormat: responseFormat,
-            model: model,
-            voice: voice,
-            speed: speed,
-            timestamp: new Date().toISOString(),
-            deviceId: socket._deviceId
-          }
-
-          addLog(`📤 Sending TTS response directly: ${JSON.stringify(ttsResponseData, null, 2)}`)
-          socket.emit('tts_response', ttsResponseData)
-          addLog(`✅ Sent TTS response via socket`)
-          return // Exit early since we sent the response
-        }
-
-        // If no direct result, wait for event-based response
+        // Store the requestId for when we get the audio response
         if (currentRequestId) {
           socket._pendingTTSRequestId = currentRequestId
           socket._ttsSettings = { model, voice, responseFormat, speed }
           addLog(`📝 Stored pending TTS request: ${currentRequestId}`)
         }
 
-        addLog(`📤 Sent TTS request to R1 TTS API, waiting for response event, requestId: ${currentRequestId}`)
+        addLog(`📤 Sent TTS request to R1 messaging.speakText API, requestId: ${currentRequestId}`)
 
         // Send immediate acknowledgment that we received the request
         socket.emit('tts_received', {
@@ -83,188 +40,31 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
         })
 
       } catch (error) {
-        addLog(`R1 SDK TTS API error: ${error.message}`, 'error')
+        addLog(`R1 SDK messaging.speakText error: ${error.message}`, 'error')
         addLog(`R1 SDK TTS error stack: ${error.stack}`, 'error')
         socket.emit('tts_error', {
           requestId: currentRequestId,
-          error: `R1 SDK TTS API error: ${error.message}`,
+          error: `R1 SDK TTS error: ${error.message}`,
           deviceId: socket._deviceId
         })
-        sendError('error', `R1 SDK TTS API failed: ${error.message}`)
-        return // Exit early on error
-      }
-    } else if (r1CreateRef.current && r1CreateRef.current.speaker && typeof r1CreateRef.current.speaker.speakText === 'function') {
-      try {
-        // Use R1 SDK speaker.speakText API
-        addLog(`🎵 Using R1 speaker.speakText API`)
-        const audioResult = await r1CreateRef.current.speaker.speakText(textToSpeak, {
-          model: model,
-          voice: voice,
-          responseFormat: responseFormat,
-          speed: speed
-        })
-
-        addLog(`🎵 Speaker API returned result: ${!!audioResult}`)
-
-        // If speaker API returns audio data directly, send it immediately
-        if (audioResult) {
-          const audioData = typeof audioResult === 'string' ? audioResult :
-                           audioResult.audioData || audioResult.data ||
-                           Buffer.from(audioResult).toString('base64')
-
-          const ttsResponseData = {
-            requestId: currentRequestId,
-            audioData: audioData,
-            audioFormat: responseFormat,
-            model: model,
-            voice: voice,
-            speed: speed,
-            timestamp: new Date().toISOString(),
-            deviceId: socket._deviceId
-          }
-
-          addLog(`📤 Sending TTS response directly: ${JSON.stringify(ttsResponseData, null, 2)}`)
-          socket.emit('tts_response', ttsResponseData)
-          addLog(`✅ Sent TTS response via socket`)
-          return // Exit early since we sent the response
-        }
-
-        // If no direct result, wait for event-based response
-        if (currentRequestId) {
-          socket._pendingTTSRequestId = currentRequestId
-          socket._ttsSettings = { model, voice, responseFormat, speed }
-          addLog(`📝 Stored pending TTS request: ${currentRequestId}`)
-        }
-
-        addLog(`📤 Sent TTS request to R1 speaker API, waiting for response event, requestId: ${currentRequestId}`)
-
-        // Send immediate acknowledgment that we received the request
-        socket.emit('tts_received', {
-          requestId: currentRequestId,
-          deviceId: socket._deviceId,
-          timestamp: new Date().toISOString()
-        })
-
-      } catch (error) {
-        addLog(`R1 SDK speaker TTS error: ${error.message}`, 'error')
-        addLog(`R1 SDK speaker TTS error stack: ${error.stack}`, 'error')
-        socket.emit('tts_error', {
-          requestId: currentRequestId,
-          error: `R1 SDK speaker TTS error: ${error.message}`,
-          deviceId: socket._deviceId
-        })
-        sendError('error', `R1 SDK speaker TTS failed: ${error.message}`)
-        return // Exit early on error
-      }
-    } else if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.generateSpeech === 'function') {
-      try {
-        // Use R1 SDK LLM generateSpeech method
-        addLog('🔄 Using LLM.generateSpeech API for TTS', 'warn')
-
-        const audioResult = await r1CreateRef.current.llm.generateSpeech(textToSpeak, {
-          model: model,
-          voice: voice,
-          responseFormat: responseFormat,
-          speed: speed
-        })
-
-        addLog(`🎵 LLM generateSpeech returned result: ${!!audioResult}`)
-
-        // If LLM API returns audio data directly, send it immediately
-        if (audioResult) {
-          const audioData = typeof audioResult === 'string' ? audioResult :
-                           audioResult.audioData || audioResult.data ||
-                           Buffer.from(audioResult).toString('base64')
-
-          const ttsResponseData = {
-            requestId: currentRequestId,
-            audioData: audioData,
-            audioFormat: responseFormat,
-            model: model,
-            voice: voice,
-            speed: speed,
-            timestamp: new Date().toISOString(),
-            deviceId: socket._deviceId
-          }
-
-          addLog(`📤 Sending TTS response directly: ${JSON.stringify(ttsResponseData, null, 2)}`)
-          socket.emit('tts_response', ttsResponseData)
-          addLog(`✅ Sent TTS response via socket`)
-          return // Exit early since we sent the response
-        }
-
-        // If no direct result, wait for event-based response
-        if (currentRequestId) {
-          socket._pendingTTSRequestId = currentRequestId
-          socket._ttsSettings = { model, voice, responseFormat, speed }
-          addLog(`📝 Stored pending TTS request: ${currentRequestId}`)
-        }
-
-        addLog(`📤 Sent TTS request to R1 LLM generateSpeech API, waiting for response event, requestId: ${currentRequestId}`)
-
-        // Send immediate acknowledgment that we received the request
-        socket.emit('tts_received', {
-          requestId: currentRequestId,
-          deviceId: socket._deviceId,
-          timestamp: new Date().toISOString()
-        })
-
-      } catch (error) {
-        addLog(`R1 SDK LLM generateSpeech error: ${error.message}`, 'error')
-        addLog(`R1 SDK LLM generateSpeech error stack: ${error.stack}`, 'error')
-        socket.emit('tts_error', {
-          requestId: currentRequestId,
-          error: `R1 SDK LLM generateSpeech error: ${error.message}`,
-          deviceId: socket._deviceId
-        })
-        sendError('error', `R1 SDK LLM generateSpeech failed: ${error.message}`)
+        sendError('error', `R1 SDK TTS failed: ${error.message}`)
         return // Exit early on error
       }
     } else if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.textToSpeech === 'function') {
       try {
-        // Fallback: Use LLM textToSpeech method
-        addLog('🔄 Using LLM.textToSpeech fallback for TTS', 'warn')
+        // Use R1 SDK LLM textToSpeech convenience method
+        addLog('🔄 Using LLM.textToSpeech convenience method for TTS', 'warn')
 
-        const audioResult = await r1CreateRef.current.llm.textToSpeech(textToSpeak, {
-          model: model,
-          voice: voice,
-          responseFormat: responseFormat,
-          speed: speed
-        })
+        await r1CreateRef.current.llm.textToSpeech(textToSpeak)
 
-        addLog(`🎵 LLM textToSpeech returned result: ${!!audioResult}`)
-
-        // If LLM API returns audio data directly, send it immediately
-        if (audioResult) {
-          const audioData = typeof audioResult === 'string' ? audioResult :
-                           audioResult.audioData || audioResult.data ||
-                           Buffer.from(audioResult).toString('base64')
-
-          const ttsResponseData = {
-            requestId: currentRequestId,
-            audioData: audioData,
-            audioFormat: responseFormat,
-            model: model,
-            voice: voice,
-            speed: speed,
-            timestamp: new Date().toISOString(),
-            deviceId: socket._deviceId
-          }
-
-          addLog(`📤 Sending TTS response directly: ${JSON.stringify(ttsResponseData, null, 2)}`)
-          socket.emit('tts_response', ttsResponseData)
-          addLog(`✅ Sent TTS response via socket`)
-          return // Exit early since we sent the response
-        }
-
-        // If no direct result, wait for event-based response
+        // Store the requestId for when we get the audio response
         if (currentRequestId) {
           socket._pendingTTSRequestId = currentRequestId
           socket._ttsSettings = { model, voice, responseFormat, speed }
           addLog(`📝 Stored pending TTS request: ${currentRequestId}`)
         }
 
-        addLog(`📤 Sent TTS request to R1 LLM API, waiting for response event, requestId: ${currentRequestId}`)
+        addLog(`📤 Sent TTS request to R1 LLM.textToSpeech API, requestId: ${currentRequestId}`)
 
         // Send immediate acknowledgment that we received the request
         socket.emit('tts_received', {
@@ -274,7 +74,7 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
         })
 
       } catch (error) {
-        addLog(`R1 SDK LLM TTS error: ${error.message}`, 'error')
+        addLog(`R1 SDK LLM.textToSpeech error: ${error.message}`, 'error')
         addLog(`R1 SDK LLM TTS error stack: ${error.stack}`, 'error')
         socket.emit('tts_error', {
           requestId: currentRequestId,
@@ -284,8 +84,42 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
         sendError('error', `R1 SDK LLM TTS failed: ${error.message}`)
         return // Exit early on error
       }
+    } else if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.askLLMSpeak === 'function') {
+      try {
+        // Use R1 SDK LLM askLLMSpeak for LLM-generated speech
+        addLog('🔄 Using LLM.askLLMSpeak for LLM-generated TTS', 'warn')
+
+        await r1CreateRef.current.llm.askLLMSpeak(textToSpeak)
+
+        // Store the requestId for when we get the audio response
+        if (currentRequestId) {
+          socket._pendingTTSRequestId = currentRequestId
+          socket._ttsSettings = { model, voice, responseFormat, speed }
+          addLog(`📝 Stored pending TTS request: ${currentRequestId}`)
+        }
+
+        addLog(`📤 Sent TTS request to R1 LLM.askLLMSpeak API, requestId: ${currentRequestId}`)
+
+        // Send immediate acknowledgment that we received the request
+        socket.emit('tts_received', {
+          requestId: currentRequestId,
+          deviceId: socket._deviceId,
+          timestamp: new Date().toISOString()
+        })
+
+      } catch (error) {
+        addLog(`R1 SDK LLM.askLLMSpeak error: ${error.message}`, 'error')
+        addLog(`R1 SDK LLM askLLMSpeak error stack: ${error.stack}`, 'error')
+        socket.emit('tts_error', {
+          requestId: currentRequestId,
+          error: `R1 SDK LLM askLLMSpeak error: ${error.message}`,
+          deviceId: socket._deviceId
+        })
+        sendError('error', `R1 SDK LLM askLLMSpeak failed: ${error.message}`)
+        return // Exit early on error
+      }
     } else {
-      addLog('❌ R1 SDK TTS APIs not available - using basic fallback simulation', 'warn')
+      addLog('❌ No working R1 SDK TTS APIs available - using basic fallback simulation', 'warn')
 
       // Basic fallback simulation
       const simulatedAudioData = Buffer.from('basic-simulated-audio-data').toString('base64')
@@ -585,10 +419,10 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
 
         // Set up TTS response handlers
         try {
-          // Handle TTS responses from TTS API
-          if (r1.tts && typeof r1.tts.onSpeech === 'function') {
-            r1.tts.onSpeech((audioData, metadata) => {
-              addConsoleLog(`🎵 R1 TTS onSpeech received: ${!!audioData} bytes`)
+          // Handle TTS responses from messaging API (for speakText)
+          if (r1.messaging && typeof r1.messaging.onSpeech === 'function') {
+            r1.messaging.onSpeech((audioData, metadata) => {
+              addConsoleLog(`🎵 R1 messaging onSpeech received: ${!!audioData} bytes`)
 
               if (socketRef.current && socketRef.current.connected) {
                 const currentDeviceId = socketRef.current._deviceId
@@ -603,9 +437,9 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
                   deviceId: currentDeviceId
                 }
 
-                addConsoleLog(`📤 Sending TTS response data: ${JSON.stringify(ttsResponseData, null, 2)}`)
+                addConsoleLog(`📤 Sending messaging TTS response data: ${JSON.stringify(ttsResponseData, null, 2)}`)
                 socketRef.current.emit('tts_response', ttsResponseData)
-                addConsoleLog(`✅ Sent R1 TTS response via socket (requestId: ${socketRef.current._pendingTTSRequestId})`)
+                addConsoleLog(`✅ Sent R1 messaging TTS response via socket (requestId: ${socketRef.current._pendingTTSRequestId})`)
 
                 // Clear the pending TTS request data
                 socketRef.current._pendingTTSRequestId = null
@@ -614,42 +448,10 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
                 addConsoleLog('Socket not connected, cannot send TTS response', 'error')
               }
             })
-            addConsoleLog('✅ R1 TTS onSpeech handler set up', 'info')
+            addConsoleLog('✅ R1 messaging onSpeech handler set up', 'info')
           }
 
-          // Handle TTS responses from speaker API
-          if (r1.speaker && typeof r1.speaker.onSpeech === 'function') {
-            r1.speaker.onSpeech((audioData, metadata) => {
-              addConsoleLog(`🎵 R1 speaker onSpeech received: ${!!audioData} bytes`)
-
-              if (socketRef.current && socketRef.current.connected) {
-                const currentDeviceId = socketRef.current._deviceId
-                const ttsResponseData = {
-                  requestId: socketRef.current._pendingTTSRequestId,
-                  audioData: typeof audioData === 'string' ? audioData : Buffer.from(audioData).toString('base64'),
-                  audioFormat: metadata?.format || socketRef.current._ttsSettings?.responseFormat || 'mp3',
-                  model: metadata?.model || socketRef.current._ttsSettings?.model || 'tts-1',
-                  voice: metadata?.voice || socketRef.current._ttsSettings?.voice || 'alloy',
-                  speed: metadata?.speed || socketRef.current._ttsSettings?.speed || 1,
-                  timestamp: new Date().toISOString(),
-                  deviceId: currentDeviceId
-                }
-
-                addConsoleLog(`📤 Sending speaker TTS response data: ${JSON.stringify(ttsResponseData, null, 2)}`)
-                socketRef.current.emit('tts_response', ttsResponseData)
-                addConsoleLog(`✅ Sent R1 speaker TTS response via socket (requestId: ${socketRef.current._pendingTTSRequestId})`)
-
-                // Clear the pending TTS request data
-                socketRef.current._pendingTTSRequestId = null
-                socketRef.current._ttsSettings = null
-              } else {
-                addConsoleLog('Socket not connected, cannot send TTS response', 'error')
-              }
-            })
-            addConsoleLog('✅ R1 speaker onSpeech handler set up', 'info')
-          }
-
-          // Handle TTS responses from LLM API
+          // Handle TTS responses from LLM API (for textToSpeech and askLLMSpeak)
           if (r1.llm && typeof r1.llm.onSpeech === 'function') {
             r1.llm.onSpeech((audioData, metadata) => {
               addConsoleLog(`🎵 R1 LLM onSpeech received: ${!!audioData} bytes`)
@@ -679,6 +481,38 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
               }
             })
             addConsoleLog('✅ R1 LLM onSpeech handler set up', 'info')
+          }
+
+          // Generic TTS event handler (fallback)
+          if (r1.tts && typeof r1.tts.onSpeech === 'function') {
+            r1.tts.onSpeech((audioData, metadata) => {
+              addConsoleLog(`🎵 R1 TTS onSpeech received: ${!!audioData} bytes`)
+
+              if (socketRef.current && socketRef.current.connected) {
+                const currentDeviceId = socketRef.current._deviceId
+                const ttsResponseData = {
+                  requestId: socketRef.current._pendingTTSRequestId,
+                  audioData: typeof audioData === 'string' ? audioData : Buffer.from(audioData).toString('base64'),
+                  audioFormat: metadata?.format || socketRef.current._ttsSettings?.responseFormat || 'mp3',
+                  model: metadata?.model || socketRef.current._ttsSettings?.model || 'tts-1',
+                  voice: metadata?.voice || socketRef.current._ttsSettings?.voice || 'alloy',
+                  speed: metadata?.speed || socketRef.current._ttsSettings?.speed || 1,
+                  timestamp: new Date().toISOString(),
+                  deviceId: currentDeviceId
+                }
+
+                addConsoleLog(`📤 Sending TTS response data: ${JSON.stringify(ttsResponseData, null, 2)}`)
+                socketRef.current.emit('tts_response', ttsResponseData)
+                addConsoleLog(`✅ Sent R1 TTS response via socket (requestId: ${socketRef.current._pendingTTSRequestId})`)
+
+                // Clear the pending TTS request data
+                socketRef.current._pendingTTSRequestId = null
+                socketRef.current._ttsSettings = null
+              } else {
+                addConsoleLog('Socket not connected, cannot send TTS response', 'error')
+              }
+            })
+            addConsoleLog('✅ R1 TTS onSpeech handler set up', 'info')
           }
         } catch (ttsHandlerError) {
           addConsoleLog(`❌ Error setting up R1 TTS handlers: ${ttsHandlerError.message}`, 'error')
