@@ -279,4 +279,4 @@ describe('TTS Endpoint Tests', () => {
         res.send(Buffer.from('mock-audio-data'));
       }
     }, 100);
-  });
+  });});
