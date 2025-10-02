@@ -78,9 +78,9 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
 
   if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.textToSpeechAudio === 'function') {
     try {
-      // Use R1-Create 1.3.0 textToSpeechAudio method for better audio generation
+      // Use clean text directly without verbose instructions
       addLog(`🎵 Using R1-Create 1.3.0 textToSpeechAudio API for device playback`)
-      addLog(`🎵 Enhanced prompt: "${cleanText}"`)
+      addLog(`🎵 Text: "${cleanText}"`)
 
       const audioBlob = await r1CreateRef.current.llm.textToSpeechAudio(cleanText, {
         voice: voice,
@@ -130,13 +130,10 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
 
   if (r1CreateRef.current && r1CreateRef.current.messaging && typeof r1CreateRef.current.messaging.speakText === 'function') {
     try {
-            // Enhanced R1 prompting for better TTS quality
-      const enhancedPrompt = `Speak clearly and naturally: "${cleanText}". Use ${voiceDescription}. Speak at ${speed}x speed.`
-
       addLog(`🎵 Using R1-Create 1.3.0 textToSpeechAudio API for device playback`)
-      addLog(`🎵 Enhanced prompt: "${enhancedPrompt}"`)
+      addLog(`🎵 Text: "${cleanText}"`)
 
-      await r1CreateRef.current.messaging.speakText(enhancedPrompt)
+      await r1CreateRef.current.messaging.speakText(cleanText)
 
       // Generate simulated audio file data for API response
       addLog(`🎵 Generating audio file data for API response`)
@@ -184,13 +181,10 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
     }
   } else if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.textToSpeech === 'function') {
     try {
-      // Enhanced R1 prompting for better TTS quality
-      const enhancedPrompt = `Speak clearly and naturally: "${cleanText}". Use ${voiceDescription}. Speak at ${speed}x speed.`
-
       addLog('🔄 Using LLM.textToSpeech convenience method for device playback', 'warn')
-      addLog(`🎵 Enhanced prompt: "${enhancedPrompt}"`)
+      addLog(`🎵 Text: "${cleanText}"`)
 
-      await r1CreateRef.current.llm.textToSpeech(enhancedPrompt)
+      await r1CreateRef.current.llm.textToSpeech(cleanText)
 
       // Generate simulated audio file data for API response
       addLog(`🎵 Generating audio file data for API response`)
@@ -238,13 +232,10 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
     }
   } else if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.askLLMSpeak === 'function') {
     try {
-      // Enhanced R1 prompting for better TTS quality
-      const enhancedPrompt = `Speak clearly and naturally: "${cleanText}". Use ${voiceDescription}. Speak at ${speed}x speed.`
-
       addLog('🔄 Using LLM.askLLMSpeak for LLM-generated device speech', 'warn')
-      addLog(`🎵 Enhanced prompt: "${enhancedPrompt}"`)
+      addLog(`🎵 Text: "${cleanText}"`)
 
-      await r1CreateRef.current.llm.askLLMSpeak(enhancedPrompt)
+      await r1CreateRef.current.llm.askLLMSpeak(cleanText)
 
       // Generate simulated audio file data for API response
       addLog(`🎵 Generating audio file data for API response`)
