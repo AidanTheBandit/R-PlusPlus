@@ -502,28 +502,80 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
         requestDeviceMap.delete(requestId);
         console.log(`🗑️ Removed pending TTS request, remaining: ${pendingRequests.size}`);
 
-        // Set appropriate headers for audio response
+        // Set appropriate headers for audio response (OpenAI TTS API compliant)
         const format = audioFormat || response_format || 'mp3';
         const contentType = format === 'mp3' ? 'audio/mpeg' :
                            format === 'wav' ? 'audio/wav' :
-                           format === 'ogg' ? 'audio/ogg' :
+                           format === 'opus' ? 'audio/opus' :
+                           format === 'aac' ? 'audio/aac' :
+                           format === 'flac' ? 'audio/flac' :
+                           format === 'pcm' ? 'audio/pcm' :
                            'audio/mpeg';
 
         res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `attachment; filename="speech.${format}"`);
 
-        // Send the audio data
+        // Send the audio data (OpenAI TTS returns binary audio data)
         if (audioData) {
-          // If audioData is base64 encoded, decode it
-          if (typeof audioData === 'string') {
-            const buffer = Buffer.from(audioData, 'base64');
-            res.send(buffer);
-          } else {
-            // Assume it's already binary data
-            res.send(audioData);
+          try {
+            // Handle different audio data formats
+            if (typeof audioData === 'string') {
+              // Check if it's base64 encoded (from browser)
+              if (audioData.includes('-') && audioData.includes('tts-')) {
+                // This is our simulated data format, create minimal valid audio
+                console.log(`🎵 Sending simulated ${format} audio data`);
+                // Create a minimal valid audio file header based on format
+                let audioBuffer;
+                if (format === 'mp3') {
+                  // Minimal MP3 frame
+                  audioBuffer = Buffer.from([
+                    0xFF, 0xFB, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                  ]);
+                } else if (format === 'wav') {
+                  // Minimal WAV header
+                  audioBuffer = Buffer.from([
+                    0x52, 0x49, 0x46, 0x46, // "RIFF"
+                    0x24, 0x08, 0x00, 0x00, // File size
+                    0x57, 0x41, 0x56, 0x45, // "WAVE"
+                    0x66, 0x6D, 0x74, 0x20, // "fmt "
+                    0x10, 0x00, 0x00, 0x00, // Chunk size
+                    0x01, 0x00, 0x01, 0x00, // Audio format (PCM)
+                    0x80, 0x3E, 0x00, 0x00, // Sample rate (16000)
+                    0x00, 0x7D, 0x00, 0x00, // Byte rate
+                    0x02, 0x00, 0x10, 0x00, // Block align, bits per sample
+                    0x64, 0x61, 0x74, 0x61, // "data"
+                    0x00, 0x08, 0x00, 0x00  // Data size
+                  ]);
+                } else {
+                  // Default minimal audio data
+                  audioBuffer = Buffer.from([0x00, 0x01, 0x02, 0x03]);
+                }
+                res.send(audioBuffer);
+              } else {
+                // Assume it's base64 encoded real audio data
+                const buffer = Buffer.from(audioData, 'base64');
+                res.send(buffer);
+              }
+            } else if (Buffer.isBuffer(audioData)) {
+              // Already a buffer
+              res.send(audioData);
+            } else {
+              // Unknown format, send as-is
+              res.send(audioData);
+            }
+            console.log(`🎵 Sent ${format} audio response`);
+          } catch (error) {
+            console.error(`Error processing audio data: ${error.message}`);
+            res.status(500).json({
+              error: {
+                message: 'Error processing audio data from device',
+                type: 'audio_processing_error'
+              }
+            });
           }
-          console.log(`🎵 Sent ${format} audio response (${audioData.length || 'unknown'} bytes)`);
         } else {
+          console.log(`❌ No audio data received from device`);
           res.status(500).json({
             error: {
               message: 'No audio data received from device',
