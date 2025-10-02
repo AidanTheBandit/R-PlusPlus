@@ -4,6 +4,7 @@ const TabNavigation = ({ activeTab, onTabChange }) => {
   const tabs = [
     { id: 'chat', label: '💬 Chat', description: 'Chat with your R1 device' },
     { id: 'speech', label: '🎵 Speech', description: 'Test text-to-speech functionality' },
+    { id: 'image', label: '🖼️ Image Analysis', description: 'Test image analysis and AI vision' },
     //{ id: 'phone', label: '📱 SMS', description: 'Link phone numbers for SMS control' },
     { id: 'api-docs', label: '📚 API Docs', description: 'View API documentation and endpoints' },
     { id: 'mcp', label: '🔌 MCP Servers', description: 'Manage MCP servers for your device' }
