@@ -105,10 +105,15 @@ function setupTwilioRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       res.status(500).json({ error: 'Failed to unlink phone number' });
     }
   });
-  app.post('/sms-webhook', async (req, res) => {
+  app.post('/sms-webhook', express.urlencoded({ extended: true }), async (req, res) => {
+    console.log('SMS webhook received:', { body: req.body, headers: req.headers });
+
     const { From: fromNumber, Body: message } = req.body;
 
-    console.log('SMS webhook received:', { fromNumber, message: message?.substring(0, 100), body: req.body });
+    if (!fromNumber || !message) {
+      console.error('Missing From or Body in SMS webhook:', req.body);
+      return res.status(400).send('Bad Request - Missing required fields');
+    }
 
     try {
       // Check if phone is linked and verified

@@ -179,10 +179,10 @@ describe('TTS Endpoint Tests', () => {
     expect(response.body.error.message).toContain('PIN code required');
   });
 
-  test('should accept valid PIN for TTS', (done) => {
-    // Mock device with PIN required
+  test('should accept custom model names', (done) => {
+    // Mock device as connected
     mockDeviceIdManager.hasDevice.mockReturnValue(true);
-    mockDeviceIdManager.getDeviceInfoFromDB.mockResolvedValue({ pin_code: '123456' });
+    mockDeviceIdManager.getDeviceInfoFromDB.mockResolvedValue({ pin_code: null });
 
     // Create a mock socket
     const mockSocket = {
@@ -194,16 +194,27 @@ describe('TTS Endpoint Tests', () => {
 
     request(app)
       .post('/test-device/v1/audio/speech')
-      .set('Authorization', 'Bearer 123456')
       .set('x-test-request', 'true')
       .send({
-        input: 'Hello world'
+        input: 'Hello world',
+        model: 'gpt-4o-mini-tts', // Custom model name
+        voice: 'alloy',
+        response_format: 'mp3',
+        speed: 1.0
       })
       .end((err, response) => {
         if (err) return done(err);
 
-        // Should accept the request
+        // Should accept the request with custom model
         expect(response.status).toBe(200);
+
+        // Check that socket.emit was called with the custom model
+        expect(mockSocket.emit).toHaveBeenCalledWith('text_to_speech', expect.objectContaining({
+          type: 'text_to_speech',
+          data: expect.objectContaining({
+            model: 'gpt-4o-mini-tts'
+          })
+        }));
 
         done();
       });
@@ -218,4 +229,54 @@ describe('TTS Endpoint Tests', () => {
       }
     }, 100);
   });
-});
+
+  test('should accept ElevenLabs voices', (done) => {
+    // Mock device as connected
+    mockDeviceIdManager.hasDevice.mockReturnValue(true);
+    mockDeviceIdManager.getDeviceInfoFromDB.mockResolvedValue({ pin_code: null });
+
+    // Create a mock socket
+    const mockSocket = {
+      emit: jest.fn(),
+      id: 'socket123',
+      connected: true
+    };
+    mockConnectedR1s.set('test-device', mockSocket);
+
+    request(app)
+      .post('/test-device/v1/audio/speech')
+      .set('x-test-request', 'true')
+      .send({
+        input: 'Hello world',
+        model: 'tts-1',
+        voice: 'adam', // ElevenLabs voice
+        response_format: 'mp3',
+        speed: 1.0
+      })
+      .end((err, response) => {
+        if (err) return done(err);
+
+        // Should accept the request with ElevenLabs voice
+        expect(response.status).toBe(200);
+
+        // Check that socket.emit was called with the ElevenLabs voice
+        expect(mockSocket.emit).toHaveBeenCalledWith('text_to_speech', expect.objectContaining({
+          type: 'text_to_speech',
+          data: expect.objectContaining({
+            voice: 'adam'
+          })
+        }));
+
+        done();
+      });
+
+    // Manually resolve the pending TTS request
+    setTimeout(() => {
+      const requestId = mockSocket.emit.mock.calls[0][1].data.requestId;
+      if (mockPendingRequests.has(requestId)) {
+        const { res } = mockPendingRequests.get(requestId);
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.send(Buffer.from('mock-audio-data'));
+      }
+    }, 100);
+  });

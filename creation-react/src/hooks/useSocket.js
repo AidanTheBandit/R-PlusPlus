@@ -196,6 +196,28 @@ export function useSocket(addConsoleLog, sendErrorToServer) {
 
     // Handle incoming text-to-speech requests
     socketRef.current.on('text_to_speech', (data) => {
+      const requestId = data.requestId || data.data?.requestId
+      const eventKey = `tts-${requestId}`
+
+      // Prevent duplicate processing of the same TTS request
+      if (socketRef.current._processedTTSEvents && socketRef.current._processedTTSEvents.has(eventKey)) {
+        addConsoleLog(`🚫 Skipping duplicate TTS event: ${requestId}`)
+        return
+      }
+
+      // Initialize processed events tracker if needed
+      if (!socketRef.current._processedTTSEvents) {
+        socketRef.current._processedTTSEvents = new Set()
+      }
+      socketRef.current._processedTTSEvents.add(eventKey)
+
+      // Clean up old events after 30 seconds
+      setTimeout(() => {
+        if (socketRef.current._processedTTSEvents) {
+          socketRef.current._processedTTSEvents.delete(eventKey)
+        }
+      }, 30000)
+
       addConsoleLog(`🎵🎵🎵 TEXT-TO-SPEECH EVENT RECEIVED! 🎵🎵🎵`, 'info')
       addConsoleLog(`📥 Received TTS request: ${JSON.stringify(data, null, 2)}`)
 

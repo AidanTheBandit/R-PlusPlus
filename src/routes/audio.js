@@ -40,28 +40,44 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
         });
       }
 
-      // Validate model parameter
-      const validModels = ['tts-1', 'tts-1-hd'];
-      if (!validModels.includes(model)) {
+      // Validate model parameter - be permissive, accept any model name
+      // This allows for custom models like "gpt-4o-mini-tts" or other TTS models
+      if (!model || typeof model !== 'string' || model.trim().length === 0) {
         return res.status(400).json({
           error: {
-            message: `Invalid model: ${model}. Supported models: ${validModels.join(', ')}`,
+            message: 'Model parameter must be a non-empty string',
             type: 'invalid_request_error',
             param: 'model'
           }
         });
       }
 
-      // Validate voice parameter
-      const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-      if (!validVoices.includes(voice)) {
+      // Validate voice parameter - support both OpenAI and ElevenLabs voices
+      const openAIVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+      const elevenLabsVoices = [
+        'adam', 'antoni', 'arnold', 'bella', 'domi', 'elli', 'josh', 'rachel', 'sam',
+        'adam_onnx', 'antoni_onnx', 'arnold_onnx', 'bella_onnx', 'domi_onnx', 'elli_onnx', 'josh_onnx', 'rachel_onnx', 'sam_onnx',
+        '21m00tcm4tcm05', '29vD33pUPOjHqjUhCw', '2EiwWnXFnvU5JabPnv8n', '5QlozMw6BCG9V7kF', 'AZnzlk1XvdvUeBnXmlld',
+        'EXAVITQu4vr4xnSDxMaL', 'ErXwobaYiN019PkySvjV', 'MF3mGyEYCl7XYWbV9V6O', 'TxGEqnHWrfWFTfGW9XjX',
+        'VR6AewLTigWG4xSOukaG', 'pNInz6obpgDQGcFmaJgB', 'yoZ06aMxZJJ28mfd3POQ', 'zwPf7U9Gk5Xz5t8Ld1wK'
+      ];
+
+      const allValidVoices = [...openAIVoices, ...elevenLabsVoices];
+
+      if (!voice || typeof voice !== 'string' || voice.trim().length === 0) {
         return res.status(400).json({
           error: {
-            message: `Invalid voice: ${voice}. Supported voices: ${validVoices.join(', ')}`,
+            message: 'Voice parameter must be a non-empty string',
             type: 'invalid_request_error',
             param: 'voice'
           }
         });
+      }
+
+      // Log if using ElevenLabs voice for debugging
+      const isElevenLabsVoice = elevenLabsVoices.includes(voice.toLowerCase());
+      if (isElevenLabsVoice) {
+        console.log(`🎭 Using ElevenLabs voice: ${voice}`);
       }
 
       // Validate response_format parameter
@@ -96,7 +112,7 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
         });
 
       if (existingTTSRequests.length > 0) {
-        console.log(`❌ Device ${targetDeviceId} already has ${existingTTSRequests.length} pending TTS request(s)`);
+        console.log(`❌ Device ${targetDeviceId} already has ${existingTTSRequests.length} pending TTS request(s): ${existingTTSRequests.map(([id]) => id).join(', ')}`);
         return res.status(429).json({
           error: {
             message: 'Device is currently processing another speech request. Please wait for it to complete.',
@@ -107,8 +123,9 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
 
       console.log(`📊 Current pending requests: ${pendingRequests.size}`);
 
-      // Generate unique request ID
+      // Generate unique request ID with timestamp for better uniqueness
       const requestId = `tts-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      console.log(`🎯 Generated request ID: ${requestId}`);
 
       // Check if this is a test request (skip timeouts)
       const isTestRequest = req.headers['x-test-request'] === 'true';
@@ -133,7 +150,34 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
       pendingRequests.set(requestId, { res, timeout, isTTS: true, response_format });
 
       // Build enhanced TTS command for R1 device with better prompting
-      const enhancedText = `Please speak the following text clearly and naturally: "${input}". Use a ${voice} voice style. Speak at ${speed}x speed.`;
+      const getVoiceDescription = (voiceName) => {
+        const voice = voiceName.toLowerCase();
+
+        // OpenAI voices
+        if (voice === 'alloy') return 'a clear and friendly female voice';
+        if (voice === 'echo') return 'a deep and resonant male voice';
+        if (voice === 'fable') return 'a warm and engaging storytelling voice';
+        if (voice === 'onyx') return 'a powerful and authoritative male voice';
+        if (voice === 'nova') return 'a youthful and energetic female voice';
+        if (voice === 'shimmer') return 'a bright and cheerful female voice';
+
+        // ElevenLabs voices - provide descriptive styles
+        if (voice.includes('adam')) return 'a deep and professional male voice';
+        if (voice.includes('antoni')) return 'a warm and conversational male voice';
+        if (voice.includes('arnold')) return 'a strong and confident male voice';
+        if (voice.includes('bella')) return 'a gentle and melodic female voice';
+        if (voice.includes('domi')) return 'a youthful and expressive female voice';
+        if (voice.includes('elli')) return 'a bright and enthusiastic female voice';
+        if (voice.includes('josh')) return 'a friendly and approachable male voice';
+        if (voice.includes('rachel')) return 'a sophisticated and articulate female voice';
+        if (voice.includes('sam')) return 'a calm and reassuring male voice';
+
+        // Default fallback for unknown voices
+        return `a ${voice} voice style`;
+      };
+
+      const voiceDescription = getVoiceDescription(voice);
+      const enhancedText = `Please speak the following text clearly and naturally: "${input}". Use ${voiceDescription}. Speak at ${speed}x speed.`;
 
       const command = {
         type: 'text_to_speech',
