@@ -1,4 +1,5 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
+const fetch = require('node-fetch');
 
 function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
   // Device-specific endpoints: /device-{deviceId}/v1/chat/completions (legacy format)
@@ -365,24 +366,72 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
       console.log(`📊 Current pending requests: ${pendingRequests.size}`);
 
-      // Extract the latest user message
+      // Extract the latest user message and check for images
       const userMessage = messages[messages.length - 1]?.content || '';
+      let imageBase64 = null;
+      let pluginId = null;
+
+      // Check if the message contains image data (R1 Create SDK format)
+      if (messages[messages.length - 1]?.imageBase64) {
+        imageBase64 = messages[messages.length - 1].imageBase64;
+        console.log(`📸 Image base64 data detected in message (${imageBase64.length} chars)`);
+      }
+
+      // Check if the message contains an image URL that needs to be converted to base64
+      if (!imageBase64 && messages[messages.length - 1]?.imageUrl) {
+        const imageUrl = messages[messages.length - 1].imageUrl;
+        console.log(`🌐 Image URL detected, converting to base64: ${imageUrl}`);
+
+        try {
+          // Fetch the image from the URL
+          const response = await fetch(imageUrl);
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+          }
+
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.startsWith('image/')) {
+            throw new Error(`URL does not point to a valid image: ${contentType}`);
+          }
+
+          const imageBuffer = await response.buffer();
+          imageBase64 = imageBuffer.toString('base64');
+          console.log(`✅ Successfully converted image URL to base64 (${imageBase64.length} chars)`);
+        } catch (error) {
+          console.error(`❌ Failed to convert image URL to base64:`, error.message);
+          // Continue without image data rather than failing the request
+          console.log(`⚠️ Continuing request without image data`);
+        }
+      }
+
+      // Check for plugin ID
+      if (messages[messages.length - 1]?.pluginId) {
+        pluginId = messages[messages.length - 1].pluginId;
+        console.log(`🔌 Plugin ID detected: ${pluginId}`);
+      }
 
       // Generate unique request ID
       const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Set up timeout for request
-      const timeout = setTimeout(() => {
-        console.log(`⏰ Request ${requestId} timed out after 30 seconds`);
-        pendingRequests.delete(requestId);
-        requestDeviceMap.delete(requestId);
-        res.status(504).json({
-          error: {
-            message: 'Request timeout - R1 device did not respond within 30 seconds',
-            type: 'timeout'
-          }
-        });
-      }, 30000);
+      // Check if this is a test request (skip timeouts)
+      const isTestRequest = req.headers['x-test-request'] === 'true';
+
+      let timeout;
+      if (!isTestRequest) {
+        // Set up timeout for request
+        timeout = setTimeout(() => {
+          console.log(`⏰ Request ${requestId} timed out after 30 seconds`);
+          pendingRequests.delete(requestId);
+          requestDeviceMap.delete(requestId);
+          res.status(504).json({
+            error: {
+              message: 'Request timeout - R1 device did not respond within 30 seconds',
+              type: 'timeout'
+            }
+          });
+        }, 30000);
+      }
 
       // Store the request for response handling
       pendingRequests.set(requestId, { res, timeout, stream, response_format });
@@ -566,7 +615,9 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
           max_tokens,
           response_format,
           requestId,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          ...(imageBase64 && { imageBase64 }),
+          ...(pluginId && { pluginId })
         }
       };
 

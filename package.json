@@ -14,11 +14,14 @@
     "all": "npm run build-all && npm start",
     "check-builds": "node scripts/check-builds.js",
     "test-blacklist": "node scripts/test-blacklist.js",
-    "test-server": "node scripts/test-server.js",
-    "test-mcp": "node scripts/test-mcp-prompt-injection.js",
-    "test-mcp-remote": "node scripts/test-mcp-remote.js",
+    "test-deepwiki": "node scripts/test-deepwiki.js",
     "test-mcp-comprehensive": "node scripts/test-mcp-comprehensive.js",
+    "test-mcp-prompt-injection": "node scripts/test-mcp-prompt-injection.js",
+    "test-mcp-reconnection": "node scripts/test-mcp-reconnection.js",
+    "test-mcp-remote": "node scripts/test-mcp-remote.js",
+    "test-server": "node scripts/test-server.js",
     "test": "npm run test-blacklist && npm run test-server && npm run test-mcp && npm run test-mcp-remote && npm run test-mcp-comprehensive",
+    "test-unit": "jest",
     "virtual-r1": "node virtual-r1.js",
     "test-virtual-r1": "node test-virtual-r1.js"
   },
@@ -49,5 +52,9 @@
     "vite": "^6.3.6",
     "ws": "^8.18.3",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }
