@@ -177,12 +177,13 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
       };
 
       const voiceDescription = getVoiceDescription(voice);
-      const enhancedText = `Please speak the following text clearly and naturally: "${input}". Use ${voiceDescription}. Speak at ${speed}x speed.`;
+      // Use the original input text directly without verbose instructions
+      const textToSpeak = input;
 
       const command = {
         type: 'text_to_speech',
         data: {
-          text: enhancedText,
+          text: textToSpeak,
           originalText: input,
           model,
           voice,
