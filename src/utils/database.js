@@ -185,6 +185,10 @@ class DatabaseManager {
   // Run a SQL query
   run(sql, params = []) {
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database connection is closed'));
+        return;
+      }
       this.db.run(sql, params, function(err) {
         if (err) {
           reject(err);
@@ -198,6 +202,10 @@ class DatabaseManager {
   // Get a single row
   get(sql, params = []) {
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database connection is closed'));
+        return;
+      }
       this.db.get(sql, params, (err, row) => {
         if (err) {
           reject(err);
@@ -211,6 +219,10 @@ class DatabaseManager {
   // Get all rows
   all(sql, params = []) {
     return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database connection is closed'));
+        return;
+      }
       this.db.all(sql, params, (err, rows) => {
         if (err) {
           reject(err);

@@ -50,7 +50,8 @@ const mcpManager = new MCPManager(database, deviceIdManager);
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '100mb' })); // Increased limit for large image uploads
+app.use(express.urlencoded({ limit: '100mb', extended: true })); // For form data
 
 // Trust proxy for Cloudflare Tunnel
 app.set('trust proxy', 1);
@@ -851,7 +852,13 @@ async function gracefulShutdown(signal) {
     // Close database connection
     if (database) {
       try {
-        database.close();
+        // Close database connection asynchronously
+        const dbClosePromise = new Promise((resolve) => {
+          database.close();
+          // Give it a moment to close
+          setTimeout(resolve, 100);
+        });
+        await dbClosePromise;
         console.log('✅ Database connection closed');
       } catch (error) {
         console.log('⚠️ Database close error, continuing...');
