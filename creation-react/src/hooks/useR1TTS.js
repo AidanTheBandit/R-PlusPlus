@@ -11,6 +11,13 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
   addLog(`🎵 Text to speak: "${textToSpeak?.substring(0, 50)}${textToSpeak?.length > 50 ? '...' : ''}"`)
   addLog(`🎵 Settings: model=${model}, voice=${voice}, format=${responseFormat}, speed=${speed}x`)
 
+  // Helper function to create base64 encoded audio data (browser-compatible)
+  const createSimulatedAudioData = (prefix) => {
+    const dataString = `${prefix}-${model}-${voice}-${responseFormat}-${Date.now()}`
+    // Use btoa for browser-compatible base64 encoding
+    return typeof btoa !== 'undefined' ? btoa(dataString) : dataString
+  }
+
   if (r1CreateRef.current && r1CreateRef.current.messaging && typeof r1CreateRef.current.messaging.speakText === 'function') {
     try {
       // Use R1 SDK messaging.speakText for device playback (local audio)
@@ -19,7 +26,7 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
 
       // Generate simulated audio file data for API response
       addLog(`🎵 Generating audio file data for API response`)
-      const simulatedAudioData = Buffer.from(`tts-${model}-${voice}-${responseFormat}-${Date.now()}`).toString('base64')
+      const simulatedAudioData = createSimulatedAudioData('tts')
 
       // Send immediate TTS response with audio data
       const ttsResponseData = {
@@ -57,7 +64,7 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
 
       // Generate simulated audio file data for API response
       addLog(`🎵 Generating audio file data for API response`)
-      const simulatedAudioData = Buffer.from(`tts-${model}-${voice}-${responseFormat}-${Date.now()}`).toString('base64')
+      const simulatedAudioData = createSimulatedAudioData('tts')
 
       // Send immediate TTS response with audio data
       const ttsResponseData = {
@@ -95,7 +102,7 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
 
       // Generate simulated audio file data for API response
       addLog(`🎵 Generating audio file data for API response`)
-      const simulatedAudioData = Buffer.from(`tts-${model}-${voice}-${responseFormat}-${Date.now()}`).toString('base64')
+      const simulatedAudioData = createSimulatedAudioData('tts')
 
       // Send immediate TTS response with audio data
       const ttsResponseData = {
@@ -129,7 +136,7 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
     addLog('❌ No working R1 SDK TTS APIs available - using basic fallback simulation', 'warn')
 
     // Basic fallback simulation - just return simulated audio data
-    const simulatedAudioData = Buffer.from(`fallback-${model}-${voice}-${responseFormat}-${Date.now()}`).toString('base64')
+    const simulatedAudioData = createSimulatedAudioData('fallback')
 
     addLog(`🤖 Basic TTS simulation for: "${textToSpeak?.substring(0, 30)}..."`, 'info')
 
