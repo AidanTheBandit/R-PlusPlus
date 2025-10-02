@@ -5,7 +5,7 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
   const r1CreateRef = useRef(null)
 
   // Handle text-to-speech requests from socket
-  const handleTextToSpeech = async (data, socket, addLog, sendError) => {
+  const handleTextToSpeech = (data, socket, addLog, sendError) => {
     const currentRequestId = data.requestId || data.data?.requestId
     const textToSpeak = data.text || data.data?.text
     const model = data.model || data.data?.model || 'tts-1'
@@ -20,13 +20,12 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
     if (r1CreateRef.current && r1CreateRef.current.messaging) {
       try {
         // Use R1 SDK messaging API for text-to-speech
-        addLog(`🎵 Using R1 messaging.speakText() for TTS`)
-        await r1CreateRef.current.messaging.speakText(textToSpeak, {
+        addLog(`🎵 Using R1 messaging.speakText API for TTS`)
+        r1CreateRef.current.messaging.speakText(textToSpeak, {
           model: model,
           voice: voice,
           responseFormat: responseFormat,
-          speed: speed,
-          requestId: currentRequestId
+          speed: speed
         })
 
         // Store the requestId for when we get the audio response
@@ -47,25 +46,25 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
 
       } catch (error) {
         addLog(`R1 SDK messaging TTS error: ${error.message}`, 'error')
-        addLog(`R1 SDK messaging TTS error stack: ${error.stack}`, 'error')
+        addLog(`R1 SDK TTS error stack: ${error.stack}`, 'error')
         socket.emit('tts_error', {
           requestId: currentRequestId,
-          error: `R1 SDK messaging TTS error: ${error.message}`,
+          error: `R1 SDK TTS error: ${error.message}`,
           deviceId: socket._deviceId
         })
-        sendError('error', `R1 SDK messaging TTS failed: ${error.message}`)
+        sendError('error', `R1 SDK TTS failed: ${error.message}`)
+        return // Exit early on error
       }
     } else if (r1CreateRef.current && r1CreateRef.current.llm) {
-      // Fallback: Use LLM textToSpeech method if messaging API not available
       try {
-        addLog('🔄 Messaging API not available, using LLM textToSpeech fallback for TTS', 'warn')
+        // Fallback: Use LLM textToSpeech method
+        addLog('🔄 Messaging API not available, using LLM.textToSpeech fallback for TTS', 'warn')
 
-        await r1CreateRef.current.llm.textToSpeech(textToSpeak, {
+        r1CreateRef.current.llm.textToSpeech(textToSpeak, {
           model: model,
           voice: voice,
           responseFormat: responseFormat,
-          speed: speed,
-          requestId: currentRequestId
+          speed: speed
         })
 
         // Store the requestId for when we get the audio response
@@ -86,12 +85,14 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
 
       } catch (error) {
         addLog(`R1 SDK LLM TTS error: ${error.message}`, 'error')
+        addLog(`R1 SDK LLM TTS error stack: ${error.stack}`, 'error')
         socket.emit('tts_error', {
           requestId: currentRequestId,
           error: `R1 SDK LLM TTS error: ${error.message}`,
           deviceId: socket._deviceId
         })
         sendError('error', `R1 SDK LLM TTS failed: ${error.message}`)
+        return // Exit early on error
       }
     } else {
       addLog('❌ R1 SDK messaging/LLM not available - using basic fallback simulation', 'warn')
@@ -118,6 +119,13 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
           addLog(`📤 Sending basic TTS simulation: ${JSON.stringify(ttsResponseData, null, 2)}`)
           socket.emit('tts_response', ttsResponseData)
           addLog(`✅ Sent basic TTS simulation via socket`)
+        } else {
+          addLog('❌ Socket not connected for TTS fallback response', 'error')
+          socket.emit('tts_error', {
+            requestId: currentRequestId,
+            error: 'Socket disconnected during TTS processing',
+            deviceId: socket._deviceId
+          })
         }
       }, 1000) // 1 second delay
     }
