@@ -38,16 +38,20 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
         });
       }
 
-      // Check if target device already has a pending request
-      const existingRequests = Array.from(requestDeviceMap.entries())
-        .filter(([_, deviceId]) => deviceId === targetDeviceId);
+      // Check if target device already has a pending TTS request
+      const existingTTSRequests = Array.from(requestDeviceMap.entries())
+        .filter(([_, deviceId]) => deviceId === targetDeviceId)
+        .filter(([requestId]) => {
+          const request = pendingRequests.get(requestId);
+          return request && request.isTTS; // Only count TTS requests
+        });
 
-      if (existingRequests.length > 0) {
-        console.log(`❌ Device ${targetDeviceId} already has ${existingRequests.length} pending request(s)`);
+      if (existingTTSRequests.length > 0) {
+        console.log(`❌ Device ${targetDeviceId} already has ${existingTTSRequests.length} pending TTS request(s)`);
         return res.status(429).json({
           error: {
-            message: 'Device is currently processing another request. Please wait for it to complete.',
-            type: 'device_busy'
+            message: 'Device is currently processing another speech request. Please wait for it to complete.',
+            type: 'device_busy_tts'
           }
         });
       }
