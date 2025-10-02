@@ -467,11 +467,71 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
       }
     });
 
+    // Handle TTS response events from R1 devices
+    socket.on('tts_response', (data) => {
+      console.log(`🔊 TTS Response received`);
+
+      const { requestId, audioData, audioFormat, timestamp } = data;
+
+      console.log(`Looking for pending TTS request: ${requestId}`);
+
+      // Only process responses with valid request IDs to prevent cross-contamination
+      if (requestId && pendingRequests.has(requestId)) {
+        console.log(`✅ Found matching TTS request, sending audio response to client`);
+        const { res, timeout, isTTS, response_format } = pendingRequests.get(requestId);
+
+        // Verify this request was actually sent to this device
+        const expectedDeviceId = requestDeviceMap.get(requestId);
+        if (expectedDeviceId !== deviceId) {
+          console.log(`❌ Security violation: TTS response from wrong device`);
+          return;
+        }
+
+        // Clear timeout and remove from pending requests
+        clearTimeout(timeout);
+        pendingRequests.delete(requestId);
+        requestDeviceMap.delete(requestId);
+        console.log(`🗑️ Removed pending TTS request, remaining: ${pendingRequests.size}`);
+
+        // Set appropriate headers for audio response
+        const format = audioFormat || response_format || 'mp3';
+        const contentType = format === 'mp3' ? 'audio/mpeg' :
+                           format === 'wav' ? 'audio/wav' :
+                           format === 'ogg' ? 'audio/ogg' :
+                           'audio/mpeg';
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="speech.${format}"`);
+
+        // Send the audio data
+        if (audioData) {
+          // If audioData is base64 encoded, decode it
+          if (typeof audioData === 'string') {
+            const buffer = Buffer.from(audioData, 'base64');
+            res.send(buffer);
+          } else {
+            // Assume it's already binary data
+            res.send(audioData);
+          }
+          console.log(`🎵 Sent ${format} audio response (${audioData.length || 'unknown'} bytes)`);
+        } else {
+          res.status(500).json({
+            error: {
+              message: 'No audio data received from device',
+              type: 'no_audio_data'
+            }
+          });
+        }
+      } else {
+        console.log(`❌ No matching TTS requests found for response`);
+      }
+    });
+
     // Handle error events from R1 devices
     socket.on('error', (data) => {
       console.error(`Error from device:`, data);
 
-      const { requestId, error } = data;
+      const { requestId, error, type } = data;
 
       // Only process errors with valid request IDs to prevent cross-contamination
       if (requestId && pendingRequests.has(requestId)) {
@@ -482,20 +542,30 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
           return;
         }
 
-        const { res, timeout } = pendingRequests.get(requestId);
+        const { res, timeout, isTTS } = pendingRequests.get(requestId);
 
         // Clear timeout and remove from pending requests
         clearTimeout(timeout);
         pendingRequests.delete(requestId);
         requestDeviceMap.delete(requestId);
 
-        // Send error response
-        res.status(500).json({
-          error: {
-            message: error || 'Error from R1 device',
-            type: 'r1_error'
-          }
-        });
+        // Send appropriate error response based on request type
+        if (isTTS) {
+          res.status(500).json({
+            error: {
+              message: error || 'TTS error from R1 device',
+              type: 'tts_error'
+            }
+          });
+        } else {
+          // Send error response
+          res.status(500).json({
+            error: {
+              message: error || 'Error from R1 device',
+              type: 'r1_error'
+            }
+          });
+        }
       }
     });
 
