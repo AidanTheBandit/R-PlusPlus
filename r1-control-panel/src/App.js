@@ -4,6 +4,7 @@ import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
 import SpeechTest from './components/SpeechTest';
+import ImageTest from './components/ImageTest';
 import ApiDocs from './components/ApiDocs';
 import PhoneLink from './components/PhoneLink';
 import Apps from './components/Apps';
@@ -108,6 +109,8 @@ function App() {
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
       case 'speech':
         return <SpeechTest deviceId={deviceId} pinCode={pinCode} />;
+      case 'image':
+        return <ImageTest deviceId={deviceId} pinCode={pinCode} />;
       case 'phone':
         return <PhoneLink deviceId={deviceId} />;
       case 'api-docs':

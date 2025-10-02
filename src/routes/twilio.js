@@ -1,4 +1,5 @@
 const twilio = require('twilio');
+const express = require('express');
 
 // Initialize Twilio client if credentials are available
 let twilioClient = null;
