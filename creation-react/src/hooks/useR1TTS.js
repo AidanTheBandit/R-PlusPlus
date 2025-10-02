@@ -42,18 +42,98 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
   const cleanTTSText = (text) => {
     // Remove any existing instructions and focus on the core text
     return text.replace(/^Please speak the following text clearly and naturally:\s*"/, '')
-                 .replace(/"\. Use a .* voice style\. Speak at .* speed\.$/, '')
-                 .trim()
+               .replace(/"\. Use a .* voice style\. Speak at .* speed\.$/, '')
+               .trim()
+  }
+
+  // Helper function to get voice style description
+  const getVoiceStyleDescription = (voiceName) => {
+    const voice = voiceName.toLowerCase();
+
+    // OpenAI voices
+    if (voice === 'alloy') return 'a clear and friendly female voice';
+    if (voice === 'echo') return 'a deep and resonant male voice';
+    if (voice === 'fable') return 'a warm and engaging storytelling voice';
+    if (voice === 'onyx') return 'a powerful and authoritative male voice';
+    if (voice === 'nova') return 'a youthful and energetic female voice';
+    if (voice === 'shimmer') return 'a bright and cheerful female voice';
+
+    // ElevenLabs voices - provide descriptive styles
+    if (voice.includes('adam')) return 'a deep and professional male voice';
+    if (voice.includes('antoni')) return 'a warm and conversational male voice';
+    if (voice.includes('arnold')) return 'a strong and confident male voice';
+    if (voice.includes('bella')) return 'a gentle and melodic female voice';
+    if (voice.includes('domi')) return 'a youthful and expressive female voice';
+    if (voice.includes('elli')) return 'a bright and enthusiastic female voice';
+    if (voice.includes('josh')) return 'a friendly and approachable male voice';
+    if (voice.includes('rachel')) return 'a sophisticated and articulate female voice';
+    if (voice.includes('sam')) return 'a calm and reassuring male voice';
+
+    // Default fallback for unknown voices
+    return `a ${voice} voice style`;
   }
 
   const cleanText = cleanTTSText(textToSpeak)
+  const voiceDescription = getVoiceStyleDescription(voice)
+
+  if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.textToSpeechAudio === 'function') {
+    try {
+      // Use R1-Create 1.3.0 textToSpeechAudio method for better audio generation
+      addLog(`🎵 Using R1-Create 1.3.0 textToSpeechAudio API for device playback`)
+      addLog(`🎵 Enhanced prompt: "${cleanText}"`)
+
+      const audioBlob = await r1CreateRef.current.llm.textToSpeechAudio(cleanText, {
+        voice: voice,
+        rate: speed,
+        volume: 0.8
+      })
+
+      if (audioBlob) {
+        addLog(`🎵 Generated audio blob: ${audioBlob.size} bytes`)
+
+        // Convert blob to base64 for API response
+        const arrayBuffer = await audioBlob.arrayBuffer()
+        const uint8Array = new Uint8Array(arrayBuffer)
+        const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('')
+        const simulatedAudioData = btoa(binaryString)
+
+        // Send immediate TTS response with audio data
+        const ttsResponseData = {
+          requestId: currentRequestId,
+          audioData: simulatedAudioData,
+          audioFormat: responseFormat,
+          model: model,
+          voice: voice,
+          speed: speed,
+          timestamp: new Date().toISOString(),
+          deviceId: socket._deviceId
+        }
+
+        addLog(`📤 Sending TTS response with audio blob data: ${simulatedAudioData.length} chars`)
+        socket.emit('tts_response', ttsResponseData)
+        addLog(`✅ Sent TTS response via socket`)
+
+        // Clean up processing tracker
+        if (window._processingTTSRequests) {
+          window._processingTTSRequests.delete(processingKey)
+        }
+
+        return // Exit early since we sent the response
+      } else {
+        addLog(`⚠️ textToSpeechAudio returned null, falling back to speakText`)
+      }
+    } catch (error) {
+      addLog(`R1-Create textToSpeechAudio error: ${error.message}`, 'error')
+      addLog(`Falling back to speakText method`)
+    }
+  }
 
   if (r1CreateRef.current && r1CreateRef.current.messaging && typeof r1CreateRef.current.messaging.speakText === 'function') {
     try {
-      // Enhanced R1 prompting for better TTS quality
-      const enhancedPrompt = `Speak clearly and naturally: "${cleanText}". Use a conversational ${voice} voice at ${speed}x speed.`
+            // Enhanced R1 prompting for better TTS quality
+      const enhancedPrompt = `Speak clearly and naturally: "${cleanText}". Use ${voiceDescription}. Speak at ${speed}x speed.`
 
-      addLog(`🎵 Using R1 messaging.speakText API for device playback`)
+      addLog(`🎵 Using R1-Create 1.3.0 textToSpeechAudio API for device playback`)
       addLog(`🎵 Enhanced prompt: "${enhancedPrompt}"`)
 
       await r1CreateRef.current.messaging.speakText(enhancedPrompt)
@@ -105,7 +185,7 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
   } else if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.textToSpeech === 'function') {
     try {
       // Enhanced R1 prompting for better TTS quality
-      const enhancedPrompt = `Speak clearly and naturally: "${cleanText}". Use a conversational ${voice} voice at ${speed}x speed.`
+      const enhancedPrompt = `Speak clearly and naturally: "${cleanText}". Use ${voiceDescription}. Speak at ${speed}x speed.`
 
       addLog('🔄 Using LLM.textToSpeech convenience method for device playback', 'warn')
       addLog(`🎵 Enhanced prompt: "${enhancedPrompt}"`)
@@ -159,7 +239,7 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
   } else if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.askLLMSpeak === 'function') {
     try {
       // Enhanced R1 prompting for better TTS quality
-      const enhancedPrompt = `Speak clearly and naturally: "${cleanText}". Use a conversational ${voice} voice at ${speed}x speed.`
+      const enhancedPrompt = `Speak clearly and naturally: "${cleanText}". Use ${voiceDescription}. Speak at ${speed}x speed.`
 
       addLog('🔄 Using LLM.askLLMSpeak for LLM-generated device speech', 'warn')
       addLog(`🎵 Enhanced prompt: "${enhancedPrompt}"`)
