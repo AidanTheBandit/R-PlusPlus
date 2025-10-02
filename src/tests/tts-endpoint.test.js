@@ -75,11 +75,12 @@ describe('TTS Endpoint Tests', () => {
         expect(mockSocket.emit).toHaveBeenCalledWith('text_to_speech', expect.objectContaining({
           type: 'text_to_speech',
           data: expect.objectContaining({
-            text: 'Hello world',
+            originalText: 'Hello world',
             model: 'tts-1',
             voice: 'alloy',
             response_format: 'mp3',
-            speed: 1.0
+            speed: 1.0,
+            text: expect.stringContaining('Hello world') // Enhanced text contains original
           })
         }));
 
@@ -109,7 +110,7 @@ describe('TTS Endpoint Tests', () => {
       });
 
     expect(response.status).toBe(400);
-    expect(response.body.error.message).toContain('Input text is required');
+    expect(response.body.error.message).toContain('The input field is required');
   });
 
   test('should use default values for optional parameters', (done) => {
@@ -141,11 +142,12 @@ describe('TTS Endpoint Tests', () => {
         expect(mockSocket.emit).toHaveBeenCalledWith('text_to_speech', expect.objectContaining({
           type: 'text_to_speech',
           data: expect.objectContaining({
-            text: 'Test message',
+            originalText: 'Test message',
             model: 'tts-1',
             voice: 'alloy',
             response_format: 'mp3',
-            speed: 1.0
+            speed: 1.0,
+            text: expect.stringContaining('Test message') // Enhanced text contains original
           })
         }));
 

@@ -27,13 +27,62 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
     }
 
     try {
+      // OpenAI TTS API compliant parameters
       const { input, model = 'tts-1', voice = 'alloy', response_format = 'mp3', speed = 1.0 } = req.body;
 
       if (!input) {
         return res.status(400).json({
           error: {
-            message: 'Input text is required',
-            type: 'validation_error'
+            message: 'The input field is required',
+            type: 'invalid_request_error',
+            param: 'input'
+          }
+        });
+      }
+
+      // Validate model parameter
+      const validModels = ['tts-1', 'tts-1-hd'];
+      if (!validModels.includes(model)) {
+        return res.status(400).json({
+          error: {
+            message: `Invalid model: ${model}. Supported models: ${validModels.join(', ')}`,
+            type: 'invalid_request_error',
+            param: 'model'
+          }
+        });
+      }
+
+      // Validate voice parameter
+      const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+      if (!validVoices.includes(voice)) {
+        return res.status(400).json({
+          error: {
+            message: `Invalid voice: ${voice}. Supported voices: ${validVoices.join(', ')}`,
+            type: 'invalid_request_error',
+            param: 'voice'
+          }
+        });
+      }
+
+      // Validate response_format parameter
+      const validFormats = ['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'];
+      if (!validFormats.includes(response_format)) {
+        return res.status(400).json({
+          error: {
+            message: `Invalid response_format: ${response_format}. Supported formats: ${validFormats.join(', ')}`,
+            type: 'invalid_request_error',
+            param: 'response_format'
+          }
+        });
+      }
+
+      // Validate speed parameter
+      if (speed < 0.25 || speed > 4.0) {
+        return res.status(400).json({
+          error: {
+            message: 'Speed must be between 0.25 and 4.0',
+            type: 'invalid_request_error',
+            param: 'speed'
           }
         });
       }
@@ -51,7 +100,7 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
         return res.status(429).json({
           error: {
             message: 'Device is currently processing another speech request. Please wait for it to complete.',
-            type: 'device_busy_tts'
+            type: 'device_busy_error'
           }
         });
       }
@@ -74,7 +123,7 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
           res.status(504).json({
             error: {
               message: 'TTS request timeout - R1 device did not respond within 60 seconds',
-              type: 'timeout'
+              type: 'timeout_error'
             }
           });
         }, 60000);
@@ -83,11 +132,14 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
       // Store the request for response handling
       pendingRequests.set(requestId, { res, timeout, isTTS: true, response_format });
 
-      // Build TTS command for R1 device
+      // Build enhanced TTS command for R1 device with better prompting
+      const enhancedText = `Please speak the following text clearly and naturally: "${input}". Use a ${voice} voice style. Speak at ${speed}x speed.`;
+
       const command = {
         type: 'text_to_speech',
         data: {
-          text: input,
+          text: enhancedText,
+          originalText: input,
           model,
           voice,
           response_format,
@@ -131,7 +183,7 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
           res.status(503).json({
             error: {
               message: `Device not connected`,
-              type: 'service_unavailable'
+              type: 'service_unavailable_error'
             }
           });
           return;
@@ -144,7 +196,7 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
         res.status(503).json({
           error: {
             message: 'No R1 devices available',
-            type: 'service_unavailable'
+            type: 'service_unavailable_error'
           }
         });
       }
@@ -153,7 +205,7 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
       res.status(500).json({
         error: {
           message: 'Internal server error',
-          type: 'server_error'
+          type: 'internal_server_error'
         }
       });
     }
