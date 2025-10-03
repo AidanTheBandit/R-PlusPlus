@@ -21,6 +21,22 @@ const { DatabaseManager } = require('./utils/database');
 const { MCPManager } = require('./utils/mcp-manager');
 const PluginManager = require('./plugins/plugin-manager');
 
+// Import performance monitoring
+let performanceIntegration;
+try {
+  performanceIntegration = require('./utils/performance-integration-cjs');
+} catch (error) {
+  console.warn('Performance monitoring not available:', error.message);
+  // Create fallback
+  performanceIntegration = {
+    initialize: () => {},
+    createExpressMiddleware: () => (req, res, next) => next(),
+    createSocketMiddleware: () => (socket, next) => next(),
+    getPerformanceMetrics: () => ({}),
+    cleanup: () => {}
+  };
+}
+
 const app = express();
 const server = http.createServer(app);
 
@@ -56,6 +72,9 @@ app.use(express.urlencoded({ limit: '100mb', extended: true })); // For form dat
 // Trust proxy for Cloudflare Tunnel
 app.set('trust proxy', 1);
 
+// Performance monitoring middleware (will be added after initialization)
+let performanceMiddleware = (req, res, next) => next();
+
 // Setup routes FIRST (before static file serving)
 setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager);
 setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager);
@@ -64,6 +83,27 @@ setupHealthRoutes(app, connectedR1s);
 setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugDataStore, performanceMetrics);
 setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager);
 setupTwilioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, database);
+
+// Performance monitoring endpoint
+app.get('/performance/metrics', (req, res) => {
+  try {
+    const metrics = performanceIntegration.getPerformanceMetrics();
+    res.json(metrics);
+  } catch (error) {
+    console.error('Error getting performance metrics:', error);
+    res.status(500).json({ error: 'Failed to get performance metrics' });
+  }
+});
+
+app.get('/performance/report', (req, res) => {
+  try {
+    const report = performanceIntegration.getPerformanceReport();
+    res.json(report);
+  } catch (error) {
+    console.error('Error getting performance report:', error);
+    res.status(500).json({ error: 'Failed to get performance report' });
+  }
+});
 
 // Serve React creation assets from root for proper loading
 app.use('/assets', express.static(path.join(__dirname, '..', 'creation-react', 'dist', 'assets'), {
@@ -793,6 +833,23 @@ database.init().then(async () => {
   await mcpManager.initialize();
   console.log('MCP manager initialized successfully');
   
+  // Initialize performance monitoring
+  if (performanceIntegration && performanceIntegration.initialize) {
+    try {
+      performanceIntegration.initialize();
+      performanceMiddleware = performanceIntegration.createExpressMiddleware();
+      app.use(performanceMiddleware);
+      
+      // Add socket middleware for performance monitoring
+      const socketMiddleware = performanceIntegration.createSocketMiddleware();
+      io.use(socketMiddleware);
+      
+      console.log('✅ Performance monitoring initialized');
+    } catch (error) {
+      console.warn('⚠️ Performance monitoring initialization failed:', error.message);
+    }
+  }
+  
   checkBuilds();
 
   server.listen(PORT, () => {
@@ -849,6 +906,16 @@ async function gracefulShutdown(signal) {
       }
     }
     
+    // Cleanup performance monitoring
+    if (performanceIntegration && performanceIntegration.cleanup) {
+      try {
+        performanceIntegration.cleanup();
+        console.log('✅ Performance monitoring cleaned up');
+      } catch (error) {
+        console.log('⚠️ Performance monitoring cleanup error, continuing...');
+      }
+    }
+
     // Close database connection
     if (database) {
       try {
