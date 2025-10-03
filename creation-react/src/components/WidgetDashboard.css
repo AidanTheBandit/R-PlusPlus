@@ -8,7 +8,7 @@
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   overflow: hidden;
   position: relative;
-  touch-action: pan-x;
+  touch-action: manipulation;
 }
 
 /* Dashboard container with sliding views */
@@ -49,6 +49,7 @@
   align-content: start;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 /* No widgets placeholder */

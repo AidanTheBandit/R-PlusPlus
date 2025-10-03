@@ -7,54 +7,42 @@ import React, { useState, useEffect, useRef } from 'react';
 import { WidgetRenderer, WidgetStore } from '../widgets';
 import './WidgetDashboard.css';
 
-const WidgetDashboard = ({ socket, isConnected }) => {
+const WidgetDashboard = ({ socket, isConnected, deviceId, deviceInfo, onChangePin, onTogglePin }) => {
   const [widgetStore] = useState(() => new WidgetStore(socket));
   const [currentView, setCurrentView] = useState(0); // 0 = widgets, 1 = menu, 2 = console
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
-  const [deviceInfo, setDeviceInfo] = useState({});
   const dashboardRef = useRef(null);
 
-  // Register device with backend when connected
-  useEffect(() => {
-    if (socket && isConnected) {
-      socket.emit('device:register', { 
-        deviceId: socket._deviceId || 'unknown',
-        type: 'r1-device'
-      });
-      
-      // Listen for device info updates
-      socket.on('device_info', (info) => {
-        setDeviceInfo(info);
-      });
-      
-      // Request current device info
-      socket.emit('get_device_info');
-    }
-    
-    return () => {
-      if (socket) {
-        socket.off('device_info');
-      }
-    };
-  }, [socket, isConnected]);
+  // No need for separate device registration - it's handled by useSocket hook
 
-  // Handle touch events for swiping
+  // Handle touch events for swiping (only horizontal)
   const onTouchStart = (e) => {
     setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
   };
 
   const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    setTouchEnd({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
   };
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = Math.abs(touchStart.y - touchEnd.y);
+    
+    // Only handle horizontal swipes (ignore if vertical movement is too large)
+    if (distanceY > 50) return;
+    
+    const isLeftSwipe = distanceX > 50;
+    const isRightSwipe = distanceX < -50;
 
     if (isLeftSwipe && currentView === 0) {
       setCurrentView(1); // Swipe left to menu
@@ -64,30 +52,20 @@ const WidgetDashboard = ({ socket, isConnected }) => {
     }
   };
 
-  // Handle PIN management
+  // Handle PIN management using passed functions
   const handleChangePIN = () => {
-    const newPIN = prompt('Enter new 6-digit PIN:');
-    if (newPIN && /^\d{6}$/.test(newPIN)) {
-      socket?.emit('change_pin', { newPIN });
-    } else if (newPIN) {
-      alert('PIN must be exactly 6 digits');
+    if (onChangePin) {
+      onChangePin();
+    } else {
+      alert('PIN management not available');
     }
   };
 
   const handleTogglePIN = () => {
-    const action = deviceInfo.pinEnabled ? 'disable_pin' : 'enable_pin';
-    if (action === 'disable_pin') {
-      const currentPIN = prompt('Enter current PIN to disable:');
-      if (currentPIN) {
-        socket?.emit(action, { currentPIN });
-      }
+    if (onTogglePin) {
+      onTogglePin();
     } else {
-      const newPIN = prompt('Enter new 6-digit PIN:');
-      if (newPIN && /^\d{6}$/.test(newPIN)) {
-        socket?.emit(action, { newPIN });
-      } else if (newPIN) {
-        alert('PIN must be exactly 6 digits');
-      }
+      alert('PIN management not available');
     }
   };
 
@@ -95,11 +73,13 @@ const WidgetDashboard = ({ socket, isConnected }) => {
     <div 
       className="widget-dashboard"
       ref={dashboardRef}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
     >
-      <div className={`dashboard-container view-${currentView}`}>
+      <div 
+        className={`dashboard-container view-${currentView}`}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         {/* Main Widget View */}
         <div className="widget-view">
           <div className="widget-grid">
@@ -144,7 +124,7 @@ const WidgetDashboard = ({ socket, isConnected }) => {
                 <div className="detail-row">
                   <span className="detail-label">ID:</span>
                   <span className="detail-value device-id">
-                    {socket?._deviceId || 'Unknown'}
+                    {deviceId || 'Unknown'}
                   </span>
                 </div>
                 <div className="detail-row">
@@ -156,7 +136,7 @@ const WidgetDashboard = ({ socket, isConnected }) => {
                 <div className="detail-row">
                   <span className="detail-label">PIN:</span>
                   <span className="detail-value">
-                    {deviceInfo.pinEnabled ? 'Enabled' : 'Disabled'}
+                    {deviceInfo?.pinEnabled ? 'Enabled' : 'Disabled'}
                   </span>
                 </div>
               </div>
@@ -170,9 +150,9 @@ const WidgetDashboard = ({ socket, isConnected }) => {
                   <span className="pin-text">Change PIN</span>
                 </button>
                 <button className="pin-btn" onClick={handleTogglePIN}>
-                  <span className="pin-icon">{deviceInfo.pinEnabled ? '🔓' : '🔒'}</span>
+                  <span className="pin-icon">{deviceInfo?.pinEnabled ? '🔓' : '🔒'}</span>
                   <span className="pin-text">
-                    {deviceInfo.pinEnabled ? 'Disable PIN' : 'Enable PIN'}
+                    {deviceInfo?.pinEnabled ? 'Disable PIN' : 'Enable PIN'}
                   </span>
                 </button>
               </div>
@@ -192,7 +172,7 @@ const WidgetDashboard = ({ socket, isConnected }) => {
             <div className="console-info">
               <div className="info-row">
                 <span className="info-label">Device ID:</span>
-                <span className="info-value device-id">{socket?._deviceId || 'Unknown'}</span>
+                <span className="info-value device-id">{deviceId || 'Unknown'}</span>
               </div>
               <div className="info-row">
                 <span className="info-label">Connection:</span>
@@ -207,7 +187,7 @@ const WidgetDashboard = ({ socket, isConnected }) => {
               <div className="info-row">
                 <span className="info-label">PIN Status:</span>
                 <span className="info-value">
-                  {deviceInfo.pinEnabled ? 'Enabled' : 'Disabled'}
+                  {deviceInfo?.pinEnabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
             </div>

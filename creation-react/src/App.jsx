@@ -88,6 +88,10 @@ function App() {
         <WidgetDashboard 
           socket={socketRef.current}
           isConnected={isConnected}
+          deviceId={deviceId}
+          deviceInfo={deviceInfo}
+          onChangePin={handleChangePin}
+          onTogglePin={deviceInfo?.pinEnabled ? handleDisablePin : handleEnablePin}
         />
       ) : (
         /* Legacy Console View */
