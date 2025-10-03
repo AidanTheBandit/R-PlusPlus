@@ -22,13 +22,15 @@ const createFallbackMonitor = () => ({
   recordError: () => {},
   getMetrics: () => ({ memoryUsage: 0, renderTime: 0 }),
   startMonitoring: () => {},
-  stopMonitoring: () => {}
+  stopMonitoring: () => {},
+  onThresholdExceeded: () => {} // Add missing method
 });
 
 const createFallbackDetector = () => ({
   startDetection: () => {},
   stopDetection: () => {},
-  getDetectionStatus: () => ({ isDetecting: false })
+  getDetectionStatus: () => ({ isDetecting: false }),
+  onLeakDetected: () => {} // Add missing method
 });
 
 // Initialize with fallbacks

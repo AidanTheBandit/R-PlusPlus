@@ -1,0 +1,14 @@
+/* WidgetRenderer.css - Styling for widget renderer container */
+
+.widget-renderer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* Ensure widgets are positioned correctly */
+.widget-renderer .base-widget {
+  position: absolute;
+}
