@@ -9,9 +9,10 @@ import './WidgetDashboard.css';
 
 const WidgetDashboard = ({ socket, isConnected }) => {
   const [widgetStore] = useState(() => new WidgetStore(socket));
-  const [currentView, setCurrentView] = useState(0); // 0 = widgets, 1 = menu
+  const [currentView, setCurrentView] = useState(0); // 0 = widgets, 1 = menu, 2 = console
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+  const [deviceInfo, setDeviceInfo] = useState({});
   const dashboardRef = useRef(null);
 
   // Register device with backend when connected
@@ -21,7 +22,21 @@ const WidgetDashboard = ({ socket, isConnected }) => {
         deviceId: socket._deviceId || 'unknown',
         type: 'r1-device'
       });
+      
+      // Listen for device info updates
+      socket.on('device_info', (info) => {
+        setDeviceInfo(info);
+      });
+      
+      // Request current device info
+      socket.emit('get_device_info');
     }
+    
+    return () => {
+      if (socket) {
+        socket.off('device_info');
+      }
+    };
   }, [socket, isConnected]);
 
   // Handle touch events for swiping
@@ -44,8 +59,35 @@ const WidgetDashboard = ({ socket, isConnected }) => {
     if (isLeftSwipe && currentView === 0) {
       setCurrentView(1); // Swipe left to menu
     }
-    if (isRightSwipe && currentView === 1) {
-      setCurrentView(0); // Swipe right to widgets
+    if (isRightSwipe && currentView >= 1) {
+      setCurrentView(Math.max(0, currentView - 1)); // Swipe right to go back
+    }
+  };
+
+  // Handle PIN management
+  const handleChangePIN = () => {
+    const newPIN = prompt('Enter new 6-digit PIN:');
+    if (newPIN && /^\d{6}$/.test(newPIN)) {
+      socket?.emit('change_pin', { newPIN });
+    } else if (newPIN) {
+      alert('PIN must be exactly 6 digits');
+    }
+  };
+
+  const handleTogglePIN = () => {
+    const action = deviceInfo.pinEnabled ? 'disable_pin' : 'enable_pin';
+    if (action === 'disable_pin') {
+      const currentPIN = prompt('Enter current PIN to disable:');
+      if (currentPIN) {
+        socket?.emit(action, { currentPIN });
+      }
+    } else {
+      const newPIN = prompt('Enter new 6-digit PIN:');
+      if (newPIN && /^\d{6}$/.test(newPIN)) {
+        socket?.emit(action, { newPIN });
+      } else if (newPIN) {
+        alert('PIN must be exactly 6 digits');
+      }
     }
   };
 
@@ -85,7 +127,7 @@ const WidgetDashboard = ({ socket, isConnected }) => {
               <span className="menu-icon">📱</span>
               <span className="menu-label">Widgets</span>
             </button>
-            <button className="menu-item">
+            <button className="menu-item" onClick={() => setCurrentView(2)}>
               <span className="menu-icon">🖥️</span>
               <span className="menu-label">Console</span>
             </button>
@@ -93,15 +135,79 @@ const WidgetDashboard = ({ socket, isConnected }) => {
               <span className="menu-icon">⚙️</span>
               <span className="menu-label">Settings</span>
             </button>
-            <div className="menu-info">
-              <div className="info-item">
-                <span className="info-label">Device:</span>
-                <span className="info-value">{socket?._deviceId?.slice(-8) || 'Unknown'}</span>
+          </div>
+          
+          <div className="device-info">
+            <div className="device-section">
+              <h4>Device Info</h4>
+              <div className="device-details">
+                <div className="detail-row">
+                  <span className="detail-label">ID:</span>
+                  <span className="detail-value device-id">
+                    {socket?._deviceId || 'Unknown'}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Status:</span>
+                  <span className={`detail-value ${isConnected ? 'connected' : 'disconnected'}`}>
+                    {isConnected ? 'Connected' : 'Disconnected'}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">PIN:</span>
+                  <span className="detail-value">
+                    {deviceInfo.pinEnabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
               </div>
-              <div className="info-item">
-                <span className="info-label">Status:</span>
+            </div>
+            
+            <div className="pin-section">
+              <h4>PIN Management</h4>
+              <div className="pin-controls">
+                <button className="pin-btn" onClick={handleChangePIN}>
+                  <span className="pin-icon">🔒</span>
+                  <span className="pin-text">Change PIN</span>
+                </button>
+                <button className="pin-btn" onClick={handleTogglePIN}>
+                  <span className="pin-icon">{deviceInfo.pinEnabled ? '🔓' : '🔒'}</span>
+                  <span className="pin-text">
+                    {deviceInfo.pinEnabled ? 'Disable PIN' : 'Enable PIN'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Console View */}
+        <div className="console-view">
+          <div className="console-header">
+            <h3>R1 Console</h3>
+            <button className="back-btn" onClick={() => setCurrentView(1)}>
+              ← Back
+            </button>
+          </div>
+          <div className="console-content">
+            <div className="console-info">
+              <div className="info-row">
+                <span className="info-label">Device ID:</span>
+                <span className="info-value device-id">{socket?._deviceId || 'Unknown'}</span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">Connection:</span>
                 <span className={`info-value ${isConnected ? 'connected' : 'disconnected'}`}>
                   {isConnected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">Widgets:</span>
+                <span className="info-value">0 active</span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">PIN Status:</span>
+                <span className="info-value">
+                  {deviceInfo.pinEnabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
             </div>
@@ -113,6 +219,7 @@ const WidgetDashboard = ({ socket, isConnected }) => {
       <div className="swipe-indicator">
         <div className={`indicator-dot ${currentView === 0 ? 'active' : ''}`}></div>
         <div className={`indicator-dot ${currentView === 1 ? 'active' : ''}`}></div>
+        <div className={`indicator-dot ${currentView === 2 ? 'active' : ''}`}></div>
       </div>
     </div>
   );

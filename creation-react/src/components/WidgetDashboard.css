@@ -13,7 +13,7 @@
 
 /* Dashboard container with sliding views */
 .dashboard-container {
-  width: 200vw;
+  width: 300vw;
   height: 100vh;
   display: flex;
   transition: transform 0.3s ease;
@@ -24,12 +24,16 @@
 }
 
 .dashboard-container.view-1 {
-  transform: translateX(-50%);
+  transform: translateX(-33.333%);
+}
+
+.dashboard-container.view-2 {
+  transform: translateX(-66.666%);
 }
 
 /* Widget View */
 .widget-view {
-  width: 50%;
+  width: 33.333%;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -66,11 +70,103 @@
 
 /* Menu View */
 .menu-view {
-  width: 50%;
+  width: 33.333%;
   height: 100%;
   display: flex;
   flex-direction: column;
   padding: 12px;
+}
+
+/* Console View */
+.console-view {
+  width: 33.333%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.console-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.back-btn:hover,
+.back-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.console-content {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.console-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: #999999;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.info-value {
+  font-weight: 600;
+  color: #ffffff;
+  text-align: right;
+  word-break: break-all;
+}
+
+.info-value.device-id {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 9px;
+  max-width: 120px;
+}
+
+.info-value.connected {
+  color: #34c759;
+}
+
+.info-value.disconnected {
+  color: #ff3b30;
 }
 
 .menu-header {
@@ -122,35 +218,108 @@
   font-weight: 500;
 }
 
-/* Menu info section */
-.menu-info {
+/* Device info section */
+.device-info {
   margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.info-item {
+.device-section,
+.pin-section {
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.device-section h4,
+.pin-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cccccc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.device-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
-  font-size: 12px;
+  font-size: 11px;
 }
 
-.info-label {
-  color: #cccccc;
+.detail-label {
+  color: #999999;
+  font-weight: 500;
 }
 
-.info-value {
+.detail-value {
   font-weight: 600;
+  color: #ffffff;
 }
 
-.info-value.connected {
+.detail-value.device-id {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 10px;
+  word-break: break-all;
+  text-align: right;
+  max-width: 120px;
+}
+
+.detail-value.connected {
   color: #34c759;
 }
 
-.info-value.disconnected {
+.detail-value.disconnected {
   color: #ff3b30;
+}
+
+/* PIN controls */
+.pin-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pin-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pin-btn:hover,
+.pin-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pin-icon {
+  font-size: 12px;
+  width: 14px;
+  text-align: center;
+}
+
+.pin-text {
+  flex: 1;
+  text-align: left;
+  font-weight: 500;
 }
 
 /* Swipe indicator */

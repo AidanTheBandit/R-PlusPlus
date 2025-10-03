@@ -638,32 +638,3 @@ body {
     align-self: flex-start;
   }
 }
-/* View Toggle Button */
-.view-toggle {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  width: 44px;
-  height: 44px;
-  border-radius: 22px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 18px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-  transition: all 0.2s ease;
-}
-
-.view-toggle:hover {
-  background: rgba(0, 0, 0, 0.8);
-  transform: scale(1.05);
-}
-
-.view-toggle:active {
-  transform: scale(0.95);
-}

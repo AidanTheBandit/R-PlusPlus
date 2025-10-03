@@ -112,15 +112,6 @@ function App() {
           <PerformanceMonitor />
         </>
       )}
-      
-      {/* View Toggle Button */}
-      <button 
-        className="view-toggle"
-        onClick={() => setViewMode(viewMode === 'widgets' ? 'console' : 'widgets')}
-        title={`Switch to ${viewMode === 'widgets' ? 'Console' : 'Widget'} View`}
-      >
-        {viewMode === 'widgets' ? '🖥️' : '📱'}
-      </button>
     </div>
   )
 }
