@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
+import WidgetDashboard from './components/WidgetDashboard'
 import StatusBar from './components/StatusBar'
 import ConsolePanel from './components/ConsolePanel'
 import PerformanceMonitor from './components/PerformanceMonitor'
@@ -9,6 +10,8 @@ import { useR1SDK } from './hooks/useR1SDK'
 import { useDeviceManagement } from './hooks/useDeviceManagement'
 
 function App() {
+  const [viewMode, setViewMode] = useState('widgets') // 'widgets' or 'console'
+  
   // Console logging hook
   const { consoleLogs, consoleRef, addConsoleLog, sendErrorToServer } = useConsole()
 
@@ -80,24 +83,44 @@ function App() {
 
   return (
     <div className="app">
-      <StatusBar
-        isConnected={isConnected}
-        deviceId={deviceId}
-        deviceInfo={deviceInfo}
-        onRefreshDeviceInfo={handleRefreshDeviceInfo}
-        onReconnect={handleReconnect}
-        onChangePin={handleChangePin}
-        onDisablePin={handleDisablePin}
-        onEnablePin={handleEnablePin}
-      />
+      {viewMode === 'widgets' ? (
+        /* New Apple Watch-style Widget Dashboard */
+        <WidgetDashboard 
+          socket={socketRef.current}
+          isConnected={isConnected}
+        />
+      ) : (
+        /* Legacy Console View */
+        <>
+          <StatusBar
+            isConnected={isConnected}
+            deviceId={deviceId}
+            deviceInfo={deviceInfo}
+            onRefreshDeviceInfo={handleRefreshDeviceInfo}
+            onReconnect={handleReconnect}
+            onChangePin={handleChangePin}
+            onDisablePin={handleDisablePin}
+            onEnablePin={handleEnablePin}
+          />
 
-      {/* Main Content - Activity Log */}
-      <div className="main-content">
-        <ConsolePanel consoleLogs={consoleLogs} ref={consoleRef} />
-      </div>
+          {/* Main Content - Activity Log */}
+          <div className="main-content">
+            <ConsolePanel consoleLogs={consoleLogs} ref={consoleRef} />
+          </div>
 
-      {/* Performance Monitor */}
-      <PerformanceMonitor />
+          {/* Performance Monitor */}
+          <PerformanceMonitor />
+        </>
+      )}
+      
+      {/* View Toggle Button */}
+      <button 
+        className="view-toggle"
+        onClick={() => setViewMode(viewMode === 'widgets' ? 'console' : 'widgets')}
+        title={`Switch to ${viewMode === 'widgets' ? 'Console' : 'Widget'} View`}
+      >
+        {viewMode === 'widgets' ? '🖥️' : '📱'}
+      </button>
     </div>
   )
 }

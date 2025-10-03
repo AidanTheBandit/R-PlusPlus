@@ -3,6 +3,7 @@ import React from 'react';
 const TabNavigation = ({ activeTab, onTabChange }) => {
   const tabs = [
     { id: 'chat', label: '💬 Chat', description: 'Chat with your R1 device' },
+    { id: 'widgets', label: '📱 Widgets', description: 'Manage widgets on your R1 device' },
     { id: 'speech', label: '🎵 Speech', description: 'Test text-to-speech functionality' },
     { id: 'image', label: '🖼️ Image Analysis', description: 'Test image analysis and AI vision' },
     //{ id: 'phone', label: '📱 SMS', description: 'Link phone numbers for SMS control' },
