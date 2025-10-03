@@ -1,0 +1,227 @@
+/* BaseWidget.css - Styling for base widget component */
+
+.base-widget {
+  background: #1d2021;
+  border: 1px solid #3c3836;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: #ebdbb2;
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.base-widget:hover {
+  border-color: #458588;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Widget Header */
+.widget-header {
+  background: #282828;
+  border-bottom: 1px solid #3c3836;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 32px;
+}
+
+.widget-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #ebdbb2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.widget-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Widget Body */
+.widget-body {
+  padding: 12px;
+  height: calc(100% - 32px - 20px); /* Subtract header and footer */
+  overflow: auto;
+}
+
+.widget-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.widget-body::-webkit-scrollbar-track {
+  background: #1d2021;
+}
+
+.widget-body::-webkit-scrollbar-thumb {
+  background: #504945;
+  border-radius: 2px;
+}
+
+.widget-body::-webkit-scrollbar-thumb:hover {
+  background: #665c54;
+}
+
+/* Widget Footer */
+.widget-footer {
+  background: #282828;
+  border-top: 1px solid #3c3836;
+  padding: 4px 12px;
+  font-size: 10px;
+  color: #928374;
+  text-align: right;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Loading State */
+.widget-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #928374;
+}
+
+.widget-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #3c3836;
+  border-top: 2px solid #458588;
+  border-radius: 50%;
+  animation: widget-spin 1s linear infinite;
+  margin-bottom: 8px;
+}
+
+.widget-loading-text {
+  font-size: 11px;
+}
+
+@keyframes widget-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error State */
+.widget-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 16px;
+}
+
+.widget-error-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.widget-error-message {
+  color: #fb4934;
+  font-size: 11px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.widget-error-retry {
+  background: #458588;
+  border: none;
+  border-radius: 4px;
+  color: #ebdbb2;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 6px 12px;
+  transition: background-color 0.2s ease;
+}
+
+.widget-error-retry:hover {
+  background: #689d6a;
+}
+
+.widget-error-retry:active {
+  background: #427b58;
+}
+
+/* Responsive adjustments for small widgets */
+.base-widget[style*="width: 150px"],
+.base-widget[style*="width: 100px"] {
+  font-size: 10px;
+}
+
+.base-widget[style*="width: 150px"] .widget-header,
+.base-widget[style*="width: 100px"] .widget-header {
+  padding: 6px 8px;
+  min-height: 28px;
+}
+
+.base-widget[style*="width: 150px"] .widget-title,
+.base-widget[style*="width: 100px"] .widget-title {
+  font-size: 11px;
+}
+
+.base-widget[style*="width: 150px"] .widget-body,
+.base-widget[style*="width: 100px"] .widget-body {
+  padding: 8px;
+  height: calc(100% - 28px - 18px);
+}
+
+.base-widget[style*="width: 150px"] .widget-footer,
+.base-widget[style*="width: 100px"] .widget-footer {
+  padding: 3px 8px;
+  min-height: 18px;
+  font-size: 9px;
+}
+
+/* Theme variations */
+.base-widget.theme-light {
+  background: #fbf1c7;
+  border-color: #d5c4a1;
+  color: #3c3836;
+}
+
+.base-widget.theme-light .widget-header {
+  background: #f2e5bc;
+  border-bottom-color: #d5c4a1;
+}
+
+.base-widget.theme-light .widget-title {
+  color: #3c3836;
+}
+
+.base-widget.theme-light .widget-footer {
+  background: #f2e5bc;
+  border-top-color: #d5c4a1;
+  color: #7c6f64;
+}
+
+.base-widget.theme-light .widget-loading {
+  color: #7c6f64;
+}
+
+.base-widget.theme-light .widget-loading-spinner {
+  border-color: #d5c4a1;
+  border-top-color: #076678;
+}
+
+.base-widget.theme-light .widget-error-message {
+  color: #cc241d;
+}
+
+.base-widget.theme-light .widget-error-retry {
+  background: #076678;
+}
+
+.base-widget.theme-light .widget-error-retry:hover {
+  background: #427b58;
+}

@@ -1,5 +1,5 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
-const fetch = require('node-fetch');
+// Using built-in fetch (Node.js 18+)
 
 function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
   // Device-specific endpoints: /device-{deviceId}/v1/chat/completions (legacy format)

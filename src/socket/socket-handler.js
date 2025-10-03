@@ -1,6 +1,6 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 const { DeviceIdManager } = require('../utils/device-id-manager');
-const fetch = require('node-fetch');
+// Using built-in fetch (Node.js 18+)
 
 // Function to convert text response to JSON using Groq API
 async function convertToJsonWithGroq(textResponse, originalRequest) {
