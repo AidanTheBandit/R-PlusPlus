@@ -19,9 +19,14 @@ const WidgetManager = ({ socket, deviceId, pinCode }) => {
   // Initialize widget manager when socket is available
   useEffect(() => {
     if (socket && deviceId) {
+      console.log('Initializing widget manager for device:', deviceId);
+      
       const manager = new WidgetManagerCore(widgetRegistry, socket);
       manager.setDeviceId(deviceId);
       setWidgetManager(manager);
+
+      // Connect control panel to device - use the same event as the existing system
+      socket.emit('controlPanel:connect', { deviceId });
 
       // Listen for widget events
       manager.on('instanceCreated', (instance) => {
@@ -36,12 +41,23 @@ const WidgetManager = ({ socket, deviceId, pinCode }) => {
         setActiveWidgets(prev => prev.map(w => w.id === instance.id ? instance : w));
       });
 
+      // Listen for widget state sync from server
+      socket.on('widget:stateSync', (data) => {
+        console.log('Received widget state sync:', data);
+        if (data.widgets) {
+          setActiveWidgets(data.widgets);
+        }
+      });
+
       setIsConnected(true);
     }
 
     return () => {
       if (widgetManager) {
         widgetManager.removeAllListeners();
+      }
+      if (socket) {
+        socket.off('widget:stateSync');
       }
     };
   }, [socket, deviceId, widgetRegistry]);
