@@ -1,5 +1,5 @@
 module.exports = {
-  testEnvironment: "node",
+  testEnvironment: "jsdom",
   testMatch: ["**/src/tests/**/*.test.js"],
   collectCoverageFrom: [
     "src/**/*.js",
@@ -10,5 +10,8 @@ module.exports = {
   verbose: true,
   transformIgnorePatterns: [
     "node_modules/(?!node-fetch)"
-  ]
+  ],
+  testEnvironmentOptions: {
+    customExportConditions: ["node", "node-addons"]
+  }
 };
