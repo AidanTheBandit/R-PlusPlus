@@ -1,0 +1,456 @@
+/* ==========================================================================
+   WidgetDashboard.css
+   Boondit Rhythm creation-device interface optimized for R1's 240×282 canvas.
+   Black backdrop, album-art palette gradients, glow shadows, corner-cut rows,
+   device overlay borders (white/10–white/15).
+   ========================================================================== */
+
+.widget-dashboard {
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg0);
+  color: var(--fg0);
+  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
+  overflow: hidden;
+  position: relative;
+  touch-action: manipulation;
+}
+
+/* Brand stripe at top of dashboard (signature 3-segment ribbon) */
+.dashboard-brand-stripe {
+  display: flex;
+  width: 100%;
+  height: 3px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 50;
+}
+
+/* Dashboard container with sliding views */
+.dashboard-container {
+  width: 300vw;
+  height: calc(100vh - 3px);
+  display: flex;
+  transition: transform 280ms var(--ease-boondit, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.dashboard-container.view-0 { transform: translateX(0); }
+.dashboard-container.view-1 { transform: translateX(-33.333%); }
+.dashboard-container.view-2 { transform: translateX(-66.666%); }
+
+/* ── Widget View ───────────────────────────────────────────────────────── */
+.widget-view {
+  width: 33.333%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-grid {
+  flex: 1;
+  position: relative;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  grid-gap: 8px;
+  align-content: start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* No widgets placeholder */
+.no-widgets-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--fg3);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.no-widgets-text {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* ── Menu View ─────────────────────────────────────────────────────────── */
+.menu-view {
+  width: 33.333%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.menu-header {
+  margin-bottom: 16px;
+}
+
+.menu-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  background: var(--gradient-focus);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
+}
+
+.menu-items {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Menu rows — corner-cut left edge, album-art gradient on hover/active */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(90deg, rgba(26, 26, 26, 0.92) 0%, rgba(40, 40, 40, 0.92) 100%);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg0);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.22s var(--ease-boondit, cubic-bezier(0.22, 1, 0.36, 1));
+  text-align: left;
+  /* Signature left-corner-cut pattern from rhythm song rows */
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.menu-item:hover,
+.menu-item:active {
+  background: var(--gradient-focus);
+  box-shadow: none;
+  transform: translateX(-2px);
+  border-color: transparent;
+}
+
+.menu-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.menu-label {
+  flex: 1;
+  font-weight: 600;
+}
+
+/* ── Console View ──────────────────────────────────────────────────────── */
+.console-view {
+  width: 33.333%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.console-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--gradient-focus);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
+}
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.10);
+  border: none;
+  color: var(--fg0);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover,
+.back-btn:active {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(0.98);
+}
+
+.console-content {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius);
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.console-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: var(--fg3);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.info-value {
+  font-weight: 600;
+  color: var(--fg0);
+  text-align: right;
+  word-break: break-all;
+}
+
+.info-value.device-id {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 9px;
+  max-width: 120px;
+}
+
+.info-value.connected {
+  color: var(--c-primary);
+}
+
+.info-value.disconnected {
+  color: var(--c-secondary);
+}
+
+/* ── Device info section ───────────────────────────────────────────────── */
+.device-info {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.device-section,
+.pin-section {
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.device-section h4,
+.pin-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.device-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.detail-label {
+  color: var(--fg3);
+  font-weight: 500;
+}
+
+.detail-value {
+  font-weight: 600;
+  color: var(--fg0);
+}
+
+.detail-value.device-id {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 10px;
+  word-break: break-all;
+  text-align: right;
+  max-width: 120px;
+}
+
+.detail-value.connected {
+  color: var(--c-primary);
+}
+
+.detail-value.disconnected {
+  color: var(--c-secondary);
+}
+
+/* ── PIN controls ──────────────────────────────────────────────────────── */
+.pin-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pin-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+  color: var(--fg0);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.22s var(--ease-boondit, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.pin-btn:hover,
+.pin-btn:active {
+  background: linear-gradient(90deg, rgba(255, 31, 143, 0.20) 0%, rgba(168, 100, 255, 0.20) 100%);
+  border-color: var(--c-secondary);
+  box-shadow: none;
+  transform: scale(0.98);
+}
+
+.pin-icon {
+  font-size: 12px;
+  width: 14px;
+  text-align: center;
+}
+
+.pin-text {
+  flex: 1;
+  text-align: left;
+  font-weight: 600;
+}
+
+/* ── Swipe indicator ───────────────────────────────────────────────────── */
+.swipe-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 100;
+}
+
+.indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.30);
+  transition: all 0.22s var(--ease-boondit, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.indicator-dot.active {
+  background: var(--c-primary);
+  transform: scale(1.2);
+  box-shadow: none;
+}
+
+/* Scrollbar styling for tiny display */
+.widget-grid::-webkit-scrollbar {
+  width: 2px;
+}
+
+.widget-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.widget-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.20);
+  border-radius: 1px;
+}
+
+/* Touch optimizations */
+.widget-dashboard * {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Ensure widgets fit properly on tiny screen */
+.widget-grid .base-widget {
+  min-width: 80px;
+  min-height: 60px;
+  font-size: 10px;
+}
+
+.widget-grid .base-widget .widget-header {
+  padding: 4px 6px;
+  min-height: 20px;
+}
+
+.widget-grid .base-widget .widget-title {
+  font-size: 10px;
+}
+
+.widget-grid .base-widget .widget-body {
+  padding: 6px;
+  height: calc(100% - 20px - 12px);
+}
+
+.widget-grid .base-widget .widget-footer {
+  padding: 2px 6px;
+  min-height: 12px;
+  font-size: 8px;
+}
+
+/* ── Responsive adjustments for R1 display (240×282) ───────────────────── */
+@media (max-width: 300px) {
+  .menu-view {
+    padding: 8px;
+  }
+
+  .menu-header h3 {
+    font-size: 16px;
+  }
+
+  .menu-item {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .menu-icon {
+    font-size: 14px;
+    width: 16px;
+  }
+
+  .widget-grid {
+    padding: 4px;
+    grid-gap: 4px;
+  }
+
+  .info-item {
+    font-size: 10px;
+  }
+}

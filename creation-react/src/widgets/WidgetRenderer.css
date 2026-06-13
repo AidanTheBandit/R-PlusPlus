@@ -1,0 +1,19 @@
+/* ==========================================================================
+   WidgetRenderer.css
+   Container for absolutely-positioned widgets. Transparent backdrop so the
+   creation-device canvas shows through; inherits the rhythm font stack.
+   ========================================================================== */
+
+.widget-renderer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Ensure widgets are positioned correctly within the renderer */
+.widget-renderer .base-widget {
+  position: absolute;
+}
