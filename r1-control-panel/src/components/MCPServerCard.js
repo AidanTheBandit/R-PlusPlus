@@ -46,8 +46,8 @@ const MCPServerCard = ({ server, deviceId, pinCode, onToggle, onDelete }) => {
             toolsHtml += `
               <li style="margin-bottom: 10px;">
                 <strong>${tool.tool_name}</strong><br>
-                <small style="color: #666;">${tool.tool_description || 'No description'}</small><br>
-                <small style="color: #999;">Used ${tool.usage_count || 0} times</small>
+                <small style="color: #9CA3AF;">${tool.tool_description || 'No description'}</small><br>
+                <small style="color: #6B7280;">Used ${tool.usage_count || 0} times</small>
               </li>
             `;
           });
@@ -60,9 +60,9 @@ const MCPServerCard = ({ server, deviceId, pinCode, onToggle, onDelete }) => {
             <head>
               <title>MCP Tools - ${server.name}</title>
               <style>
-                body { font-family: Arial, sans-serif; padding: 20px; background: #282828; color: #ebdbb2; }
+                body { font-family: Arial, sans-serif; padding: 20px; background: #111111; color: #FFFFFF; }
                 ul { list-style-type: none; padding: 0; }
-                li { padding: 10px; border: 1px solid #504945; margin-bottom: 5px; border-radius: 4px; background: #3c3836; }
+                li { padding: 10px; border: 1px solid #292929; margin-bottom: 5px; border-radius: 4px; background: #1A1A1A; }
               </style>
             </head>
             <body>${toolsHtml}</body>
@@ -143,7 +143,7 @@ const MCPServerCard = ({ server, deviceId, pinCode, onToggle, onDelete }) => {
             </div>
           ))}
           {server.tools.length > 3 && (
-            <div style={{ fontSize: '0.8em', color: '#666', textAlign: 'center', marginTop: '5px' }}>
+            <div style={{ fontSize: '0.8em', color: '#9CA3AF', textAlign: 'center', marginTop: '5px' }}>
               +{server.tools.length - 3} more tools
             </div>
           )}
