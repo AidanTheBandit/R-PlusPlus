@@ -70,8 +70,8 @@ function App() {
           localStorage.removeItem('r1-pin-code');
         }
 
-        // Initialize socket connection - connect AS the authenticated device
-        const newSocket = io({ query: { deviceId: deviceIdInput } });
+        // Initialize socket connection for MCP events (NOT as a device)
+        const newSocket = io();
         setSocket(newSocket);
 
         newSocket.on('connect', () => {

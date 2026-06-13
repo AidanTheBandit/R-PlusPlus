@@ -1,121 +1,126 @@
 import { useEffect, useState } from 'react'
-import { io } from 'socket.io-client'
 import './App.css'
+import WidgetDashboard from './components/WidgetDashboard'
+import StatusBar from './components/StatusBar'
+import ConsolePanel from './components/ConsolePanel'
+import PerformanceMonitor from './components/PerformanceMonitor'
+import { useConsole } from './hooks/useConsole'
+import { useSocket } from './hooks/useSocket'
+import { useR1SDK } from './hooks/useR1SDK'
+import { useDeviceManagement } from './hooks/useDeviceManagement'
 
-/**
- * App — R1 Device Screen.
- *
- * Connects to the R-API server via Socket.IO. The server auto-generates a
- * device ID and PIN on connect and sends them back in a `connected` event.
- * This screen DISPLAYS them like a pairing code — you read them here and
- * enter them in the Control Panel.
- */
 function App() {
-  const [deviceId, setDeviceId] = useState(() => localStorage.getItem('r1-device-id'))
-  const [pinCode, setPinCode] = useState(() => localStorage.getItem('r1-pin-code'))
-  const [connected, setConnected] = useState(false)
-  const [reconnecting, setReconnecting] = useState(!!localStorage.getItem('r1-device-id'))
+  const [viewMode, setViewMode] = useState('widgets') // 'widgets' or 'console'
+  
+  // Console logging hook
+  const { consoleLogs, consoleRef, addConsoleLog, sendErrorToServer } = useConsole()
 
+  // Socket connection hook
+  const {
+    isConnected,
+    deviceId,
+    deviceInfo,
+    socketRef,
+    connectSocket,
+    handleReconnect,
+    setDeviceInfo
+  } = useSocket(addConsoleLog, sendErrorToServer)
+
+  // R1 SDK hook
+  useR1SDK(addConsoleLog, sendErrorToServer, socketRef)
+
+  // Device management hook
+  const {
+    handleRefreshDeviceInfo,
+    handleDisablePin,
+    handleEnablePin,
+    handleChangePin
+  } = useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addConsoleLog, sendErrorToServer)
+
+  // Initialize on mount
   useEffect(() => {
-    const socket = io({
-      path: '/socket.io/',
-      transports: ['polling'],
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 10000,
+    addConsoleLog('R1 Anywhere Console initialized')
+
+    // Override console methods for error logging
+    const originalConsoleError = console.error
+    const originalConsoleWarn = console.warn
+
+    console.error = (...args) => {
+      const message = args.join(' ')
+      const stack = new Error().stack
+      sendErrorToServer('error', message, stack)
+      originalConsoleError.apply(console, args)
+    }
+
+    console.warn = (...args) => {
+      const message = args.join(' ')
+      sendErrorToServer('warn', message)
+      originalConsoleWarn.apply(console, args)
+    }
+
+    // Global error handlers
+    window.addEventListener('error', (event) => {
+      sendErrorToServer('error', event.message, event.error?.stack)
     })
 
-    socket.on('connect', () => {
-      setConnected(true)
+    window.addEventListener('unhandledrejection', (event) => {
+      sendErrorToServer('error', `Unhandled promise rejection: ${event.reason}`, event.reason?.stack)
     })
 
-    socket.on('connected', (data) => {
-      setDeviceId(data.deviceId)
-      setPinCode(data.pinCode)
-      setReconnecting(data.isReconnection || false)
+    // Connect socket after hooks are initialized
+    connectSocket()
 
-      // Persist device ID, PIN, and secret for reconnection + instant display
-      localStorage.setItem('r1-device-id', data.deviceId)
-      localStorage.setItem('r1-pin-code', data.pinCode || '')
-      if (data.deviceSecret) {
-        document.cookie = `r1_device_secret=${data.deviceSecret}; max-age=2592000; path=/`
-        localStorage.setItem('r1-device-secret', data.deviceSecret)
+    // Cleanup
+    return () => {
+      if (socketRef.current) {
+        if (socketRef.current._heartbeatInterval) {
+          clearInterval(socketRef.current._heartbeatInterval)
+        }
+        socketRef.current.disconnect()
       }
-    })
-
-    socket.on('disconnect', () => {
-      setConnected(false)
-    })
-
-    socket.on('connect_error', () => {
-      setConnected(false)
-    })
-
-    // Upgrade to websocket after polling establishes connection (Cloudflare tunnel safe)
-    socket.io.on('reconnect_attempt', () => {
-      socket.io.opts.transports = ['polling']
-    })
-
-    return () => socket.close()
-  }, [])
+    }
+  }, [addConsoleLog, sendErrorToServer, connectSocket, socketRef])
 
   return (
-    <div className="creation-viewport">
-      <div className="creation-canvas device-screen">
-        {/* Brand stripe */}
-        <div className="brand-stripe">
-          <div className="seg-1"></div>
-          <div className="seg-2"></div>
-          <div className="seg-3"></div>
-        </div>
-
-        <div className="device-body">
-          {/* Logo mark */}
-          <div className="device-logo" aria-hidden="true">
-            <span className="device-logo-mark">R</span>
+    <div className="app">
+      {viewMode === 'widgets' ? (
+        /* New Apple Watch-style Widget Dashboard */
+        <WidgetDashboard 
+          socket={socketRef.current}
+          isConnected={isConnected}
+          deviceId={deviceId}
+          deviceInfo={deviceInfo}
+          onChangePin={handleChangePin}
+          onTogglePin={deviceInfo?.pinEnabled ? handleDisablePin : handleEnablePin}
+        />
+      ) : (
+        /* Legacy Console View */
+        <>
+          <StatusBar
+            isConnected={isConnected}
+            deviceId={deviceId}
+            deviceInfo={deviceInfo}
+            onRefreshDeviceInfo={handleRefreshDeviceInfo}
+            onReconnect={handleReconnect}
+            onChangePin={handleChangePin}
+            onDisablePin={handleDisablePin}
+            onEnablePin={handleEnablePin}
+          />
+          <div className="brand-stripe">
+            <div className="seg-1"></div>
+            <div className="seg-2"></div>
+            <div className="seg-3"></div>
           </div>
 
-          {deviceId ? (
-            <>
-              {/* Connection indicator */}
-              <div className={`device-status ${connected ? 'online' : 'offline'}`}>
-                <span className="device-status-dot"></span>
-                {reconnecting ? 'Reconnected' : connected ? 'Connected' : 'Reconnecting'}
-              </div>
+          {/* Main Content - Activity Log */}
+          <div className="main-content">
+            <ConsolePanel consoleLogs={consoleLogs} ref={consoleRef} />
+          </div>
 
-              {/* Device ID display */}
-              <div className="device-info">
-                <p className="device-info-label">Device ID</p>
-                <p className="device-info-value">{deviceId}</p>
-              </div>
-
-              {/* PIN display */}
-              {pinCode && (
-                <div className="device-pin">
-                  <p className="device-info-label">PIN</p>
-                  <p className="device-pin-value">
-                    {pinCode.split('').map((digit, i) => (
-                      <span key={i} className="device-pin-digit">{digit}</span>
-                    ))}
-                  </p>
-                </div>
-              )}
-
-              {/* Instructions */}
-              <p className="device-hint">
-                Enter these in the Control Panel
-              </p>
-            </>
-          ) : (
-            <div className="device-connecting">
-              <div className="device-spinner"></div>
-              <p className="device-connecting-text">Connecting</p>
-            </div>
-          )}
-        </div>
-      </div>
+          {/* Performance Monitor */}
+          <PerformanceMonitor />
+        </>
+      )}
     </div>
   )
 }
