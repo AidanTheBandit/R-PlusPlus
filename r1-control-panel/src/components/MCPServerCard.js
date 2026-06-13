@@ -143,7 +143,7 @@ const MCPServerCard = ({ server, deviceId, pinCode, onToggle, onDelete }) => {
             </div>
           ))}
           {server.tools.length > 3 && (
-            <div style={{ fontSize: '0.8em', color: '#9CA3AF', textAlign: 'center', marginTop: '5px' }}>
+            <div className="text-muted" style={{ fontSize: '0.8em', textAlign: 'center', marginTop: '5px' }}>
               +{server.tools.length - 3} more tools
             </div>
           )}

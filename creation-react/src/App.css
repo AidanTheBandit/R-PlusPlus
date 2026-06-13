@@ -1,87 +1,9 @@
-/* Boondit Rhythm Dark Theme for R1 Anywhere Console */
-:root {
-  /* Rhythm Core Colors */
-  --bg0: #111111;
-  --bg1: #1A1A1A;
-  --bg2: #1A1A1A;
-  --bg3: #1A1A1A;
-  --bg4: #292929;
-  --bg-soft: #1A1A1A;
-  --bg-hard: #111111;
-  
-  --fg0: #FFFFFF;
-  --fg1: #FFFFFF;
-  --fg2: #E5E5E5;
-  --fg3: #9CA3AF;
-  --fg4: #6B7280;
-  
-  --red: #FF2E88;
-  --green: #FE5F00;
-  --yellow: #FE5F00;
-  --blue: #9B2EFF;
-  --purple: #9B2EFF;
-  --aqua: #9B2EFF;
-  --orange: #FE5F00;
-  
-  /* Rhythm Semantic Tokens */
-  --primary: #FE5F00;
-  --secondary: #FF2E88;
-  --accent: #FE5F00;
-  --accent-purple: #9B2EFF;
-  --muted: #9CA3AF;
-  --border: #292929;
-  
-  --success: var(--primary);
-  --warning: var(--primary);
-  --error: var(--secondary);
-  --info: var(--accent-purple);
-  
-  /* Gradients */
-  --gradient-pink-purple: linear-gradient(90deg, #FF1F8F 0%, #A864FF 100%);
-  --gradient-primary: linear-gradient(135deg, #FE5F00 0%, #FF2E88 100%);
-  
-  /* Brand Stripe */
-  --stripe-pink: #FF1F8F;
-  --stripe-purple: #A864FF;
-  --stripe-teal: #1F4A3F;
-  
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-lg: 16px;
-  --space-xl: 24px;
-  
-  /* Border Radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.7);
-  
-  /* Glow Shadows */
-  --glow-primary: 0 0 12px 2px rgba(254, 95, 0, 0.6);
-  --glow-secondary: 0 0 12px 2px rgba(255, 46, 136, 0.6);
-  --glow-accent: 0 0 12px 2px rgba(155, 46, 255, 0.6);
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: var(--bg0);
-  color: var(--fg1);
-}
+/* ==========================================================================
+   App.css — R1 Anywhere Console application shell
+   Status bar, connection chrome, console panel, brand stripe.
+   Boondit Rhythm design language: dark-only, orange primary ring,
+   album-art gradient accents, colored glow shadows.
+   ========================================================================== */
 
 .app {
   width: 100vw;
@@ -90,53 +12,48 @@ body {
   flex-direction: column;
   background: var(--bg0);
   color: var(--fg1);
+  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
   overflow: hidden;
 }
 
-/* Brand Stripe — 3-segment ribbon */
-.brand-stripe {
-  display: flex;
-  width: 100%;
-  height: 3px;
-  flex-shrink: 0;
-}
-
-.brand-stripe .seg-1 { background: var(--stripe-pink); flex: 1; }
-.brand-stripe .seg-2 { background: var(--stripe-purple); flex: 1; }
-.brand-stripe .seg-3 { background: var(--stripe-teal); flex: 1; }
-
-/* Status Bar */
+/* ── Status Bar (sticky header chrome) ─────────────────────────────────── */
 .status-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg1);
+  padding: 8px 12px;
+  background: rgba(17, 17, 17, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   min-height: 48px;
-  gap: var(--space-sm);
+  gap: 8px;
+  position: relative;
+  z-index: 40;
 }
 
 .status-left {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  gap: 12px;
   flex: 1;
   min-width: 0;
 }
 
+/* Gradient app title (album-art palette) */
 .app-title {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 4px;
   font-weight: 700;
   font-size: 16px;
-  background: var(--gradient-pink-purple);
+  background: var(--gradient-focus);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
 }
 
 .app-title .icon {
@@ -145,12 +62,13 @@ body {
   -webkit-text-fill-color: initial;
 }
 
+/* Connection indicator pill */
 .connection-indicator {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-lg);
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -161,14 +79,14 @@ body {
 
 .connection-indicator.connected {
   background: rgba(254, 95, 0, 0.15);
-  color: var(--primary);
-  border: 1px solid var(--primary);
+  color: var(--c-primary);
+  border: 1px solid var(--c-primary);
 }
 
 .connection-indicator.disconnected {
   background: rgba(255, 46, 136, 0.15);
-  color: var(--error);
-  border: 1px solid var(--error);
+  color: var(--c-secondary);
+  border: 1px solid var(--c-secondary);
 }
 
 .pulse {
@@ -179,60 +97,58 @@ body {
   animation: pulse 2s infinite;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
-}
-
 .status-right {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 8px;
   flex-shrink: 0;
 }
 
-.device-badge, .pin-badge {
+/* Device / PIN badges (device overlay borders = white/10) */
+.device-badge,
+.pin-badge {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-sm);
+  gap: 4px;
+  padding: 4px 8px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
   font-size: 11px;
 }
 
 .device-badge {
-  color: var(--accent-purple);
-  border-color: var(--accent-purple);
+  color: var(--c-accent);
+  border-color: rgba(155, 46, 255, 0.35);
 }
 
 .pin-badge {
-  color: var(--secondary);
-  border-color: var(--secondary);
-  position: relative;
+  color: var(--c-secondary);
+  border-color: rgba(255, 46, 136, 0.35);
 }
 
-.device-label, .pin-label {
+.device-label,
+.pin-label {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   opacity: 0.8;
 }
 
-.device-code, .pin-code {
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+.device-code,
+.pin-code {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
   font-weight: 700;
   background: rgba(255, 255, 255, 0.05);
-  padding: 2px var(--space-xs);
-  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  border-radius: 4px;
   border: 1px solid currentColor;
 }
 
 .pin-actions {
   display: flex;
   gap: 2px;
-  margin-left: var(--space-xs);
+  margin-left: 4px;
 }
 
 .pin-action {
@@ -251,25 +167,25 @@ body {
 }
 
 .pin-action:hover {
-  background: var(--accent-purple);
+  background: var(--c-accent);
   color: var(--bg0);
   transform: scale(1.1);
 }
 
 .pin-action.danger:hover {
-  background: var(--error);
+  background: var(--c-secondary);
   color: var(--fg0);
 }
 
 .enable-pin-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-sm);
+  gap: 4px;
+  padding: 4px 8px;
   background: rgba(255, 255, 255, 0.05);
-  color: var(--primary);
-  border: 1px solid var(--primary);
-  border-radius: var(--radius-md);
+  color: var(--c-primary);
+  border: 1px solid var(--c-primary);
+  border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -281,57 +197,16 @@ body {
   transform: translateY(-1px);
 }
 
-.refresh-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid var(--accent-purple);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--accent-purple);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.refresh-btn:hover {
-  background: var(--accent-purple);
-  color: var(--bg0);
-  transform: scale(1.05) rotate(90deg);
-}
-
-.status-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid var(--purple);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--purple);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.status-btn:hover {
-  background: var(--purple);
-  color: var(--bg0);
-  transform: scale(1.05);
-}
-
+/* Round chrome buttons (orange ring) */
+.refresh-btn,
+.status-btn,
 .test-btn {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid var(--orange);
+  border: 1px solid var(--c-primary);
   background: rgba(255, 255, 255, 0.05);
-  color: var(--orange);
+  color: var(--c-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -341,12 +216,16 @@ body {
   flex-shrink: 0;
 }
 
+.refresh-btn:hover,
+.status-btn:hover,
 .test-btn:hover {
-  background: var(--orange);
+  background: var(--c-primary);
   color: var(--bg0);
   transform: scale(1.05);
+  box-shadow: var(--glow-primary);
 }
 
+/* Reconnect button */
 .reconnect-btn {
   width: 32px;
   height: 32px;
@@ -364,23 +243,23 @@ body {
 }
 
 .reconnect-btn.connected {
-  background: var(--primary);
+  background: var(--c-primary);
   color: var(--bg0);
-  border-color: var(--primary);
+  border-color: var(--c-primary);
   box-shadow: var(--glow-primary);
 }
 
 .reconnect-btn.disconnected {
-  background: var(--error);
+  background: var(--c-secondary);
   color: var(--fg0);
-  border-color: var(--error);
+  border-color: var(--c-secondary);
   animation: reconnect-pulse 2s infinite;
 }
 
 .reconnect-btn:disabled {
-  background: var(--bg3);
+  background: var(--muted);
   color: var(--fg4);
-  border-color: var(--bg4);
+  border-color: var(--border);
   cursor: not-allowed;
   animation: none;
   box-shadow: none;
@@ -396,7 +275,7 @@ body {
   50% { box-shadow: 0 0 0 8px rgba(255, 46, 136, 0); }
 }
 
-/* Main Content */
+/* ── Main Content ──────────────────────────────────────────────────────── */
 .main-content {
   flex: 1;
   display: flex;
@@ -405,7 +284,7 @@ body {
   background: var(--bg0);
 }
 
-/* Console Panel */
+/* ── Console Panel ─────────────────────────────────────────────────────── */
 .console-panel {
   height: 100%;
   display: flex;
@@ -416,7 +295,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-sm) var(--space-md);
+  padding: 8px 12px;
   background: var(--bg1);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -425,9 +304,9 @@ body {
 .console-title {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 4px;
   font-weight: 600;
-  color: var(--orange);
+  color: var(--c-primary);
 }
 
 .console-icon {
@@ -437,15 +316,15 @@ body {
 .console-stats {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 4px;
   font-size: 11px;
 }
 
 .log-count {
-  background: var(--accent);
+  background: var(--c-primary);
   color: var(--bg0);
   padding: 2px 8px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   font-weight: 700;
   min-width: 24px;
   text-align: center;
@@ -459,7 +338,7 @@ body {
 .console-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-sm);
+  padding: 8px;
   background: var(--bg0);
 }
 
@@ -471,7 +350,7 @@ body {
   height: 100%;
   color: var(--fg4);
   text-align: center;
-  gap: var(--space-md);
+  gap: 12px;
 }
 
 .empty-icon {
@@ -484,15 +363,16 @@ body {
   font-weight: 500;
 }
 
+/* Console entries (left-border accent per level) */
 .console-entry {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
+  gap: 8px;
+  padding: 4px 8px;
   margin: 2px 0;
-  border-radius: var(--radius-sm);
+  border-radius: 4px;
   border-left: 3px solid transparent;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -502,17 +382,17 @@ body {
 }
 
 .console-entry.error {
-  border-left-color: var(--error);
+  border-left-color: var(--c-secondary);
   background: rgba(255, 46, 136, 0.05);
 }
 
 .console-entry.warn {
-  border-left-color: var(--warning);
+  border-left-color: var(--c-primary);
   background: rgba(254, 95, 0, 0.05);
 }
 
 .console-entry.info {
-  border-left-color: var(--info);
+  border-left-color: var(--c-accent);
   background: rgba(155, 46, 255, 0.05);
 }
 
@@ -522,7 +402,7 @@ body {
   font-weight: 500;
   min-width: 60px;
   flex-shrink: 0;
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
 }
 
 .level-badge {
@@ -555,7 +435,7 @@ body {
 }
 
 .console-content::-webkit-scrollbar-thumb {
-  background: var(--bg4);
+  background: var(--border);
   border-radius: 3px;
   transition: background 0.2s ease;
 }
@@ -564,38 +444,41 @@ body {
   background: var(--fg4);
 }
 
-/* Responsive Design */
+/* ── Responsive Design ─────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .app {
     font-size: 12px;
   }
-  
+
   .status-bar {
-    padding: var(--space-xs) var(--space-sm);
+    padding: 4px 8px;
     min-height: 44px;
     flex-wrap: wrap;
   }
-  
+
   .app-title {
     font-size: 14px;
   }
-  
+
   .app-title .icon {
     font-size: 16px;
   }
-  
+
   .status-right {
     gap: 2px;
     flex-wrap: wrap;
     justify-content: flex-end;
   }
-  
-  .device-badge, .pin-badge {
+
+  .device-badge,
+  .pin-badge {
     font-size: 10px;
-    padding: 2px var(--space-xs);
+    padding: 2px 4px;
   }
 
-  .refresh-btn, .status-btn, .test-btn {
+  .refresh-btn,
+  .status-btn,
+  .test-btn {
     width: 24px;
     height: 24px;
     font-size: 10px;
@@ -605,26 +488,26 @@ body {
     width: 28px;
     height: 28px;
   }
-  
+
   .console-header {
-    padding: var(--space-xs) var(--space-sm);
+    padding: 4px 8px;
   }
-  
+
   .console-content {
-    padding: var(--space-xs);
+    padding: 4px;
   }
-  
+
   .console-entry {
     font-size: 11px;
-    gap: var(--space-xs);
-    padding: var(--space-xs);
+    gap: 4px;
+    padding: 4px;
   }
-  
+
   .entry-time {
     min-width: 50px;
     font-size: 9px;
   }
-  
+
   .level-badge {
     width: 18px;
     height: 18px;
@@ -636,38 +519,41 @@ body {
   .status-bar {
     flex-direction: column;
     align-items: stretch;
-    gap: var(--space-xs);
+    gap: 4px;
     min-height: auto;
   }
-  
-  .status-left, .status-right {
+
+  .status-left,
+  .status-right {
     justify-content: center;
   }
-  
+
   .app-title {
     justify-content: center;
   }
-  
-  .device-badge, .pin-badge {
+
+  .device-badge,
+  .pin-badge {
     font-size: 9px;
   }
-  
-  .device-code, .pin-code {
+
+  .device-code,
+  .pin-code {
     max-width: 60px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  
+
   .console-entry {
     flex-direction: column;
     gap: 2px;
   }
-  
+
   .entry-time {
     min-width: auto;
     align-self: flex-start;
   }
-  
+
   .level-badge {
     align-self: flex-start;
   }
