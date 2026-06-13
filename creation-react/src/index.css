@@ -1,4 +1,4 @@
-/* Base styles for R1 Anywhere Console */
+/* Base styles for R1 Anywhere Console — Boondit Rhythm */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -9,11 +9,11 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #1d2021;
-  color: #ebdbb2;
+  background: #111111;
+  color: #FFFFFF;
   overflow: hidden;
 }
 
@@ -23,7 +23,7 @@ html, body {
 }
 
 code {
-  font-family: inherit;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
 }
 
 /* Prevent text selection on UI elements */
@@ -37,7 +37,7 @@ button, .nav-tab, .status-bar {
 /* Focus styles */
 button:focus-visible,
 .nav-tab:focus-visible {
-  outline: 2px solid #fabd2f;
+  outline: 2px solid #FE5F00;
   outline-offset: 2px;
 }
 

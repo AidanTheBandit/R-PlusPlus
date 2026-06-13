@@ -1,4 +1,4 @@
-/* WidgetManager.css - Styling for widget management interface */
+/* WidgetManager.css - Styling for widget management interface (Rhythm dark theme) */
 
 .widget-manager {
   padding: 20px;
@@ -12,36 +12,43 @@
   align-items: flex-start;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border);
 }
 
 .widget-manager-header h2 {
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--primary);
   font-size: 28px;
   font-weight: 600;
+  text-shadow: 0 0 15px rgba(254, 95, 0, 0.3);
 }
 
 .widget-manager-header p {
   margin: 0;
-  color: #666;
+  color: var(--muted);
   font-size: 16px;
 }
 
 .add-widget-btn {
-  background: #007bff;
-  color: white;
+  background: var(--primary);
+  color: #FFFFFF;
   border: none;
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease, box-shadow 0.2s ease;
+  font-family: inherit;
 }
 
 .add-widget-btn:hover {
-  background: #0056b3;
+  filter: brightness(1.1);
+  box-shadow: var(--glow);
+}
+
+.add-widget-btn:active {
+  text-shadow: -1px 0 var(--secondary), 1px 0 var(--accent);
 }
 
 /* Connection Status */
@@ -60,13 +67,13 @@
 
 .status-text h3 {
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--fg1);
   font-size: 24px;
 }
 
 .status-text p {
   margin: 0;
-  color: #666;
+  color: var(--muted);
   font-size: 16px;
 }
 
@@ -77,7 +84,7 @@
 
 .widget-section h3 {
   margin: 0 0 20px 0;
-  color: #333;
+  color: var(--primary);
   font-size: 20px;
   font-weight: 600;
 }
@@ -86,9 +93,9 @@
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  border: 2px dashed #dee2e6;
+  background: var(--bg1);
+  border-radius: var(--radius);
+  border: 2px dashed var(--border);
 }
 
 .empty-icon {
@@ -99,24 +106,26 @@
 
 .empty-state p {
   margin: 0 0 20px 0;
-  color: #666;
+  color: var(--muted);
   font-size: 16px;
 }
 
 .add-first-widget-btn {
-  background: #28a745;
-  color: white;
+  background: var(--primary);
+  color: #FFFFFF;
   border: none;
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease, box-shadow 0.2s ease;
+  font-family: inherit;
 }
 
 .add-first-widget-btn:hover {
-  background: #1e7e34;
+  filter: brightness(1.1);
+  box-shadow: var(--glow);
 }
 
 /* Widget Grid */
@@ -127,15 +136,16 @@
 }
 
 .widget-card {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 20px;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .widget-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
+  box-shadow: var(--glow-purple);
 }
 
 .widget-card-header {
@@ -147,7 +157,7 @@
 
 .widget-card-header h4 {
   margin: 0;
-  color: #333;
+  color: var(--fg1);
   font-size: 18px;
   font-weight: 600;
 }
@@ -166,14 +176,17 @@
   padding: 4px;
   border-radius: 4px;
   transition: background-color 0.2s ease;
+  color: var(--muted);
 }
 
 .config-btn:hover {
-  background: #f0f0f0;
+  background: var(--bg2);
+  color: var(--accent);
 }
 
 .remove-btn:hover {
-  background: #ffe6e6;
+  background: rgba(255, 46, 136, 0.15);
+  color: var(--secondary);
 }
 
 .widget-info {
@@ -181,12 +194,12 @@
   flex-direction: column;
   gap: 4px;
   font-size: 14px;
-  color: #666;
+  color: var(--muted);
 }
 
 .widget-size,
 .widget-position {
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'JetBrains Mono', 'Menlo', monospace;
 }
 
 /* Modal Styles */
@@ -196,21 +209,23 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
 .modal {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   max-width: 600px;
   width: 90%;
   max-height: 80vh;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 40px 4px rgba(0, 0, 0, 0.6);
 }
 
 .modal-header {
@@ -218,14 +233,15 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border);
 }
 
 .modal-header h3 {
   margin: 0;
-  color: #333;
+  color: var(--primary);
   font-size: 20px;
   font-weight: 600;
+  text-shadow: 0 0 12px rgba(254, 95, 0, 0.3);
 }
 
 .close-btn {
@@ -233,14 +249,15 @@
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #666;
+  color: var(--muted);
   padding: 4px;
   border-radius: 4px;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .close-btn:hover {
-  background: #f0f0f0;
+  background: var(--bg2);
+  color: var(--fg1);
 }
 
 .modal-content {
@@ -261,25 +278,27 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  transition: border-color 0.2s ease;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg0);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .available-widget:hover {
-  border-color: #007bff;
+  border-color: var(--primary);
+  box-shadow: 0 0 12px 2px rgba(254, 95, 0, 0.3);
 }
 
 .available-widget .widget-info h4 {
   margin: 0 0 4px 0;
-  color: #333;
+  color: var(--fg1);
   font-size: 16px;
   font-weight: 600;
 }
 
 .available-widget .widget-info p {
   margin: 0 0 8px 0;
-  color: #666;
+  color: var(--muted);
   font-size: 14px;
 }
 
@@ -290,33 +309,35 @@
 }
 
 .widget-category {
-  background: #e9ecef;
-  color: #495057;
+  background: var(--gradient);
+  color: #FFFFFF;
   padding: 2px 8px;
   border-radius: 12px;
   font-weight: 500;
 }
 
 .widget-size {
-  color: #666;
-  font-family: 'Monaco', 'Menlo', monospace;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', 'Menlo', monospace;
 }
 
 .add-btn {
-  background: #28a745;
-  color: white;
+  background: var(--primary);
+  color: #FFFFFF;
   border: none;
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease, box-shadow 0.2s ease;
   white-space: nowrap;
+  font-family: inherit;
 }
 
 .add-btn:hover {
-  background: #1e7e34;
+  filter: brightness(1.1);
+  box-shadow: var(--glow);
 }
 
 /* Configuration Form */
@@ -334,28 +355,33 @@
 
 .form-field label {
   font-weight: 500;
-  color: #333;
+  color: var(--muted);
   font-size: 14px;
 }
 
 .form-field input,
 .form-field select {
   padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   font-size: 14px;
-  transition: border-color 0.2s ease;
+  background: var(--bg0);
+  color: var(--fg1);
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .form-field input:focus,
 .form-field select:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(254, 95, 0, 0.4);
 }
 
 .form-field input[type="checkbox"] {
   width: auto;
   margin: 0;
+  accent-color: var(--primary);
 }
 
 .form-actions {
@@ -363,36 +389,38 @@
   justify-content: flex-end;
   gap: 12px;
   padding-top: 20px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border);
 }
 
 .form-actions button {
   padding: 10px 20px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: filter 0.2s ease, box-shadow 0.2s ease;
+  font-family: inherit;
 }
 
 .form-actions button[type="button"] {
-  background: #6c757d;
-  color: white;
-  border: none;
+  background: var(--bg2);
+  color: var(--fg1);
+  border: 1px solid var(--border);
 }
 
 .form-actions button[type="button"]:hover {
-  background: #545b62;
+  background: var(--border);
 }
 
 .form-actions button[type="submit"] {
-  background: #007bff;
-  color: white;
+  background: var(--primary);
+  color: #FFFFFF;
   border: none;
 }
 
 .form-actions button[type="submit"]:hover {
-  background: #0056b3;
+  filter: brightness(1.1);
+  box-shadow: var(--glow);
 }
 
 /* Responsive Design */

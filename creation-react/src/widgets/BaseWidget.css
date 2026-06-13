@@ -1,26 +1,26 @@
-/* BaseWidget.css - Styling for base widget component */
+/* BaseWidget.css - Boondit Rhythm styling for base widget component */
 
 .base-widget {
-  background: #1d2021;
-  border: 1px solid #3c3836;
+  background: #1A1A1A;
+  border: 1px solid #292929;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  color: #ebdbb2;
-  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  color: #FFFFFF;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 12px;
   overflow: hidden;
   transition: all 0.2s ease;
 }
 
 .base-widget:hover {
-  border-color: #458588;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-color: #FE5F00;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), 0 0 12px 2px rgba(254, 95, 0, 0.3);
 }
 
 /* Widget Header */
 .widget-header {
-  background: #282828;
-  border-bottom: 1px solid #3c3836;
+  background: #111111;
+  border-bottom: 1px solid #292929;
   padding: 8px 12px;
   display: flex;
   justify-content: space-between;
@@ -31,7 +31,7 @@
 .widget-title {
   font-weight: 600;
   font-size: 13px;
-  color: #ebdbb2;
+  color: #FFFFFF;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -56,25 +56,25 @@
 }
 
 .widget-body::-webkit-scrollbar-track {
-  background: #1d2021;
+  background: #111111;
 }
 
 .widget-body::-webkit-scrollbar-thumb {
-  background: #504945;
+  background: #292929;
   border-radius: 2px;
 }
 
 .widget-body::-webkit-scrollbar-thumb:hover {
-  background: #665c54;
+  background: #9CA3AF;
 }
 
 /* Widget Footer */
 .widget-footer {
-  background: #282828;
-  border-top: 1px solid #3c3836;
+  background: #111111;
+  border-top: 1px solid #292929;
   padding: 4px 12px;
   font-size: 10px;
-  color: #928374;
+  color: #9CA3AF;
   text-align: right;
   min-height: 20px;
   display: flex;
@@ -89,14 +89,14 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #928374;
+  color: #9CA3AF;
 }
 
 .widget-loading-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid #3c3836;
-  border-top: 2px solid #458588;
+  border: 2px solid #292929;
+  border-top: 2px solid #FE5F00;
   border-radius: 50%;
   animation: widget-spin 1s linear infinite;
   margin-bottom: 8px;
@@ -128,29 +128,30 @@
 }
 
 .widget-error-message {
-  color: #fb4934;
+  color: #FF2E88;
   font-size: 11px;
   margin-bottom: 12px;
   line-height: 1.4;
 }
 
 .widget-error-retry {
-  background: #458588;
+  background: #FE5F00;
   border: none;
   border-radius: 4px;
-  color: #ebdbb2;
+  color: #111111;
   cursor: pointer;
   font-size: 10px;
   padding: 6px 12px;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .widget-error-retry:hover {
-  background: #689d6a;
+  background: #FF2E88;
+  box-shadow: 0 0 12px 2px rgba(255, 46, 136, 0.5);
 }
 
 .widget-error-retry:active {
-  background: #427b58;
+  background: #9B2EFF;
 }
 
 /* Responsive adjustments for small widgets */
@@ -183,45 +184,45 @@
   font-size: 9px;
 }
 
-/* Theme variations */
+/* Theme variations — dark-only rhythm theme */
 .base-widget.theme-light {
-  background: #fbf1c7;
-  border-color: #d5c4a1;
-  color: #3c3836;
+  background: #1A1A1A;
+  border-color: #292929;
+  color: #FFFFFF;
 }
 
 .base-widget.theme-light .widget-header {
-  background: #f2e5bc;
-  border-bottom-color: #d5c4a1;
+  background: #111111;
+  border-bottom-color: #292929;
 }
 
 .base-widget.theme-light .widget-title {
-  color: #3c3836;
+  color: #FFFFFF;
 }
 
 .base-widget.theme-light .widget-footer {
-  background: #f2e5bc;
-  border-top-color: #d5c4a1;
-  color: #7c6f64;
+  background: #111111;
+  border-top-color: #292929;
+  color: #9CA3AF;
 }
 
 .base-widget.theme-light .widget-loading {
-  color: #7c6f64;
+  color: #9CA3AF;
 }
 
 .base-widget.theme-light .widget-loading-spinner {
-  border-color: #d5c4a1;
-  border-top-color: #076678;
+  border-color: #292929;
+  border-top-color: #FE5F00;
 }
 
 .base-widget.theme-light .widget-error-message {
-  color: #cc241d;
+  color: #FF2E88;
 }
 
 .base-widget.theme-light .widget-error-retry {
-  background: #076678;
+  background: #FE5F00;
 }
 
 .base-widget.theme-light .widget-error-retry:hover {
-  background: #427b58;
+  background: #FF2E88;
 }

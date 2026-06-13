@@ -380,7 +380,7 @@ const AddServerModal = ({ onAdd, onClose }) => {
                   <small className="form-help">
                     Full URL to the MCP server endpoint supporting HTTP transport
                     {formData.url && !validateUrl(formData.url) && (
-                      <span style={{ color: '#ff6b6b' }}> • Invalid URL format</span>
+                      <span style={{ color: '#FF2E88' }}> • Invalid URL format</span>
                     )}
                   </small>
                 </div>

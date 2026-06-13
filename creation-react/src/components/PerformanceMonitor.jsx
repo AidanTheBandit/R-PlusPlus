@@ -77,16 +77,17 @@ const PerformanceMonitor = () => {
         top: '10px', 
         right: '10px', 
         zIndex: 1000,
-        background: '#282828',
-        border: '1px solid #fabd2f',
+        background: '#1A1A1A',
+        border: '1px solid #FE5F00',
         borderRadius: '4px',
-        padding: '8px'
+        padding: '8px',
+        boxShadow: '0 0 12px 2px rgba(254, 95, 0, 0.4)'
       }}>
         <button 
           onClick={() => setIsVisible(true)}
           style={{
-            background: '#fabd2f',
-            color: '#282828',
+            background: '#FE5F00',
+            color: '#111111',
             border: 'none',
             padding: '4px 8px',
             borderRadius: '2px',
@@ -108,33 +109,33 @@ const PerformanceMonitor = () => {
       right: '10px',
       width: '320px',
       maxHeight: '500px',
-      background: '#282828',
-      border: '2px solid #fabd2f',
+      background: '#1A1A1A',
+      border: '2px solid #FE5F00',
       borderRadius: '8px',
       padding: '16px',
-      color: '#ebdbb2',
+      color: '#FFFFFF',
       fontSize: '12px',
-      fontFamily: 'monospace',
+      fontFamily: 'SF Mono, Monaco, Menlo, monospace',
       zIndex: 1000,
       overflow: 'auto',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+      boxShadow: '0 4px 12px rgba(0,0,0,0.5), 0 0 12px 2px rgba(254, 95, 0, 0.3)'
     }}>
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
         marginBottom: '12px',
-        borderBottom: '1px solid #504945',
+        borderBottom: '1px solid #292929',
         paddingBottom: '8px'
       }}>
-        <h3 style={{ margin: 0, color: '#fabd2f', fontSize: '14px' }}>
+        <h3 style={{ margin: 0, color: '#FE5F00', fontSize: '14px' }}>
           📊 Performance Monitor
         </h3>
         <button 
           onClick={() => setIsVisible(false)}
           style={{
-            background: '#fb4934',
-            color: '#282828',
+            background: '#FF2E88',
+            color: '#111111',
             border: 'none',
             padding: '2px 6px',
             borderRadius: '2px',
@@ -148,10 +149,10 @@ const PerformanceMonitor = () => {
 
       {/* Component Stats */}
       <div style={{ marginBottom: '12px' }}>
-        <h4 style={{ margin: '0 0 4px 0', color: '#8ec07c', fontSize: '12px' }}>
+        <h4 style={{ margin: '0 0 4px 0', color: '#FE5F00', fontSize: '12px' }}>
           Component Stats
         </h4>
-        <div style={{ background: '#3c3836', padding: '6px', borderRadius: '4px' }}>
+        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '4px' }}>
           <div>Renders: {componentStats.renderCount}</div>
           <div>Uptime: {formatNumber(componentStats.uptime / 1000)}s</div>
           <div>Monitoring: {isMonitoring ? '✅' : '❌'}</div>
@@ -161,10 +162,10 @@ const PerformanceMonitor = () => {
       {/* Memory Stats */}
       {memoryStats && (
         <div style={{ marginBottom: '12px' }}>
-          <h4 style={{ margin: '0 0 4px 0', color: '#83a598', fontSize: '12px' }}>
+          <h4 style={{ margin: '0 0 4px 0', color: '#9B2EFF', fontSize: '12px' }}>
             Memory Usage (Client)
           </h4>
-          <div style={{ background: '#3c3836', padding: '6px', borderRadius: '4px' }}>
+          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '4px' }}>
             <div>Heap Used: {formatBytes(memoryStats.heapUsed)}</div>
             <div>Components: {memoryStats.componentCount}</div>
             <div>Listeners: {memoryStats.listenerCount}</div>
@@ -175,10 +176,10 @@ const PerformanceMonitor = () => {
       {/* Performance Metrics */}
       {metrics && (
         <div style={{ marginBottom: '12px' }}>
-          <h4 style={{ margin: '0 0 4px 0', color: '#d3869b', fontSize: '12px' }}>
+          <h4 style={{ margin: '0 0 4px 0', color: '#9B2EFF', fontSize: '12px' }}>
             Performance Metrics
           </h4>
-          <div style={{ background: '#3c3836', padding: '6px', borderRadius: '4px' }}>
+          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '4px' }}>
             <div>Render Time: {formatNumber(metrics.renderTime)}ms</div>
             <div>Renders: {metrics.componentRenderCount}</div>
             <div>Errors: {metrics.errorCount}</div>
@@ -190,10 +191,10 @@ const PerformanceMonitor = () => {
       {/* Server Performance Data */}
       {performanceData && (
         <div style={{ marginBottom: '12px' }}>
-          <h4 style={{ margin: '0 0 4px 0', color: '#fe8019', fontSize: '12px' }}>
+          <h4 style={{ margin: '0 0 4px 0', color: '#FE5F00', fontSize: '12px' }}>
             Server Performance
           </h4>
-          <div style={{ background: '#3c3836', padding: '6px', borderRadius: '4px' }}>
+          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '4px' }}>
             <div>Heap Used: {formatBytes(performanceData.memory?.heapUsed || 0)}</div>
             <div>Components: {performanceData.memory?.componentCount || 0}</div>
             <div>Socket Connections: {performanceData.socketConnections || 0}</div>
@@ -205,7 +206,7 @@ const PerformanceMonitor = () => {
 
       {/* Actions */}
       <div style={{ 
-        borderTop: '1px solid #504945', 
+        borderTop: '1px solid #292929', 
         paddingTop: '8px',
         display: 'flex',
         gap: '4px',
@@ -220,8 +221,8 @@ const PerformanceMonitor = () => {
             }
           }}
           style={{
-            background: '#fb4934',
-            color: '#282828',
+            background: '#FF2E88',
+            color: '#111111',
             border: 'none',
             padding: '4px 8px',
             borderRadius: '2px',
@@ -238,8 +239,8 @@ const PerformanceMonitor = () => {
             setPerformanceData(prev => ({ ...prev, timestamp: Date.now() }));
           }}
           style={{
-            background: '#b8bb26',
-            color: '#282828',
+            background: '#FE5F00',
+            color: '#111111',
             border: 'none',
             padding: '4px 8px',
             borderRadius: '2px',
@@ -263,8 +264,8 @@ const PerformanceMonitor = () => {
             }
           }}
           style={{
-            background: '#83a598',
-            color: '#282828',
+            background: '#9B2EFF',
+            color: '#111111',
             border: 'none',
             padding: '4px 8px',
             borderRadius: '2px',
@@ -279,7 +280,7 @@ const PerformanceMonitor = () => {
       <div style={{ 
         marginTop: '8px', 
         fontSize: '10px', 
-        color: '#928374',
+        color: '#9CA3AF',
         textAlign: 'center'
       }}>
         Last updated: {new Date().toLocaleTimeString()}

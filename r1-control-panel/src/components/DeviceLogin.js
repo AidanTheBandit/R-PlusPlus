@@ -94,11 +94,11 @@ const DeviceLogin = ({
                             url: "https://r1a.boondit.site/creation",
                             description: "Use R1 anywhere",
                             iconUrl: "https://boondit.site/icons/r1a.png",
-                            themeColor: "#ff61f2"
+                            themeColor: "#FE5F00"
                         })}
                         size={400}
-                        fgColor="#ebdbb2"
-                        bgColor="#282828"
+                        fgColor="#FFFFFF"
+                        bgColor="#111111"
                         level="M"
                     />
                 </div>

@@ -111,7 +111,7 @@ const LogsModal = ({ deviceId, pinCode, onClose }) => {
               Loading logs...
             </div>
           ) : logs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+            <div style={{ textAlign: 'center', padding: '20px', color: '#9CA3AF' }}>
               No logs available
             </div>
           ) : (
