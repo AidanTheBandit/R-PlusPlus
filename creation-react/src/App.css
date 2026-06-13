@@ -1,239 +1,182 @@
-/* ==========================================================================
-   App.css — Device Pairing / Login screen
-   Boondit Rhythm design language: dark canvas, PowerGrotesk, orange primary,
-   3-segment brand stripe, colored glow shadows. Authored at the R1's native
-   240×282 device canvas (scaled to the viewport by .creation-canvas).
-   ========================================================================== */
+/* ==============================================
+   R1 Device Screen — Boondit Rhythm Design
+   240×282 canvas, PowerGrotesk, dark + orange
+   ============================================== */
 
-.pair-screen {
+.creation-viewport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #000;
+}
+
+.creation-canvas {
+  position: relative;
+  width: 240px;
+  height: 282px;
+  background: var(--bg, #111111);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-/* ── Body ──────────────────────────────────────────────────────────────── */
-.pair-body {
+/* Brand stripe — 3 equal segments, 3px */
+.brand-stripe {
+  display: flex;
+  height: 3px;
+  width: 100%;
+  flex-shrink: 0;
+}
+.brand-stripe .seg-1 { flex: 1; background: #FF1F8F; }
+.brand-stripe .seg-2 { flex: 1; background: #A864FF; }
+.brand-stripe .seg-3 { flex: 1; background: #1F4A3F; }
+
+/* Body */
+.device-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 14px 18px;
-  text-align: center;
+  padding: 12px 16px;
+  gap: 10px;
 }
 
-/* ── Logo mark (orange-glow disc) ──────────────────────────────────────── */
-.pair-logo {
-  width: 46px;
-  height: 46px;
+/* Logo disc */
+.device-logo {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
+  background: #FE5F00;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 35% 30%, #FF8A33 0%, var(--c-primary) 55%, #B34200 100%);
-  box-shadow: var(--glow-primary), inset 0 0 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 16px 3px rgba(254, 95, 0, 0.5);
   margin-bottom: 4px;
+  flex-shrink: 0;
 }
 
-.pair-logo-mark {
-  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
+.device-logo-mark {
+  font-family: var(--font-power-grotesk, 'PowerGrotesk'), sans-serif;
+  font-size: 24px;
   font-weight: 900;
-  font-size: 26px;
-  color: var(--bg0);
+  color: #fff;
   line-height: 1;
-  letter-spacing: -0.04em;
 }
 
-/* ── Headings ──────────────────────────────────────────────────────────── */
-.pair-title {
-  margin: 0;
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  background: var(--gradient-focus);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.pair-subtitle {
-  margin: 0 0 6px;
-  font-size: 11px;
-  color: var(--fg3);
-  font-weight: 500;
-}
-
-/* ── Form ──────────────────────────────────────────────────────────────── */
-.pair-form {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pair-field {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  text-align: left;
-}
-
-.pair-label {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--fg3);
-  padding-left: 2px;
-}
-
-.pair-input {
-  width: 100%;
-  height: 30px;
-  padding: 0 10px;
-  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--fg0);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius);
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.pair-input::placeholder {
-  color: var(--fg4);
-  font-weight: 500;
-}
-
-.pair-input:focus {
-  border-color: var(--c-primary);
-  background: rgba(254, 95, 0, 0.06);
-  box-shadow: 0 0 0 2px rgba(254, 95, 0, 0.18), var(--glow-primary);
-}
-
-/* ── Error message ─────────────────────────────────────────────────────── */
-.pair-error {
-  margin: 0;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--c-secondary);
-  text-align: center;
-}
-
-/* ── Pair button ───────────────────────────────────────────────────────── */
-.pair-btn {
-  margin-top: 4px;
-  height: 34px;
-  border: none;
-  border-radius: var(--radius);
-  background: linear-gradient(180deg, #FF7A1A 0%, var(--c-primary) 100%);
-  color: var(--bg0);
-  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  cursor: pointer;
+/* Connection status */
+.device-status {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: transform 0.2s var(--ease-boondit, ease), box-shadow 0.2s ease, filter 0.2s ease;
-  box-shadow: var(--glow-primary);
+  gap: 5px;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9CA3AF;
+  font-weight: 600;
 }
 
-.pair-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
-}
-
-.pair-btn:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.pair-btn:disabled {
-  cursor: wait;
-  filter: saturate(0.7);
-}
-
-/* ── Spinner (pairing state) ───────────────────────────────────────────── */
-.pair-spinner {
-  width: 13px;
-  height: 13px;
+.device-status-dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  border: 2px solid rgba(17, 17, 17, 0.35);
-  border-top-color: var(--bg0);
-  animation: pair-spin 0.7s linear infinite;
+  background: #10B981;
+  animation: pulse-dot 2s ease-in-out infinite;
 }
 
-@keyframes pair-spin {
+.device-status.offline .device-status-dot {
+  background: #FF4D6D;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Device ID */
+.device-info {
+  text-align: center;
+  width: 100%;
+}
+
+.device-info-label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #9CA3AF;
+  margin: 0 0 3px 0;
+  font-weight: 600;
+}
+
+.device-info-value {
+  font-family: var(--font-power-grotesk, 'PowerGrotesk'), sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+/* PIN */
+.device-pin {
+  text-align: center;
+  width: 100%;
+}
+
+.device-pin-value {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin: 3px 0 0 0;
+}
+
+.device-pin-digit {
+  font-family: var(--font-power-grotesk, 'PowerGrotesk'), sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: #FE5F00;
+  min-width: 14px;
+  text-align: center;
+  text-shadow: 0 0 8px rgba(254, 95, 0, 0.4);
+}
+
+/* Hint text */
+.device-hint {
+  font-size: 9px;
+  color: #9CA3AF;
+  text-align: center;
+  margin: 0;
+  margin-top: auto;
+  padding-bottom: 2px;
+  line-height: 1.3;
+}
+
+/* Connecting spinner */
+.device-connecting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.device-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid #292929;
+  border-top-color: #FE5F00;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* ── Success state ─────────────────────────────────────────────────────── */
-.pair-success {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  margin-top: 4px;
-}
-
-.pair-success-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  font-weight: 900;
-  color: var(--c-primary);
-  background: rgba(254, 95, 0, 0.12);
-  border: 2px solid var(--c-primary);
-  box-shadow: var(--glow-primary);
-  animation: pair-pop 0.5s var(--ease-boondit, cubic-bezier(0.34, 1.56, 0.64, 1)) forwards;
-}
-
-@keyframes pair-pop {
-  0% { opacity: 0; transform: scale(0.4); }
-  60% { opacity: 1; transform: scale(1.15); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-.pair-success-text {
-  margin: 4px 0 0;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--fg0);
-}
-
-.pair-success-id {
-  margin: 0;
-  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
-  font-size: 11px;
-  color: var(--fg3);
-  word-break: break-all;
-}
-
-.pair-reset-btn {
-  margin-top: 8px;
-  padding: 5px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--fg2);
-  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
-  font-size: 11px;
+.device-connecting-text {
+  font-size: 10px;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.pair-reset-btn:hover {
-  border-color: var(--c-primary);
-  color: var(--c-primary);
-  box-shadow: 0 0 10px 1px rgba(254, 95, 0, 0.35);
 }
