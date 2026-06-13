@@ -11,10 +11,10 @@ import './App.css'
  * enter them in the Control Panel.
  */
 function App() {
-  const [deviceId, setDeviceId] = useState(null)
-  const [pinCode, setPinCode] = useState(null)
+  const [deviceId, setDeviceId] = useState(() => localStorage.getItem('r1-device-id'))
+  const [pinCode, setPinCode] = useState(() => localStorage.getItem('r1-pin-code'))
   const [connected, setConnected] = useState(false)
-  const [reconnecting, setReconnecting] = useState(false)
+  const [reconnecting, setReconnecting] = useState(!!localStorage.getItem('r1-device-id'))
 
   useEffect(() => {
     const socket = io({
@@ -36,9 +36,12 @@ function App() {
       setPinCode(data.pinCode)
       setReconnecting(data.isReconnection || false)
 
-      // Persist device secret for reconnection (server reads this cookie)
+      // Persist device ID, PIN, and secret for reconnection + instant display
+      localStorage.setItem('r1-device-id', data.deviceId)
+      localStorage.setItem('r1-pin-code', data.pinCode || '')
       if (data.deviceSecret) {
         document.cookie = `r1_device_secret=${data.deviceSecret}; max-age=2592000; path=/`
+        localStorage.setItem('r1-device-secret', data.deviceSecret)
       }
     })
 

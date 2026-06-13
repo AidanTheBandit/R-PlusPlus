@@ -397,7 +397,7 @@ const AddServerModal = ({ onAdd, onClose }) => {
 
               {connectionTestResult && (
                 <div className={`connection-test-result ${connectionTestResult.success ? 'success' : 'error'}`}>
-                  <strong>{connectionTestResult.success ? '✅ Success:' : '❌ Failed:'}</strong> {connectionTestResult.message}
+                  <strong>{connectionTestResult.success ? 'Success:' : 'Failed:'}</strong> {connectionTestResult.message}
                   {connectionTestResult.serverInfo && (
                     <div style={{ marginTop: '5px', fontSize: '0.9em' }}>
                       Server: {connectionTestResult.serverInfo.name} v{connectionTestResult.serverInfo.version}

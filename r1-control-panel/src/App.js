@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
+import { HeartIcon } from './components/Icons';
 import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
@@ -69,8 +70,8 @@ function App() {
           localStorage.removeItem('r1-pin-code');
         }
 
-        // Initialize socket connection
-        const newSocket = io();
+        // Initialize socket connection - connect AS the authenticated device
+        const newSocket = io({ query: { deviceId: deviceIdInput } });
         setSocket(newSocket);
 
         newSocket.on('connect', () => {
@@ -160,7 +161,7 @@ function App() {
           <a href="https://barkle.chat/@Aidan" target="_blank" rel="noopener noreferrer">
             Barkle 
           </a>
-          <span>Made with ❤️ by Aidan and <a href="https://boondit.site/r1-generator" target="_blank" rel="noopener noreferrer">R1 QR code gen</a></span>
+          <span>Made with <HeartIcon size={12} /> by Aidan and <a href="https://boondit.site/r1-generator" target="_blank" rel="noopener noreferrer">R1 QR code gen</a></span>
         </footer>
       </div>
     </div>
