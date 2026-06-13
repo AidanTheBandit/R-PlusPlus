@@ -105,7 +105,7 @@ const DeviceLogin = ({
 
                 <div className="login-footer">
                     <div className="security-note">
-                        <h4>🔒 Privacy & Security</h4>
+                        <h4>Privacy & Security</h4>
                         <ul>
                             <li>Your device ID and PIN are stored locally in your browser</li>
                             <li>Only you can access your R1 device with these credentials</li>
