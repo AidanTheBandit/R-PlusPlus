@@ -286,10 +286,10 @@ class WidgetRenderer extends Component {
             <div style={{ fontSize: '14px', marginBottom: '8px' }}>
               {widgetId}
             </div>
-            <div style={{ fontSize: '10px', color: '#928374' }}>
+            <div style={{ fontSize: '10px', color: '#9CA3AF' }}>
               Widget ID: {this.props.instanceId}
             </div>
-            <div style={{ fontSize: '10px', color: '#928374', marginTop: '4px' }}>
+            <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px' }}>
               {JSON.stringify(this.props.config, null, 2)}
             </div>
           </div>
