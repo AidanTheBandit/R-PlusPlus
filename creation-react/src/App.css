@@ -1,6 +1,7 @@
 /* ==============================================
    R1 Device Screen — Boondit Rhythm Design
-   240×282 canvas, PowerGrotesk, dark + orange
+   240x282 canvas, PowerGrotesk, dark + orange
+   Clean, flat, no glow effects
    ============================================== */
 
 .creation-viewport {
@@ -52,7 +53,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 16px 3px rgba(254, 95, 0, 0.5);
   margin-bottom: 4px;
   flex-shrink: 0;
 }
@@ -82,16 +82,10 @@
   height: 6px;
   border-radius: 50%;
   background: #10B981;
-  animation: pulse-dot 2s ease-in-out infinite;
 }
 
 .device-status.offline .device-status-dot {
   background: #FF4D6D;
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
 }
 
 /* Device ID */
@@ -127,7 +121,7 @@
 .device-pin-value {
   display: flex;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   margin: 3px 0 0 0;
 }
 
@@ -138,7 +132,6 @@
   color: #FE5F00;
   min-width: 14px;
   text-align: center;
-  text-shadow: 0 0 8px rgba(254, 95, 0, 0.4);
 }
 
 /* Hint text */

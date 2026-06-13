@@ -17,7 +17,15 @@ function App() {
   const [reconnecting, setReconnecting] = useState(false)
 
   useEffect(() => {
-    const socket = io({ transports: ['websocket', 'polling'] })
+    const socket = io({
+      path: '/socket.io/',
+      transports: ['polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 10000,
+    })
 
     socket.on('connect', () => {
       setConnected(true)
@@ -40,6 +48,11 @@ function App() {
 
     socket.on('connect_error', () => {
       setConnected(false)
+    })
+
+    // Upgrade to websocket after polling establishes connection (Cloudflare tunnel safe)
+    socket.io.on('reconnect_attempt', () => {
+      socket.io.opts.transports = ['polling']
     })
 
     return () => socket.close()
