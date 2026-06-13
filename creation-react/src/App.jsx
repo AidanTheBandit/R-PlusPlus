@@ -1,133 +1,102 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { io } from 'socket.io-client'
 import './App.css'
 
 /**
- * App — Device Pairing / Login screen.
+ * App — R1 Device Screen.
  *
- * A single, focused screen for entering a Device ID and PIN, built in the
- * Boondit Rhythm design language (dark canvas, PowerGrotesk, orange primary,
- * 3-segment brand stripe, colored glow). Authored at the R1's native 240×282
- * device canvas and scaled to fill the viewport.
+ * Connects to the R-API server via Socket.IO. The server auto-generates a
+ * device ID and PIN on connect and sends them back in a `connected` event.
+ * This screen DISPLAYS them like a pairing code — you read them here and
+ * enter them in the Control Panel.
  */
 function App() {
-  const [deviceId, setDeviceId] = useState('')
-  const [pin, setPin] = useState('')
-  const [status, setStatus] = useState('idle') // 'idle' | 'pairing' | 'success' | 'error'
-  const [message, setMessage] = useState('')
+  const [deviceId, setDeviceId] = useState(null)
+  const [pinCode, setPinCode] = useState(null)
+  const [connected, setConnected] = useState(false)
+  const [reconnecting, setReconnecting] = useState(false)
 
-  const canSubmit = deviceId.trim().length > 0 && pin.trim().length > 0
+  useEffect(() => {
+    const socket = io({ transports: ['websocket', 'polling'] })
 
-  const clearError = () => {
-    if (status === 'error') {
-      setStatus('idle')
-      setMessage('')
-    }
-  }
+    socket.on('connect', () => {
+      setConnected(true)
+    })
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (status === 'pairing') return
+    socket.on('connected', (data) => {
+      setDeviceId(data.deviceId)
+      setPinCode(data.pinCode)
+      setReconnecting(data.isReconnection || false)
 
-    if (!canSubmit) {
-      setStatus('error')
-      setMessage('Enter your Device ID and PIN')
-      return
-    }
+      // Persist device secret for reconnection (server reads this cookie)
+      if (data.deviceSecret) {
+        document.cookie = `r1_device_secret=${data.deviceSecret}; max-age=2592000; path=/`
+      }
+    })
 
-    setStatus('pairing')
-    setMessage('Pairing…')
+    socket.on('disconnect', () => {
+      setConnected(false)
+    })
 
-    // Simulated pairing handshake.
-    // Real device registration happens server-side over the socket bridge;
-    // this screen only captures and validates the credentials.
-    window.setTimeout(() => {
-      setStatus('success')
-      setMessage('Paired')
-    }, 1400)
-  }
+    socket.on('connect_error', () => {
+      setConnected(false)
+    })
 
-  const handleReset = () => {
-    setDeviceId('')
-    setPin('')
-    setStatus('idle')
-    setMessage('')
-  }
+    return () => socket.close()
+  }, [])
 
   return (
     <div className="creation-viewport">
-      <div className="creation-canvas pair-screen">
-        {/* Brand stripe (signature 3-segment ribbon) */}
+      <div className="creation-canvas device-screen">
+        {/* Brand stripe */}
         <div className="brand-stripe">
           <div className="seg-1"></div>
           <div className="seg-2"></div>
           <div className="seg-3"></div>
         </div>
 
-        <div className="pair-body">
+        <div className="device-body">
           {/* Logo mark */}
-          <div className="pair-logo" aria-hidden="true">
-            <span className="pair-logo-mark">R</span>
+          <div className="device-logo" aria-hidden="true">
+            <span className="device-logo-mark">R</span>
           </div>
 
-          {/* Headings */}
-          <h1 className="pair-title">Pair Device</h1>
-          <p className="pair-subtitle">Enter your credentials</p>
+          {deviceId ? (
+            <>
+              {/* Connection indicator */}
+              <div className={`device-status ${connected ? 'online' : 'offline'}`}>
+                <span className="device-status-dot"></span>
+                {reconnecting ? 'Reconnected' : connected ? 'Connected' : 'Reconnecting'}
+              </div>
 
-          {status === 'success' ? (
-            <div className="pair-success">
-              <div className="pair-success-icon">✓</div>
-              <p className="pair-success-text">{message}</p>
-              <p className="pair-success-id">{deviceId}</p>
-              <button type="button" className="pair-reset-btn" onClick={handleReset}>
-                Pair another
-              </button>
-            </div>
+              {/* Device ID display */}
+              <div className="device-info">
+                <p className="device-info-label">Device ID</p>
+                <p className="device-info-value">{deviceId}</p>
+              </div>
+
+              {/* PIN display */}
+              {pinCode && (
+                <div className="device-pin">
+                  <p className="device-info-label">PIN</p>
+                  <p className="device-pin-value">
+                    {pinCode.split('').map((digit, i) => (
+                      <span key={i} className="device-pin-digit">{digit}</span>
+                    ))}
+                  </p>
+                </div>
+              )}
+
+              {/* Instructions */}
+              <p className="device-hint">
+                Enter these in the Control Panel
+              </p>
+            </>
           ) : (
-            <form className="pair-form" onSubmit={handleSubmit} autoComplete="off">
-              <label className="pair-field">
-                <span className="pair-label">Device ID</span>
-                <input
-                  className="pair-input"
-                  type="text"
-                  value={deviceId}
-                  onChange={(e) => { setDeviceId(e.target.value); clearError() }}
-                  placeholder="0000-0000"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                />
-              </label>
-
-              <label className="pair-field">
-                <span className="pair-label">PIN</span>
-                <input
-                  className="pair-input pair-pin"
-                  type="password"
-                  value={pin}
-                  onChange={(e) => { setPin(e.target.value); clearError() }}
-                  placeholder="••••"
-                  maxLength={8}
-                  inputMode="numeric"
-                />
-              </label>
-
-              {status === 'error' && <p className="pair-error">{message}</p>}
-
-              <button
-                className="pair-btn"
-                type="submit"
-                disabled={status === 'pairing'}
-              >
-                {status === 'pairing' ? (
-                  <>
-                    <span className="pair-spinner" />
-                    <span>Pairing</span>
-                  </>
-                ) : (
-                  'Pair'
-                )}
-              </button>
-            </form>
+            <div className="device-connecting">
+              <div className="device-spinner"></div>
+              <p className="device-connecting-text">Connecting</p>
+            </div>
           )}
         </div>
       </div>
