@@ -74,6 +74,12 @@ const WidgetDashboard = ({ socket, isConnected, deviceId, deviceInfo, onChangePi
       className="widget-dashboard"
       ref={dashboardRef}
     >
+      {/* Brand stripe */}
+      <div className="dashboard-brand-stripe">
+        <div className="seg-1"></div>
+        <div className="seg-2"></div>
+        <div className="seg-3"></div>
+      </div>
       <div 
         className={`dashboard-container view-${currentView}`}
         onTouchStart={onTouchStart}

@@ -1,20 +1,34 @@
-/* WidgetDashboard.css - Minimal interface optimized for R1's 240x282 display */
+/* WidgetDashboard.css - Boondit Rhythm interface optimized for R1's 240x282 display */
 
 .widget-dashboard {
   width: 100vw;
   height: 100vh;
-  background: #000000;
+  background: #111111;
   color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   overflow: hidden;
   position: relative;
   touch-action: manipulation;
 }
 
+/* Brand stripe at top of dashboard */
+.dashboard-brand-stripe {
+  display: flex;
+  width: 100%;
+  height: 3px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 50;
+}
+
+.dashboard-brand-stripe .seg-1 { background: #FF1F8F; flex: 1; }
+.dashboard-brand-stripe .seg-2 { background: #A864FF; flex: 1; }
+.dashboard-brand-stripe .seg-3 { background: #1F4A3F; flex: 1; }
+
 /* Dashboard container with sliding views */
 .dashboard-container {
   width: 300vw;
-  height: 100vh;
+  height: calc(100vh - 3px);
   display: flex;
   transition: transform 0.3s ease;
 }
@@ -59,7 +73,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
-  color: #666666;
+  color: #9CA3AF;
   z-index: 1;
   pointer-events: none;
 }
@@ -98,22 +112,26 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  background: linear-gradient(90deg, #FF1F8F 0%, #A864FF 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .back-btn {
   background: none;
   border: none;
-  color: #ffffff;
+  color: #FE5F00;
   font-size: 12px;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .back-btn:hover,
 .back-btn:active {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(254, 95, 0, 0.15);
 }
 
 .console-content {
@@ -121,7 +139,7 @@
   background: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #292929;
 }
 
 .console-info {
@@ -144,7 +162,7 @@
 }
 
 .info-label {
-  color: #999999;
+  color: #9CA3AF;
   font-weight: 500;
   flex-shrink: 0;
 }
@@ -157,17 +175,17 @@
 }
 
 .info-value.device-id {
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 9px;
   max-width: 120px;
 }
 
 .info-value.connected {
-  color: #34c759;
+  color: #FE5F00;
 }
 
 .info-value.disconnected {
-  color: #ff3b30;
+  color: #FF2E88;
 }
 
 .menu-header {
@@ -179,6 +197,10 @@
   font-size: 18px;
   font-weight: 600;
   text-align: center;
+  background: linear-gradient(90deg, #FF1F8F 0%, #A864FF 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .menu-items {
@@ -194,18 +216,19 @@
   gap: 12px;
   padding: 12px;
   background: rgba(255, 255, 255, 0.05);
-  border: none;
+  border: 1px solid #292929;
   border-radius: 8px;
   color: #ffffff;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
   text-align: left;
 }
 
 .menu-item:hover,
 .menu-item:active {
   background: rgba(255, 255, 255, 0.1);
+  border-color: #FE5F00;
 }
 
 .menu-icon {
@@ -232,7 +255,7 @@
   padding: 8px;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #292929;
 }
 
 .device-section h4,
@@ -240,7 +263,7 @@
   margin: 0 0 8px 0;
   font-size: 12px;
   font-weight: 600;
-  color: #cccccc;
+  color: #9CA3AF;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -259,7 +282,7 @@
 }
 
 .detail-label {
-  color: #999999;
+  color: #9CA3AF;
   font-weight: 500;
 }
 
@@ -269,7 +292,7 @@
 }
 
 .detail-value.device-id {
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 10px;
   word-break: break-all;
   text-align: right;
@@ -277,11 +300,11 @@
 }
 
 .detail-value.connected {
-  color: #34c759;
+  color: #FE5F00;
 }
 
 .detail-value.disconnected {
-  color: #ff3b30;
+  color: #FF2E88;
 }
 
 /* PIN controls */
@@ -297,7 +320,7 @@
   gap: 8px;
   padding: 8px;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #292929;
   border-radius: 4px;
   color: #ffffff;
   font-size: 11px;
@@ -307,8 +330,8 @@
 
 .pin-btn:hover,
 .pin-btn:active {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 46, 136, 0.15);
+  border-color: #FF2E88;
 }
 
 .pin-icon {
@@ -343,8 +366,9 @@
 }
 
 .indicator-dot.active {
-  background: #ffffff;
+  background: #FE5F00;
   transform: scale(1.2);
+  box-shadow: 0 0 8px 1px rgba(254, 95, 0, 0.6);
 }
 
 /* Scrollbar styling for tiny display */
