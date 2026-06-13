@@ -41,7 +41,7 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
     }
 
     try {
-      addConsoleLog(`🔍 Checking device status`, 'info')
+      addConsoleLog(`[CHECK] Checking device status`, 'info')
       const response = await fetch(`/${deviceId}/status`, {
         method: 'GET',
         headers: {
@@ -51,18 +51,18 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
 
       if (response.ok) {
         const data = await response.json()
-        addConsoleLog(`📊 Device status: ${JSON.stringify(data)}`, 'info')
+        addConsoleLog(`[INFO] Device status: ${JSON.stringify(data)}`, 'info')
       } else {
-        addConsoleLog(`❌ Device status check failed: ${response.status}`, 'error')
+        addConsoleLog(`[ERR] Device status check failed: ${response.status}`, 'error')
       }
     } catch (error) {
-      addConsoleLog(`❌ Error checking device status: ${error.message}`, 'error')
+      addConsoleLog(`[ERR] Error checking device status: ${error.message}`, 'error')
     }
   }, [deviceId, addConsoleLog])
 
   const syncDeviceData = useCallback(async (targetDeviceId, socketRef) => {
     try {
-      addConsoleLog(`🔄 Syncing device data`, 'info')
+      addConsoleLog(`[SYNC] Syncing device data`, 'info')
 
       // Send device sync request to server
       const response = await fetch(`/${targetDeviceId}/sync`, {
@@ -82,11 +82,11 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
 
       if (response.ok) {
         const data = await response.json()
-        addConsoleLog(`✅ Device sync successful: ${JSON.stringify(data)}`, 'info')
+        addConsoleLog(`[OK] Device sync successful: ${JSON.stringify(data)}`, 'info')
 
         // Update local device info with server data
         if (data.pinCode !== deviceInfo?.pinCode) {
-          addConsoleLog(`🔄 PIN updated from server: ${data.pinCode}`, 'info')
+          addConsoleLog(`[SYNC] PIN updated from server: ${data.pinCode}`, 'info')
           setDeviceInfo(prev => ({
             ...prev,
             pinCode: data.pinCode,
@@ -94,10 +94,10 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
           }))
         }
       } else {
-        addConsoleLog(`❌ Device sync failed: ${response.status}`, 'error')
+        addConsoleLog(`[ERR] Device sync failed: ${response.status}`, 'error')
       }
     } catch (error) {
-      addConsoleLog(`❌ Error syncing device data: ${error.message}`, 'error')
+      addConsoleLog(`[ERR] Error syncing device data: ${error.message}`, 'error')
     }
   }, [addConsoleLog, deviceInfo?.pinCode, setDeviceInfo])
 
@@ -108,7 +108,7 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
     }
 
     try {
-      addConsoleLog(`🧪 Testing chat completion`, 'info')
+      addConsoleLog(`[TEST] Testing chat completion`, 'info')
 
       const testMessage = "Test message from R1 console"
       const response = await fetch('/chat/completions', {
@@ -128,14 +128,14 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
 
       if (response.ok) {
         const data = await response.json()
-        addConsoleLog(`✅ Chat completion test successful: ${JSON.stringify(data).substring(0, 200)}...`, 'info')
+        addConsoleLog(`[OK] Chat completion test successful: ${JSON.stringify(data).substring(0, 200)}...`, 'info')
       } else {
         const errorText = await response.text()
-        addConsoleLog(`❌ Chat completion test failed: ${response.status} - ${errorText}`, 'error')
+        addConsoleLog(`[ERR] Chat completion test failed: ${response.status} - ${errorText}`, 'error')
 
         // If device not found, try to sync and retry
         if (errorText.includes('not found') || errorText.includes('not connected')) {
-          addConsoleLog(`🔄 Device not found - attempting sync and retry`, 'warn')
+          addConsoleLog(`[SYNC] Device not found - attempting sync and retry`, 'warn')
           await syncDeviceData(deviceId, null)
 
           // Retry after sync
@@ -158,19 +158,19 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
 
               if (retryResponse.ok) {
                 const retryData = await retryResponse.json()
-                addConsoleLog(`✅ Chat completion retry successful: ${JSON.stringify(retryData).substring(0, 200)}...`, 'info')
+                addConsoleLog(`[OK] Chat completion retry successful: ${JSON.stringify(retryData).substring(0, 200)}...`, 'info')
               } else {
                 const retryError = await retryResponse.text()
-                addConsoleLog(`❌ Chat completion retry failed: ${retryResponse.status} - ${retryError}`, 'error')
+                addConsoleLog(`[ERR] Chat completion retry failed: ${retryResponse.status} - ${retryError}`, 'error')
               }
             } catch (retryErr) {
-              addConsoleLog(`❌ Error in retry: ${retryErr.message}`, 'error')
+              addConsoleLog(`[ERR] Error in retry: ${retryErr.message}`, 'error')
             }
           }, 2000)
         }
       }
     } catch (error) {
-      addConsoleLog(`❌ Error testing chat completion: ${error.message}`, 'error')
+      addConsoleLog(`[ERR] Error testing chat completion: ${error.message}`, 'error')
     }
   }, [deviceId, deviceInfo?.pinCode, addConsoleLog, syncDeviceData])
 
@@ -213,19 +213,19 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
 
       if (response.ok) {
         setDeviceInfo(prev => ({ ...prev, pinEnabled: false, pinCode: null }))
-        addConsoleLog('✅ PIN disabled successfully', 'info')
+        addConsoleLog('[OK] PIN disabled successfully', 'info')
       } else {
         const responseText = await response.text()
-        addConsoleLog(`❌ Server response: ${responseText}`, 'error')
+        addConsoleLog(`[ERR] Server response: ${responseText}`, 'error')
 
         // If auth error, refresh and try once more
         if (response.status === 401 || response.status === 403) {
-          addConsoleLog('🔄 Auth failed - refreshing PIN and retrying once', 'warn')
+          addConsoleLog('[SYNC] Auth failed - refreshing PIN and retrying once', 'warn')
           await refreshDeviceInfoDirect(deviceId)
 
           // Retry once with fresh PIN
           if (deviceInfo?.pinCode) {
-            addConsoleLog(`🔄 Retrying with fresh PIN: ${deviceInfo.pinCode}`, 'info')
+            addConsoleLog(`[SYNC] Retrying with fresh PIN: ${deviceInfo.pinCode}`, 'info')
             const retryResponse = await fetch(url, {
               method: 'POST',
               headers: {
@@ -236,16 +236,16 @@ export function useDeviceManagement(deviceId, deviceInfo, setDeviceInfo, addCons
 
             if (retryResponse.ok) {
               setDeviceInfo(prev => ({ ...prev, pinEnabled: false, pinCode: null }))
-              addConsoleLog('✅ PIN disabled successfully on retry', 'info')
+              addConsoleLog('[OK] PIN disabled successfully on retry', 'info')
             } else {
               const retryText = await retryResponse.text()
-              addConsoleLog(`❌ Retry also failed: ${retryText}`, 'error')
+              addConsoleLog(`[ERR] Retry also failed: ${retryText}`, 'error')
             }
           }
         }
       }
     } catch (error) {
-      addConsoleLog(`❌ Network error: ${error.message}`, 'error')
+      addConsoleLog(`[ERR] Network error: ${error.message}`, 'error')
     }
   }, [deviceId, deviceInfo, addConsoleLog, refreshDeviceInfoDirect, setDeviceInfo])
 

@@ -338,7 +338,7 @@
 .available-widget:hover {
   border-color: var(--primary);
   transform: translateY(-1px);
-  box-shadow: 0 0 12px 2px rgba(254, 95, 0, 0.45);
+  box-shadow: none;
 }
 
 .available-widget .widget-info h4 {

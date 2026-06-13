@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { ChartIcon, CloseIcon, CheckIcon } from './Icons';
 import { 
   useComponentPerformance, 
   useMemoryMonitoring, 
@@ -81,7 +82,7 @@ const PerformanceMonitor = () => {
         border: '1px solid #FE5F00',
         borderRadius: '4px',
         padding: '8px',
-        boxShadow: '0 0 12px 2px rgba(254, 95, 0, 0.4)'
+        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.4)'
       }}>
         <button 
           onClick={() => setIsVisible(true)}
@@ -93,10 +94,13 @@ const PerformanceMonitor = () => {
             borderRadius: '2px',
             cursor: 'pointer',
             fontSize: '12px',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
           }}
         >
-          📊 Performance
+          <ChartIcon size={12} /> Performance
         </button>
       </div>
     );
@@ -118,7 +122,7 @@ const PerformanceMonitor = () => {
       fontFamily: 'SF Mono, Monaco, Menlo, monospace',
       zIndex: 1000,
       overflow: 'auto',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.5), 0 0 12px 2px rgba(254, 95, 0, 0.3)'
+      boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
     }}>
       <div style={{ 
         display: 'flex', 
@@ -128,8 +132,8 @@ const PerformanceMonitor = () => {
         borderBottom: '1px solid #292929',
         paddingBottom: '8px'
       }}>
-        <h3 style={{ margin: 0, color: '#FE5F00', fontSize: '14px' }}>
-          📊 Performance Monitor
+        <h3 style={{ margin: 0, color: '#FE5F00', fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <ChartIcon size={12} /> Performance Monitor
         </h3>
         <button 
           onClick={() => setIsVisible(false)}
@@ -137,13 +141,17 @@ const PerformanceMonitor = () => {
             background: '#FF2E88',
             color: '#111111',
             border: 'none',
-            padding: '2px 6px',
+            padding: '4px',
             borderRadius: '2px',
             cursor: 'pointer',
-            fontSize: '10px'
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '20px',
+            height: '20px'
           }}
         >
-          ✕
+          <CloseIcon size={12} />
         </button>
       </div>
 
@@ -155,7 +163,7 @@ const PerformanceMonitor = () => {
         <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '4px' }}>
           <div>Renders: {componentStats.renderCount}</div>
           <div>Uptime: {formatNumber(componentStats.uptime / 1000)}s</div>
-          <div>Monitoring: {isMonitoring ? '✅' : '❌'}</div>
+          <div>Monitoring: {isMonitoring ? <CheckIcon size={12} style={{ color: '#FE5F00', verticalAlign: 'middle' }} /> : <CloseIcon size={12} style={{ color: '#FF2E88', verticalAlign: 'middle' }} />}</div>
         </div>
       </div>
 

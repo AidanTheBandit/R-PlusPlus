@@ -1,4 +1,5 @@
 import React from 'react';
+import { LockIcon } from './Icons';
 
 const ApiDocs = ({ deviceId }) => {
   const baseUrl = window.location.origin;
@@ -89,7 +90,7 @@ const ApiDocs = ({ deviceId }) => {
           <code className="url-code">{apiBaseUrl}</code>
         </div>
         <div className="api-auth-notice">
-          <strong>🔐 Authentication Required:</strong> Use your device PIN code in the <code>Authorization: Bearer &lt;your-pin-code&gt;</code> header for all API requests.
+          <strong><LockIcon size={14} /> Authentication Required:</strong> Use your device PIN code in the <code>Authorization: Bearer &lt;your-pin-code&gt;</code> header for all API requests.
         </div>
         <p>
           Your R1 device is accessible via secure, device-specific REST API endpoints. All requests are authenticated and scoped to your individual device for maximum security and privacy.

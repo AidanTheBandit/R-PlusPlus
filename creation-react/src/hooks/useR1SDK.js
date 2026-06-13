@@ -9,14 +9,14 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
 
   useEffect(() => {
     try {
-      addConsoleLog('🔍 Checking R1 SDK availability...', 'info')
-      addConsoleLog(`🔍 r1 object exists: ${!!r1}`, 'info')
-      addConsoleLog(`🔍 r1.messaging exists: ${!!(r1 && r1.messaging)}`, 'info')
+      addConsoleLog('[CHECK] Checking R1 SDK availability...', 'info')
+      addConsoleLog(`[CHECK] r1 object exists: ${!!r1}`, 'info')
+      addConsoleLog(`[CHECK] r1.messaging exists: ${!!(r1 && r1.messaging)}`, 'info')
 
       // Check if R1 SDK is available
       if (r1 && r1.messaging) {
         r1CreateRef.current = r1
-        addConsoleLog('✅ R1 SDK available and initialized', 'info')
+        addConsoleLog('[OK] R1 SDK available and initialized', 'info')
 
         // Test available APIs
         testR1APIs(r1, addConsoleLog)
@@ -24,13 +24,13 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
         // Set up message handler for LLM responses
         try {
           r1.messaging.onMessage((response) => {
-            addConsoleLog(`📤 R1 SDK message received: ${JSON.stringify(response, null, 2)}`)
+            addConsoleLog(`[OUT] R1 SDK message received: ${JSON.stringify(response, null, 2)}`)
 
             // The R1 responds with {"message":"text"}, so extract the response text
             const responseText = response.message || response.content || response || 'No response text'
 
-            addConsoleLog(`📤 Extracted response text: "${responseText}"`)
-            addConsoleLog(`📤 Current pending request ID: ${socketRef.current?._pendingRequestId}`)
+            addConsoleLog(`[OUT] Extracted response text: "${responseText}"`)
+            addConsoleLog(`[OUT] Current pending request ID: ${socketRef.current?._pendingRequestId}`)
 
             // Send response via socket (server will handle requestId matching)
             if (socketRef.current && socketRef.current.connected) {
@@ -44,10 +44,10 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
                 deviceId: currentDeviceId
               }
 
-              addConsoleLog(`📤 Sending response data: ${JSON.stringify(responseData, null, 2)}`)
+              addConsoleLog(`[OUT] Sending response data: ${JSON.stringify(responseData, null, 2)}`)
 
               socketRef.current.emit('response', responseData)
-              addConsoleLog(`📤 Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId})`)
+              addConsoleLog(`[OUT] Sent R1 SDK response via socket: "${responseText.substring(0, 50)}..." (requestId: ${socketRef.current._pendingRequestId})`)
 
               // Clear the pending request data
               socketRef.current._pendingRequestId = null
@@ -56,23 +56,23 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
               addConsoleLog('Socket not connected, cannot send response', 'error')
             }
           })
-          addConsoleLog('✅ R1 messaging onMessage handler set up', 'info')
+          addConsoleLog('[OK] R1 messaging onMessage handler set up', 'info')
         } catch (handlerError) {
-          addConsoleLog(`❌ Error setting up R1 message handler: ${handlerError.message}`, 'error')
+          addConsoleLog(`[ERR] Error setting up R1 message handler: ${handlerError.message}`, 'error')
         }
       } else {
-        addConsoleLog('❌ R1 SDK messaging not available - this app must run on R1 device', 'error')
-        addConsoleLog(`🔍 r1 object details: ${JSON.stringify(r1, null, 2)}`, 'info')
+        addConsoleLog('[ERR] R1 SDK messaging not available - this app must run on R1 device', 'error')
+        addConsoleLog(`[CHECK] r1 object details: ${JSON.stringify(r1, null, 2)}`, 'info')
 
         // Check if we're in a browser environment that doesn't have R1 SDK
         if (typeof window !== 'undefined' && !window.r1) {
-          addConsoleLog('💡 This appears to be running in a browser without R1 SDK', 'info')
-          addConsoleLog('💡 For testing, you can use the mock response mode', 'info')
+          addConsoleLog('[TIP] This appears to be running in a browser without R1 SDK', 'info')
+          addConsoleLog('[TIP] For testing, you can use the mock response mode', 'info')
         }
       }
     } catch (error) {
-      addConsoleLog(`❌ R1 SDK initialization error: ${error.message}`, 'error')
-      addConsoleLog(`❌ Error stack: ${error.stack}`, 'error')
+      addConsoleLog(`[ERR] R1 SDK initialization error: ${error.message}`, 'error')
+      addConsoleLog(`[ERR] Error stack: ${error.stack}`, 'error')
       console.error('R1 SDK initialization error details:', error)
     }
 

@@ -81,13 +81,13 @@
   --aqua-dim: #7C28D1;
   --orange-dim: #D95000;
 
-  /* Gradient + glow primitives (rhythm §5 / §6) */
+  /* Gradient primitives (rhythm §5) — glow effects removed for flat design */
   --gradient: linear-gradient(90deg, #FF1F8F 0%, #A864FF 100%);
   --gradient-diag: linear-gradient(135deg, #FF1F8F 0%, #A864FF 100%);
   --gradient-focus: linear-gradient(90deg, #FF1F8F 0%, #A864FF 100%);
-  --glow: 0 0 12px 2px rgba(254, 95, 0, 0.6);
-  --glow-pink: 0 0 12px 2px rgba(255, 31, 143, 0.55);
-  --glow-purple: 0 0 12px 2px rgba(155, 46, 255, 0.5);
+  --glow: none;
+  --glow-pink: none;
+  --glow-purple: none;
 
   /* Font */
   --font-power-grotesk: 'PowerGrotesk', ui-sans-serif, system-ui, sans-serif;
@@ -283,7 +283,7 @@ pre,
 }
 .btn-success:hover:not(:disabled) {
   filter: brightness(1.1);
-  box-shadow: 0 0 12px 2px rgba(16, 185, 129, 0.5);
+  box-shadow: none;
   background: var(--success);
 }
 
@@ -579,11 +579,15 @@ pre,
 }
 
 .security-note li::before {
-  content: '✓';
-  color: var(--success);
-  font-weight: 700;
+  content: '';
   position: absolute;
-  left: 0;
+  left: 0.0625rem;
+  top: 0.125rem;
+  width: 5px;
+  height: 9px;
+  border: solid var(--success);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .help-section p {
@@ -596,12 +600,12 @@ pre,
    Signature Rhythm Utilities & Animations (§7)
    ============================================================= */
 
-/* glow-hover — primary glow + slight scale */
+/* glow-hover — subtle scale, no glow (flat design) */
 .glow-hover {
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 .glow-hover:hover {
-  box-shadow: 0 0 12px 2px rgba(254, 95, 0, 0.6);
+  box-shadow: none;
   transform: scale(1.02);
 }
 
@@ -633,7 +637,6 @@ pre,
 .rhythm-progress,
 .boondit-progress {
   background: linear-gradient(90deg, #ff1f8f 0%, #a864ff 100%);
-  box-shadow: 0 0 8px rgba(255, 31, 143, 0.6);
   animation: rhythm-progress-sweep 1.4s ease-in-out infinite;
 }
 @keyframes rhythm-progress-sweep {

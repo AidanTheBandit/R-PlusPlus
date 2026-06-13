@@ -1,4 +1,11 @@
 import React from 'react'
+import {
+  BoltIcon,
+  CloseIcon,
+  LockIcon,
+  RefreshIcon,
+  DotIcon
+} from './Icons'
 
 function StatusBar({
   isConnected,
@@ -14,7 +21,7 @@ function StatusBar({
     <div className="status-bar">
       <div className="status-left">
         <div className="app-title">
-          <span className="icon">⚡</span>
+          <span className="icon"><BoltIcon size={14} /></span>
           <span>R1 Anywhere</span>
         </div>
         <div className={`connection-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
@@ -37,10 +44,10 @@ function StatusBar({
             <code className="pin-code">{deviceInfo.pinCode}</code>
             <div className="pin-actions">
               <button className="pin-action" onClick={onChangePin} title="Change PIN">
-                <span>⟲</span>
+                <RefreshIcon size={12} />
               </button>
               <button className="pin-action danger" onClick={onDisablePin} title="Disable PIN">
-                <span>✕</span>
+                <CloseIcon size={12} />
               </button>
             </div>
           </div>
@@ -48,7 +55,7 @@ function StatusBar({
 
         {(!deviceInfo?.pinEnabled || !deviceInfo?.pinCode) && deviceId && (
           <button className="enable-pin-btn" onClick={onEnablePin} title="Enable PIN">
-            <span>🔒</span>
+            <LockIcon size={12} />
             <span>Enable PIN</span>
           </button>
         )}
@@ -59,7 +66,7 @@ function StatusBar({
             onClick={onRefreshDeviceInfo}
             title="Refresh device info"
           >
-            <span>🔄</span>
+            <RefreshIcon size={14} />
           </button>
         )}
 
@@ -69,7 +76,7 @@ function StatusBar({
           disabled={isConnected}
           title={isConnected ? 'Connected' : 'Reconnect'}
         >
-          <span>{isConnected ? '●' : '⟲'}</span>
+          {isConnected ? <DotIcon size={10} /> : <RefreshIcon size={14} />}
         </button>
       </div>
     </div>

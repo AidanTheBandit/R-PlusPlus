@@ -2,7 +2,7 @@
    App.css — R1 Anywhere Console application shell
    Status bar, connection chrome, console panel, brand stripe.
    Boondit Rhythm design language: dark-only, orange primary ring,
-   album-art gradient accents, colored glow shadows.
+   album-art gradient accents. Flat (no glow shadows).
    ========================================================================== */
 
 .app {
@@ -57,8 +57,8 @@
 }
 
 .app-title .icon {
-  font-size: 18px;
-  filter: drop-shadow(0 0 6px rgba(255, 31, 143, 0.6));
+  display: inline-flex;
+  align-items: center;
   -webkit-text-fill-color: initial;
 }
 
@@ -310,7 +310,8 @@
 }
 
 .console-icon {
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .console-stats {
@@ -354,8 +355,11 @@
 }
 
 .empty-icon {
-  font-size: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0.5;
+  color: var(--c-primary);
 }
 
 .empty-text {
@@ -406,7 +410,6 @@
 }
 
 .level-badge {
-  font-size: 14px;
   width: 20px;
   height: 20px;
   display: flex;
@@ -414,6 +417,23 @@
   justify-content: center;
   border-radius: 50%;
   flex-shrink: 0;
+  color: var(--fg3);
+}
+
+/* Per-level tint for inline SVG log icons (dark-only, flat) */
+.level-badge.error {
+  color: var(--c-secondary);
+  background: rgba(255, 46, 136, 0.12);
+}
+
+.level-badge.warn {
+  color: var(--c-primary);
+  background: rgba(254, 95, 0, 0.12);
+}
+
+.level-badge.info {
+  color: var(--c-accent);
+  background: rgba(155, 46, 255, 0.12);
 }
 
 .entry-message {

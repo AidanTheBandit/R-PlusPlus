@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PhoneIcon, CheckIcon, HourglassIcon, RefreshIcon } from './Icons';
 
 const PhoneLink = ({ deviceId }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -155,7 +156,7 @@ const PhoneLink = ({ deviceId }) => {
   return (
     <div className="phone-link">
       <div className="card">
-        <h2>📱 SMS Integration</h2>
+        <h2 className="section-title"><PhoneIcon size={22} /> SMS Integration</h2>
         <p>Link your phone number to receive SMS notifications and control your R1 via text messages.</p>
 
         {message && (
@@ -184,7 +185,7 @@ const PhoneLink = ({ deviceId }) => {
         {!showVerification ? (
           <div className="opt-in-section">
             <div className="consent-notice">
-              <h3>📱 SMS Messaging Consent</h3>
+              <h3 className="section-title"><PhoneIcon size={18} /> SMS Messaging Consent</h3>
               <p>By linking your phone number, you consent to receive SMS messages from R1 for device control and notifications.</p>
               
               <div className="consent-details">
@@ -307,7 +308,7 @@ const PhoneLink = ({ deviceId }) => {
                 <div key={link.id} className="phone-item">
                   <span className="phone-number">{formatPhoneNumber(link.phone_number)}</span>
                   <span className="verified-status">
-                    {link.verified ? '✅ Verified' : '⏳ Pending'}
+                    {link.verified ? <><CheckIcon size={14} /> Verified</> : <><HourglassIcon size={14} /> Pending</>}
                   </span>
                   <button
                     onClick={() => handleUnlinkPhone(link.phone_number)}
@@ -332,7 +333,7 @@ const PhoneLink = ({ deviceId }) => {
           </ol>
           
           <div className="opt-out-info">
-            <h4>🔄 Managing Your Consent</h4>
+            <h4 className="section-title"><RefreshIcon size={16} /> Managing Your Consent</h4>
             <p><strong>To opt-out/stop receiving messages:</strong></p>
             <ul>
               <li>Text <code>!unlink!</code> to your linked number</li>

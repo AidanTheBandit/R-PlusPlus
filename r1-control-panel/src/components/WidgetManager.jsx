@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { WidgetRegistry, WidgetManager as WidgetManagerCore } from '../widgets';
+import { PlugIcon, WidgetsIcon, SettingsIcon, TrashIcon } from './Icons';
 import './WidgetManager.css';
 
 const WidgetManager = ({ socket, deviceId, pinCode }) => {
@@ -185,8 +186,8 @@ const WidgetManager = ({ socket, deviceId, pinCode }) => {
                 }
               },
               default: [
-                { label: 'Voice', action: 'voice', icon: '🎤' },
-                { label: 'Camera', action: 'camera', icon: '📷' }
+                { label: 'Voice', action: 'voice', icon: 'mic' },
+                { label: 'Camera', action: 'camera', icon: 'camera' }
               ],
               title: 'Action buttons'
             }
@@ -194,8 +195,8 @@ const WidgetManager = ({ socket, deviceId, pinCode }) => {
         },
         defaultConfig: {
           actions: [
-            { label: 'Voice', action: 'voice', icon: '🎤' },
-            { label: 'Camera', action: 'camera', icon: '📷' }
+            { label: 'Voice', action: 'voice', icon: 'mic' },
+            { label: 'Camera', action: 'camera', icon: 'camera' }
           ]
         }
       }
@@ -269,7 +270,7 @@ const WidgetManager = ({ socket, deviceId, pinCode }) => {
     return (
       <div className="widget-manager">
         <div className="connection-status">
-          <div className="status-icon">🔌</div>
+          <div className="status-icon"><PlugIcon size={40} /></div>
           <div className="status-text">
             <h3>Connecting to R1 Device...</h3>
             <p>Please wait while we establish connection to your R1 device.</p>
@@ -297,7 +298,7 @@ const WidgetManager = ({ socket, deviceId, pinCode }) => {
         <h3>Active Widgets ({activeWidgets.length})</h3>
         {activeWidgets.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">📱</div>
+            <div className="empty-icon"><WidgetsIcon size={40} /></div>
             <p>No widgets active on your R1 device</p>
             <button 
               className="add-first-widget-btn"
@@ -318,14 +319,14 @@ const WidgetManager = ({ socket, deviceId, pinCode }) => {
                       onClick={() => handleConfigureWidget(widget)}
                       title="Configure"
                     >
-                      ⚙️
+                      <SettingsIcon size={16} />
                     </button>
                     <button 
                       className="remove-btn"
                       onClick={() => handleRemoveWidget(widget.id)}
                       title="Remove"
                     >
-                      🗑️
+                      <TrashIcon size={16} />
                     </button>
                   </div>
                 </div>

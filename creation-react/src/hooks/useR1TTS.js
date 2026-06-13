@@ -10,7 +10,7 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
   // Prevent duplicate processing of the same request
   const processingKey = `tts-${currentRequestId}`
   if (window._processingTTSRequests && window._processingTTSRequests.has(processingKey)) {
-    addLog(`🚫 Skipping duplicate TTS request: ${currentRequestId}`)
+    addLog(`[SKIP] Skipping duplicate TTS request: ${currentRequestId}`)
     return
   }
 
@@ -28,7 +28,7 @@ export const handleTextToSpeech = async (data, socket, addLog, sendError, r1Crea
 
   // Check if TTS is currently locked (another TTS in progress)
   if (window._ttsLock) {
-    addLog(`🔒 TTS currently locked, queuing request ${currentRequestId}`)
+    addLog(`[LOCK] TTS currently locked, queuing request ${currentRequestId}`)
     // Add to queue and return promise
     return new Promise((resolve) => {
       window._ttsQueue.push({
@@ -78,14 +78,14 @@ async function processSingleTTS(data, socket, addLog, sendError, r1CreateRef) {
     }
   }, 30000)
 
-  addLog(`🎵 Processing TTS request ${currentRequestId}`)
-  addLog(`🎵 Text to speak: "${textToSpeak?.substring(0, 50)}${textToSpeak?.length > 50 ? '...' : ''}"`)
-  addLog(`🎵 Settings: model=${model}, voice=${voice}, format=${responseFormat}, speed=${speed}x`)
+  addLog(`[TTS] Processing TTS request ${currentRequestId}`)
+  addLog(`[TTS] Text to speak: "${textToSpeak?.substring(0, 50)}${textToSpeak?.length > 50 ? '...' : ''}"`)
+  addLog(`[TTS] Settings: model=${model}, voice=${voice}, format=${responseFormat}, speed=${speed}x`)
 
   try {
     await processTTSContent(currentRequestId, textToSpeak, model, voice, responseFormat, speed, socket, addLog, sendError, r1CreateRef)
   } catch (error) {
-    addLog(`❌ TTS processing error: ${error.message}`, 'error')
+    addLog(`[ERR] TTS processing error: ${error.message}`, 'error')
   }
 }
 
@@ -137,8 +137,8 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
   if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.textToSpeechAudio === 'function') {
     try {
       // Use clean text directly without verbose instructions
-      addLog(`🎵 Using R1-Create 1.3.0 textToSpeechAudio API for device playback`)
-      addLog(`🎵 Text: "${cleanText}"`)
+      addLog(`[TTS] Using R1-Create 1.3.0 textToSpeechAudio API for device playback`)
+      addLog(`[TTS] Text: "${cleanText}"`)
 
       const audioBlob = await r1CreateRef.current.llm.textToSpeechAudio(cleanText, {
         voice: voice,
@@ -147,7 +147,7 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
       })
 
       if (audioBlob) {
-        addLog(`🎵 Generated audio blob: ${audioBlob.size} bytes`)
+        addLog(`[TTS] Generated audio blob: ${audioBlob.size} bytes`)
 
         // Convert blob to base64 for API response
         const arrayBuffer = await audioBlob.arrayBuffer()
@@ -167,13 +167,13 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
           deviceId: socket._deviceId
         }
 
-        addLog(`📤 Sending TTS response with audio blob data: ${simulatedAudioData.length} chars`)
+        addLog(`[OUT] Sending TTS response with audio blob data: ${simulatedAudioData.length} chars`)
         socket.emit('tts_response', ttsResponseData)
-        addLog(`✅ Sent TTS response via socket`)
+        addLog(`[OK] Sent TTS response via socket`)
 
         return // Exit early since we sent the response
       } else {
-        addLog(`⚠️ textToSpeechAudio returned null, trying other TTS methods`)
+        addLog(`[WARN] textToSpeechAudio returned null, trying other TTS methods`)
         // Don't return here - continue to try other methods
       }
     } catch (error) {
@@ -185,13 +185,13 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
 
   if (r1CreateRef.current && r1CreateRef.current.messaging && typeof r1CreateRef.current.messaging.speakText === 'function') {
     try {
-      addLog(`🎵 Using R1-Create messaging.speakText API for device playback`)
-      addLog(`🎵 Text: "${cleanText}"`)
+      addLog(`[TTS] Using R1-Create messaging.speakText API for device playback`)
+      addLog(`[TTS] Text: "${cleanText}"`)
 
       await r1CreateRef.current.messaging.speakText(cleanText)
 
       // Generate simulated audio file data for API response
-      addLog(`🎵 Generating audio file data for API response`)
+      addLog(`[TTS] Generating audio file data for API response`)
       const simulatedAudioData = createSimulatedAudioData('tts', model, voice, responseFormat)
 
       // Send TTS response after speech completes
@@ -206,9 +206,9 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
         deviceId: socket._deviceId
       }
 
-      addLog(`📤 Sending TTS response with audio data: ${JSON.stringify(ttsResponseData, null, 2)}`)
+      addLog(`[OUT] Sending TTS response with audio data: ${JSON.stringify(ttsResponseData, null, 2)}`)
       socket.emit('tts_response', ttsResponseData)
-      addLog(`✅ Sent TTS response via socket`)
+      addLog(`[OK] Sent TTS response via socket`)
 
       return // Exit early since we sent the response
 
@@ -226,13 +226,13 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
     }
   } else if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.textToSpeech === 'function') {
     try {
-      addLog('🔄 Using LLM.textToSpeech convenience method for device playback', 'warn')
-      addLog(`🎵 Text: "${cleanText}"`)
+      addLog('[SYNC] Using LLM.textToSpeech convenience method for device playback', 'warn')
+      addLog(`[TTS] Text: "${cleanText}"`)
 
       await r1CreateRef.current.llm.textToSpeech(cleanText)
 
       // Generate simulated audio file data for API response
-      addLog(`🎵 Generating audio file data for API response`)
+      addLog(`[TTS] Generating audio file data for API response`)
       const simulatedAudioData = createSimulatedAudioData('tts', model, voice, responseFormat)
 
       // Send TTS response after speech completes
@@ -247,9 +247,9 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
         deviceId: socket._deviceId
       }
 
-      addLog(`📤 Sending TTS response with audio data: ${JSON.stringify(ttsResponseData, null, 2)}`)
+      addLog(`[OUT] Sending TTS response with audio data: ${JSON.stringify(ttsResponseData, null, 2)}`)
       socket.emit('tts_response', ttsResponseData)
-      addLog(`✅ Sent TTS response via socket`)
+      addLog(`[OK] Sent TTS response via socket`)
 
       return // Exit early since we sent the response
 
@@ -267,13 +267,13 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
     }
   } else if (r1CreateRef.current && r1CreateRef.current.llm && typeof r1CreateRef.current.llm.askLLMSpeak === 'function') {
     try {
-      addLog('🔄 Using LLM.askLLMSpeak for LLM-generated device speech', 'warn')
-      addLog(`🎵 Text: "${cleanText}"`)
+      addLog('[SYNC] Using LLM.askLLMSpeak for LLM-generated device speech', 'warn')
+      addLog(`[TTS] Text: "${cleanText}"`)
 
       await r1CreateRef.current.llm.askLLMSpeak(cleanText)
 
       // Generate simulated audio file data for API response
-      addLog(`🎵 Generating audio file data for API response`)
+      addLog(`[TTS] Generating audio file data for API response`)
       const simulatedAudioData = createSimulatedAudioData('tts', model, voice, responseFormat)
 
       // Send TTS response after speech completes
@@ -288,9 +288,9 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
         deviceId: socket._deviceId
       }
 
-      addLog(`📤 Sending TTS response with audio data: ${JSON.stringify(ttsResponseData, null, 2)}`)
+      addLog(`[OUT] Sending TTS response with audio data: ${JSON.stringify(ttsResponseData, null, 2)}`)
       socket.emit('tts_response', ttsResponseData)
-      addLog(`✅ Sent TTS response via socket`)
+      addLog(`[OK] Sent TTS response via socket`)
 
       return // Exit early since we sent the response
 
@@ -307,12 +307,12 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
       return // Exit early on error
     }
   } else {
-    addLog('❌ No working R1 SDK TTS APIs available - using basic fallback simulation', 'warn')
+    addLog('[ERR] No working R1 SDK TTS APIs available - using basic fallback simulation', 'warn')
 
     // Basic fallback simulation - just return simulated audio data
     const simulatedAudioData = createSimulatedAudioData('fallback', model, voice, responseFormat)
 
-    addLog(`🤖 Basic TTS simulation for: "${cleanText?.substring(0, 30)}..."`, 'info')
+    addLog(`[FALLBACK] Basic TTS simulation for: "${cleanText?.substring(0, 30)}..."`, 'info')
 
     // Send basic simulated TTS response after a delay
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -329,11 +329,11 @@ async function processTTSContent(currentRequestId, textToSpeak, model, voice, re
         deviceId: socket._deviceId
       }
 
-      addLog(`📤 Sending basic TTS simulation: ${JSON.stringify(ttsResponseData, null, 2)}`)
+      addLog(`[OUT] Sending basic TTS simulation: ${JSON.stringify(ttsResponseData, null, 2)}`)
       socket.emit('tts_response', ttsResponseData)
-      addLog(`✅ Sent basic TTS simulation via socket`)
+      addLog(`[OK] Sent basic TTS simulation via socket`)
     } else {
-      addLog('❌ Socket not connected for TTS fallback response', 'error')
+      addLog('[ERR] Socket not connected for TTS fallback response', 'error')
       socket.emit('tts_error', {
         requestId: currentRequestId,
         error: 'Socket disconnected during TTS processing',

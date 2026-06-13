@@ -1,8 +1,8 @@
 /* ==========================================================================
    BaseWidget.css
    Boondit Rhythm card aesthetic: overflow-hidden rounded-md, 1px border,
-   transition-all hover with orange border + glow, dark-only surfaces.
-   Focused/selected widgets pick up the album-art palette gradient.
+   transition-all hover with orange border lift, dark-only surfaces. Flat,
+   no glow. Focused/selected widgets pick up the album-art palette gradient.
    ========================================================================== */
 
 .base-widget {
@@ -17,7 +17,7 @@
   transition: all 0.22s var(--ease-boondit, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
-/* Rhythm card hover: lift + orange border + primary glow */
+/* Rhythm card hover: lift + orange border (flat, no glow) */
 .base-widget:hover {
   border-color: var(--c-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
@@ -130,8 +130,11 @@
 }
 
 .widget-error-icon {
-  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 8px;
+  color: var(--c-secondary);
 }
 
 .widget-error-message {

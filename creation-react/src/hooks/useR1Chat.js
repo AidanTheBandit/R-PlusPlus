@@ -10,15 +10,15 @@ export const handleChatCompletion = (data, socket, addLog, sendError, r1CreateRe
   const imageBase64 = data.imageBase64 || data.data?.imageBase64
   const pluginId = data.pluginId || data.data?.pluginId
 
-  addLog(`📤 Processing request ${currentRequestId}`)
-  addLog(`📤 Message to send: "${messageToSend}"`)
+  addLog(`[OUT] Processing request ${currentRequestId}`)
+  addLog(`[OUT] Message to send: "${messageToSend}"`)
   if (imageBase64) {
-    addLog(`📸 Image data detected (${imageBase64.length} chars)`)
+    addLog(`[IMG] Image data detected (${imageBase64.length} chars)`)
   }
   if (pluginId) {
-    addLog(`🔌 Plugin ID: ${pluginId}`)
+    addLog(`[PLUGIN] Plugin ID: ${pluginId}`)
   }
-  addLog(`📤 Options: useLLM=${useLLM}, wantsR1Response=${wantsR1Response}, wantsJournalEntry=${wantsJournalEntry}`)
+  addLog(`[OUT] Options: useLLM=${useLLM}, wantsR1Response=${wantsR1Response}, wantsJournalEntry=${wantsJournalEntry}`)
 
   if (r1CreateRef.current && r1CreateRef.current.messaging) {
     try {
@@ -33,18 +33,18 @@ export const handleChatCompletion = (data, socket, addLog, sendError, r1CreateRe
       // Add image data if present
       if (imageBase64) {
         messageOptions.imageBase64 = imageBase64
-        addLog(`📸 Including image data in message options`)
+        addLog(`[IMG] Including image data in message options`)
       }
 
       // Add plugin ID if present
       if (pluginId) {
         messageOptions.pluginId = pluginId
-        addLog(`🔌 Including plugin ID in message options: ${pluginId}`)
+        addLog(`[PLUGIN] Including plugin ID in message options: ${pluginId}`)
       }
 
       // Check if we should use vision API for image processing
       if (imageBase64 && (r1CreateRef.current.vision || r1CreateRef.current.image)) {
-        addLog(`👁️ Using vision API for image processing`)
+        addLog(`[VISION] Using vision API for image processing`)
 
         const visionAPI = r1CreateRef.current.vision || r1CreateRef.current.image
         visionAPI.analyzeImage(imageBase64, {
@@ -54,7 +54,7 @@ export const handleChatCompletion = (data, socket, addLog, sendError, r1CreateRe
         })
       } else {
         // Use regular messaging API
-        addLog(`💬 Using messaging API${imageBase64 ? ' with image data' : ''}`)
+        addLog(`[MSG] Using messaging API${imageBase64 ? ' with image data' : ''}`)
         r1CreateRef.current.messaging.sendMessage(messageToSend, messageOptions)
       }
 
@@ -62,10 +62,10 @@ export const handleChatCompletion = (data, socket, addLog, sendError, r1CreateRe
       if (currentRequestId) {
         socket._pendingRequestId = currentRequestId
         socket._originalMessage = data.originalMessage || data.data?.originalMessage
-        addLog(`📝 Stored pending request: ${currentRequestId}`)
+        addLog(`[MEMO] Stored pending request: ${currentRequestId}`)
       }
 
-      addLog(`📤 Sent message to R1 ${imageBase64 ? 'vision' : 'LLM'} API, requestId: ${currentRequestId}`)
+      addLog(`[OUT] Sent message to R1 ${imageBase64 ? 'vision' : 'LLM'} API, requestId: ${currentRequestId}`)
 
       // Send immediate acknowledgment that we received the request
       socket.emit('message_received', {
@@ -85,25 +85,25 @@ export const handleChatCompletion = (data, socket, addLog, sendError, r1CreateRe
       sendError('error', `R1 SDK messaging failed: ${error.message}`)
     }
   } else {
-    addLog('❌ R1 SDK messaging not available - using fallback simulation', 'warn')
+    addLog('[ERR] R1 SDK messaging not available - using fallback simulation', 'warn')
 
     // For testing purposes, simulate an R1 response when SDK is not available
     let simulatedResponse = `Hello! This is a simulated response from the R1 device. You said: "${messageToSend}". The R1 SDK is not available in this browser environment, but the socket communication is working correctly.`
 
     // Add image processing simulation if image data is present
     if (imageBase64) {
-      simulatedResponse += `\n\n📸 Image detected! In a real R1 device, I would analyze this image (${imageBase64.length} characters of base64 data).`
+      simulatedResponse += `\n\n[IMG] Image detected! In a real R1 device, I would analyze this image (${imageBase64.length} characters of base64 data).`
       if (pluginId) {
         simulatedResponse += ` Using plugin: ${pluginId}`
 
         // Simulate different plugin responses
         if (pluginId === 'image-analyzer') {
-          simulatedResponse += `\n\n🔍 Image Analysis Result: This appears to be a test image (1x1 pixel). The image contains minimal visual data and appears to be used for testing purposes.`
+          simulatedResponse += `\n\n[CHECK] Image Analysis Result: This appears to be a test image (1x1 pixel). The image contains minimal visual data and appears to be used for testing purposes.`
         }
       }
     }
 
-    addLog(`🤖 Simulating R1 response: "${simulatedResponse.substring(0, 50)}..."`, 'info')
+    addLog(`[FALLBACK] Simulating R1 response: "${simulatedResponse.substring(0, 50)}..."`, 'info')
 
     // Send simulated response after a short delay to mimic processing time
     setTimeout(() => {
@@ -117,9 +117,9 @@ export const handleChatCompletion = (data, socket, addLog, sendError, r1CreateRe
           deviceId: socket._deviceId
         }
 
-        addLog(`📤 Sending simulated response: ${JSON.stringify(responseData, null, 2)}`)
+        addLog(`[OUT] Sending simulated response: ${JSON.stringify(responseData, null, 2)}`)
         socket.emit('response', responseData)
-        addLog(`✅ Sent simulated R1 response via socket`)
+        addLog(`[OK] Sent simulated R1 response via socket`)
       }
     }, imageBase64 ? 2000 : 1000) // Longer delay for image processing simulation
   }
