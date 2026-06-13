@@ -5,6 +5,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { WidgetRenderer, WidgetStore } from '../widgets';
+import {
+  PhoneIcon,
+  MonitorIcon,
+  GearIcon,
+  LockIcon,
+  UnlockIcon,
+  ArrowLeftIcon
+} from './Icons';
 import './WidgetDashboard.css';
 
 const WidgetDashboard = ({ socket, isConnected, deviceId, deviceInfo, onChangePin, onTogglePin }) => {
@@ -110,15 +118,15 @@ const WidgetDashboard = ({ socket, isConnected, deviceId, deviceInfo, onChangePi
           </div>
           <div className="menu-items">
             <button className="menu-item" onClick={() => setCurrentView(0)}>
-              <span className="menu-icon">📱</span>
+              <span className="menu-icon"><PhoneIcon size={14} /></span>
               <span className="menu-label">Widgets</span>
             </button>
             <button className="menu-item" onClick={() => setCurrentView(2)}>
-              <span className="menu-icon">🖥️</span>
+              <span className="menu-icon"><MonitorIcon size={14} /></span>
               <span className="menu-label">Console</span>
             </button>
             <button className="menu-item">
-              <span className="menu-icon">⚙️</span>
+              <span className="menu-icon"><GearIcon size={14} /></span>
               <span className="menu-label">Settings</span>
             </button>
           </div>
@@ -152,11 +160,11 @@ const WidgetDashboard = ({ socket, isConnected, deviceId, deviceInfo, onChangePi
               <h4>PIN Management</h4>
               <div className="pin-controls">
                 <button className="pin-btn" onClick={handleChangePIN}>
-                  <span className="pin-icon">🔒</span>
+                  <span className="pin-icon"><LockIcon size={12} /></span>
                   <span className="pin-text">Change PIN</span>
                 </button>
                 <button className="pin-btn" onClick={handleTogglePIN}>
-                  <span className="pin-icon">{deviceInfo?.pinEnabled ? '🔓' : '🔒'}</span>
+                  <span className="pin-icon">{deviceInfo?.pinEnabled ? <UnlockIcon size={12} /> : <LockIcon size={12} />}</span>
                   <span className="pin-text">
                     {deviceInfo?.pinEnabled ? 'Disable PIN' : 'Enable PIN'}
                   </span>
@@ -171,7 +179,7 @@ const WidgetDashboard = ({ socket, isConnected, deviceId, deviceInfo, onChangePi
           <div className="console-header">
             <h3>R1 Console</h3>
             <button className="back-btn" onClick={() => setCurrentView(1)}>
-              ← Back
+              <ArrowLeftIcon size={12} style={{ verticalAlign: 'middle', marginRight: 2 }} /> Back
             </button>
           </div>
           <div className="console-content">

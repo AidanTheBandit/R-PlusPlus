@@ -1,8 +1,8 @@
 /* ==========================================================================
    WidgetDashboard.css
-   Boondit Rhythm creation-device interface optimized for R1's 240×282 canvas.
-   Black backdrop, album-art palette gradients, glow shadows, corner-cut rows,
-   device overlay borders (white/10–white/15).
+   Boondit Rhythm creation-device interface optimized for R1's 240x282 canvas.
+   Black backdrop, album-art palette gradients, corner-cut rows, flat surfaces
+   (no glow), device overlay borders (white/10-white/15).
    ========================================================================== */
 
 .widget-dashboard {

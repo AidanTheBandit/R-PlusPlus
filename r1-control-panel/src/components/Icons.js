@@ -194,3 +194,58 @@ export const VolumeIcon = ({ size, className }) => (
     <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
   </svg>
 );
+
+export const MusicIcon = ({ size, className }) => (
+  <svg {...base(size)} className={className}>
+    <path d="M9 18V5l12-2v13"/>
+    <circle cx="6" cy="18" r="3"/>
+    <circle cx="18" cy="16" r="3"/>
+  </svg>
+);
+
+export const InfoIcon = ({ size, className }) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="16" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12.01" y2="8"/>
+  </svg>
+);
+
+export const PaperclipIcon = ({ size, className }) => (
+  <svg {...base(size)} className={className}>
+    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+  </svg>
+);
+
+export const RefreshIcon = ({ size, className }) => (
+  <svg {...base(size)} className={className}>
+    <polyline points="23 4 23 10 17 10"/>
+    <polyline points="1 20 1 14 7 14"/>
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+  </svg>
+);
+
+export const LockIcon = ({ size, className }) => (
+  <svg {...base(size)} className={className}>
+    <rect x="3" y="11" width="18" height="11" rx="2"/>
+    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+);
+
+export const PlugIcon = ({ size, className }) => (
+  <svg {...base(size)} className={className}>
+    <path d="M12 22v-5"/>
+    <path d="M9 8V2"/>
+    <path d="M15 8V2"/>
+    <path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>
+  </svg>
+);
+
+export const HourglassIcon = ({ size, className }) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6 2h12"/>
+    <path d="M6 22h12"/>
+    <path d="M6 2v4a6 6 0 0 0 12 0V2"/>
+    <path d="M6 22v-4a6 6 0 0 1 12 0v4"/>
+  </svg>
+);

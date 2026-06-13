@@ -4,6 +4,7 @@
  */
 
 import React, { Component } from 'react';
+import { WarningIcon } from '../components/Icons';
 import './BaseWidget.css';
 
 class BaseWidget extends Component {
@@ -218,7 +219,7 @@ class BaseWidget extends Component {
   renderError() {
     return (
       <div className="widget-error">
-        <div className="widget-error-icon">⚠️</div>
+        <div className="widget-error-icon"><WarningIcon size={28} /></div>
         <div className="widget-error-message">{this.state.error}</div>
         <button 
           className="widget-error-retry"

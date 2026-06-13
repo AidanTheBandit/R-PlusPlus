@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { CheckIcon, CloseIcon } from './Icons'
 
 const DeviceInfo = ({ r1Sdk, socket, deviceId, isConnected }) => {
   const [deviceInfo, setDeviceInfo] = useState({
@@ -310,7 +311,7 @@ const DeviceInfo = ({ r1Sdk, socket, deviceId, isConnected }) => {
             <div key={api} className="hardware-item">
               <span className="hardware-name">{api}</span>
               <span className={`hardware-status ${available ? 'available' : 'unavailable'}`}>
-                {available ? '✓' : '✗'}
+                {available ? <CheckIcon size={12} /> : <CloseIcon size={12} />}
               </span>
             </div>
           ))}
@@ -352,7 +353,7 @@ const DeviceInfo = ({ r1Sdk, socket, deviceId, isConnected }) => {
             <div key={capability} className="capability-item">
               <span className="capability-name">{capability}</span>
               <span className={`capability-status ${supported ? 'supported' : 'unsupported'}`}>
-                {supported ? '✓' : '✗'}
+                {supported ? <CheckIcon size={12} /> : <CloseIcon size={12} />}
               </span>
             </div>
           ))}

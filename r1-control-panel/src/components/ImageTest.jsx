@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { ImageIcon, PaperclipIcon, XIcon, SearchIcon, TrashIcon, CheckIcon, BotIcon, InfoIcon, WrenchIcon } from './Icons';
 
 const ImageTest = ({ deviceId, pinCode }) => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -144,7 +145,7 @@ const ImageTest = ({ deviceId, pinCode }) => {
   return (
     <div className="image-test">
       <div className="card">
-        <h2>🖼️ Image Analysis Test</h2>
+        <h2 className="section-title"><ImageIcon size={22} /> Image Analysis Test</h2>
         <p>Test the image analysis capabilities of your R1 device using AI vision.</p>
 
         <div className="form-group">
@@ -159,9 +160,9 @@ const ImageTest = ({ deviceId, pinCode }) => {
           />
           {selectedFile && (
             <div className="file-info">
-              <span className="file-name">📎 {selectedFile.name}</span>
+              <span className="file-name"><PaperclipIcon size={14} /> {selectedFile.name}</span>
               <span className="file-size">({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
-              <button onClick={clearImage} className="clear-btn">✕</button>
+              <button onClick={clearImage} className="clear-btn" title="Clear"><XIcon size={14} /></button>
             </div>
           )}
         </div>
@@ -260,32 +261,32 @@ const ImageTest = ({ deviceId, pinCode }) => {
             disabled={isLoading || !selectedFile}
             className="primary-btn"
           >
-            {isLoading ? '🔍 Analyzing Image...' : '🖼️ Analyze Image'}
+            {isLoading ? <><SearchIcon size={16} /> Analyzing Image...</> : <><ImageIcon size={16} /> Analyze Image</>}
           </button>
           <button
             onClick={clearImage}
             disabled={!selectedFile}
             className="secondary-btn"
           >
-            🗑️ Clear
+            <TrashIcon size={16} /> Clear
           </button>
         </div>
 
         {error && (
           <div className="error-message">
-            ❌ {error}
+            <XIcon size={16} /> {error}
           </div>
         )}
 
         {success && (
           <div className="success-message">
-            ✅ {success}
+            <CheckIcon size={16} /> {success}
           </div>
         )}
 
         {response && (
           <div className="response-section">
-            <h3>🤖 AI Response:</h3>
+            <h3 className="section-title"><BotIcon size={18} /> AI Response:</h3>
             <div className="response-content">
               {response}
             </div>
@@ -293,7 +294,7 @@ const ImageTest = ({ deviceId, pinCode }) => {
         )}
 
         <div className="info-section">
-          <h3>ℹ️ How it works:</h3>
+          <h3 className="section-title"><InfoIcon size={18} /> How it works:</h3>
           <ul>
             <li>Select an image file (JPG, PNG, etc.) under 10MB</li>
             <li>Enter a prompt describing what you want to know about the image</li>
@@ -302,7 +303,7 @@ const ImageTest = ({ deviceId, pinCode }) => {
             <li>The AI will analyze the image and provide a detailed response</li>
           </ul>
 
-          <h3>🔧 API Endpoint:</h3>
+          <h3 className="section-title"><WrenchIcon size={18} /> API Endpoint:</h3>
           <code>POST /{deviceId}/v1/chat/completions</code>
           <pre className="code-example">{`{
   "messages": [
