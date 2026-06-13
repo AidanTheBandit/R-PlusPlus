@@ -1,20 +1,110 @@
-/* Base styles for R1 Anywhere Console — Boondit Rhythm */
+/* ==========================================================================
+   R1 Anywhere Console — Boondit Rhythm Design System
+   Global base: PowerGrotesk font, design tokens, signature animations,
+   and the 240×282 creation-device canvas. Dark-only (no light theme).
+   ========================================================================== */
+
+/* ── PowerGrotesk (the only rhythm typeface) ───────────────────────────── */
+@font-face {
+  font-family: 'PowerGrotesk';
+  src: url('/fonts/PowerGrotesk-Regular.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Design Tokens (dark-only :root, no .dark overrides) ───────────────── */
+:root {
+  /* Rhythm HSL triples — consumed as hsl(var(--token)) where applicable */
+  --background: 0 0% 7%;            /* #111111 — page bg, near-black */
+  --card: 0 0% 10%;                 /* #1A1A1A — cards/surfaces */
+
+  --foreground: 0 0% 100%;          /* #FFFFFF */
+  --card-foreground: 0 0% 100%;
+
+  --primary: 22 100% 50%;           /* #FE5F00 — vivid orange */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 334 100% 59%;        /* #FF2E88 — hot magenta */
+  --secondary-foreground: 0 0% 100%;
+  --accent: 271 100% 59%;           /* #9B2EFF — electric purple */
+  --accent-foreground: 0 0% 100%;
+
+  --muted: 0 0% 16%;                /* #292929 */
+  --muted-foreground: 220 9% 65%;   /* #9CA3AF — cool gray text */
+  --border: 0 0% 16%;               /* #292929 */
+  --ring: 22 100% 50%;             /* #FE5F00 — focus ring = orange */
+  --radius: 0.5rem;                 /* 8px base */
+
+  /* Hex aliases for convenience in plain CSS */
+  --bg0: #111111;
+  --bg1: #1A1A1A;
+  --bg-soft: #1A1A1A;
+  --bg-hard: #111111;
+  --fg0: #FFFFFF;
+  --fg1: #FFFFFF;
+  --fg2: #E5E5E5;
+  --fg3: #9CA3AF;
+  --fg4: #6B7280;
+  --c-primary: #FE5F00;
+  --c-secondary: #FF2E88;
+  --c-accent: #9B2EFF;
+
+  /* Brand stripe (3-segment ribbon under headers) */
+  --stripe-pink: #FF1F8F;
+  --stripe-purple: #A864FF;
+  --stripe-teal: #1F4A3F;
+
+  /* Dynamic album-art palette fallback (brand identity) */
+  --palette-primary: #FF1F8F;
+  --palette-secondary: #A864FF;
+  --palette-glow: rgba(255, 31, 143, 0.55);
+
+  /* Signature gradient — focused/selected items */
+  --gradient-focus: linear-gradient(90deg, #FF1F8F 0%, #A864FF 100%);
+  --gradient-indeterminate: linear-gradient(90deg, #ff1f8f 0%, #a864ff 100%);
+  --gradient-hero-overlay: linear-gradient(to top, #000 0%, rgba(0,0,0,0.6) 40%, transparent 100%);
+  --gradient-backdrop-fallback: linear-gradient(135deg, rgba(255,31,143,0.30) 0%, rgba(168,100,255,0.30) 50%, rgba(31,74,63,0.30) 100%);
+
+  /* Colored glow shadows */
+  --glow-primary: 0 0 12px 2px rgba(254, 95, 0, 0.60);
+  --glow-secondary: 0 0 12px 2px rgba(255, 46, 136, 0.60);
+  --glow-accent: 0 0 12px 2px rgba(155, 46, 255, 0.60);
+  --glow-brand: 0 0 12px 2px rgba(255, 31, 143, 0.55);
+
+  /* Standard shadows (subtle, Boondit avoids heavy drop shadows) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Reset ─────────────────────────────────────────────────────────────── */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+body {
+  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #111111;
-  color: #FFFFFF;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  background: var(--bg0);
+  color: var(--fg0);
   overflow: hidden;
+}
+
+/* Mono stack — scores, ranks, device IDs, timestamps */
+code,
+.font-mono {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
 #root {
@@ -22,26 +112,225 @@ html, body {
   width: 100%;
 }
 
-code {
-  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-}
-
-/* Prevent text selection on UI elements */
-button, .nav-tab, .status-bar {
+/* Prevent text selection on UI chrome (R1 has no text selection) */
+button,
+.nav-tab,
+.status-bar,
+.brand-stripe,
+.swipe-indicator {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
 }
 
-/* Focus styles */
+/* Orange focus ring (Boondit never uses blue/neutral rings) */
 button:focus-visible,
-.nav-tab:focus-visible {
-  outline: 2px solid #FE5F00;
+.nav-tab:focus-visible,
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 
-/* Smooth transitions */
-* {
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+/* Signature expo-out easing constant */
+:root {
+  --ease-boondit: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Brand Stripe (3-segment ribbon) ───────────────────────────────────── */
+.brand-stripe,
+.dashboard-brand-stripe {
+  display: flex;
+  width: 100%;
+  height: 3px;
+  flex-shrink: 0;
+}
+
+.brand-stripe .seg-1,
+.dashboard-brand-stripe .seg-1 { background: var(--stripe-pink); flex: 1; }
+.brand-stripe .seg-2,
+.dashboard-brand-stripe .seg-2 { background: var(--stripe-purple); flex: 1; }
+.brand-stripe .seg-3,
+.dashboard-brand-stripe .seg-3 { background: var(--stripe-teal); flex: 1; }
+
+/* ==========================================================================
+   SIGNATURE ANIMATIONS (the "Unbeatable-inspired" motion system)
+   ========================================================================== */
+
+/* Glow + lift on hover */
+.glow-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.glow-hover:hover {
+  box-shadow: 0 0 12px 2px hsl(var(--primary) / 0.6);
+  transform: scale(1.02);
+}
+
+/* Chromatic aberration text-shadow on press */
+.chromatic-press:active {
+  text-shadow:
+    -2px 0 hsl(var(--secondary)),
+    2px 0 hsl(var(--accent));
+  transition: text-shadow 0.08s ease;
+}
+
+/* Brightness bloom flash */
+.bloom-flash {
+  animation: boondit-bloom 0.3s ease-out;
+}
+@keyframes boondit-bloom {
+  0% { filter: brightness(2); }
+  100% { filter: brightness(1); }
+}
+
+/* Hide scrollbar utility for scroll regions */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Indeterminate brand-gradient progress bar (boot/loading sweep) */
+.boondit-progress {
+  background: var(--gradient-indeterminate);
+  box-shadow: 0 0 8px rgba(255, 31, 143, 0.6);
+  animation: boondit-progress-sweep 1.4s ease-in-out infinite;
+}
+@keyframes boondit-progress-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+/* Slow Ken Burns pan/zoom for album-art backdrop */
+.boondit-art-pan {
+  animation: boondit-art-pan 22s ease-in-out infinite alternate;
+  transform-origin: center center;
+  will-change: transform;
+}
+@keyframes boondit-art-pan {
+  0% { transform: scale(1.2) translate(-2%, -2%); }
+  100% { transform: scale(1.35) translate(2%, 2%); }
+}
+
+/* Fade-in when backdrop swaps to a new song */
+@keyframes boondit-backdrop-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.boondit-backdrop-fade {
+  animation: boondit-backdrop-fade 600ms ease-out;
+}
+
+/* Hit/miss flash arc (gameplay feedback) */
+@keyframes boondit-flash-arc {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) rotate(var(--flash-tilt, 0deg)) scale(0.7);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -6px) rotate(var(--flash-tilt, 0deg)) scale(1.1);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, var(--flash-peak, -30px)) rotate(var(--flash-tilt, 0deg)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 14px) rotate(var(--flash-tilt, 0deg)) scale(0.9);
+  }
+}
+.boondit-flash-arc {
+  animation: boondit-flash-arc 850ms cubic-bezier(0.22, 0.6, 0.4, 1) forwards;
+}
+
+/* Screen-shake on note hits */
+@keyframes boondit-canvas-bump {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  40% { transform: translate(var(--bump-x, 0px), var(--bump-y, 0px)) rotate(var(--bump-rot, 0deg)); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.boondit-canvas-bump {
+  animation-name: boondit-canvas-bump;
+  animation-duration: 140ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+
+/* Countdown digit pop */
+@keyframes boondit-countdown {
+  0% { opacity: 0; scale: 0.6; }
+  25% { opacity: 1; scale: 1.1; }
+  60% { scale: 1; }
+  100% { opacity: 0; scale: 0.95; }
+}
+.boondit-countdown {
+  animation: boondit-countdown 800ms ease-out forwards;
+  display: inline-block;
+}
+
+/* Results — staggered fade-up */
+@keyframes boondit-result-fade-up {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.boondit-result-fade-up {
+  opacity: 0;
+  animation: boondit-result-fade-up 480ms var(--ease-boondit) forwards;
+}
+
+/* Grade letter overshoot pop */
+@keyframes boondit-grade-pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  55% { opacity: 1; transform: scale(1.18); }
+  80% { transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.boondit-grade-pop {
+  animation: boondit-grade-pop 720ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: center center;
+}
+
+/* Generic connection/reconnect pulse (status chrome) */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* ==========================================================================
+   CREATION-DEVICE CANVAS (240×282 portrait, R1 native)
+   The device canvas is a fixed 240×282 box scaled to fill the viewport while
+   keeping the aspect ratio — so layouts authored in device-pixels look
+   identical everywhere. Mirrors the rhythm /creation layout.
+   ========================================================================== */
+.creation-viewport {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  --scale: min(calc(100vw / 240), calc(100dvh / 282));
+}
+@supports not (height: 100dvh) {
+  .creation-viewport {
+    --scale: min(calc(100vw / 240), calc(100vh / 282));
+  }
+}
+.creation-canvas {
+  position: relative;
+  width: 240px;
+  height: 282px;
+  flex: 0 0 auto;
+  background: hsl(var(--background));
+  overflow: hidden;
+  transform: scale(var(--scale));
+  transform-origin: center center;
 }

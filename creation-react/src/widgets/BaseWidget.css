@@ -1,26 +1,33 @@
-/* BaseWidget.css - Boondit Rhythm styling for base widget component */
+/* ==========================================================================
+   BaseWidget.css
+   Boondit Rhythm card aesthetic: overflow-hidden rounded-md, 1px border,
+   transition-all hover with orange border + glow, dark-only surfaces.
+   Focused/selected widgets pick up the album-art palette gradient.
+   ========================================================================== */
 
 .base-widget {
-  background: #1A1A1A;
-  border: 1px solid #292929;
-  border-radius: 8px;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  color: #FFFFFF;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--fg0);
+  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
   overflow: hidden;
-  transition: all 0.2s ease;
+  transition: all 0.22s var(--ease-boondit, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
+/* Rhythm card hover: lift + orange border + primary glow */
 .base-widget:hover {
-  border-color: #FE5F00;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), 0 0 12px 2px rgba(254, 95, 0, 0.3);
+  border-color: var(--c-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), 0 0 12px 2px rgba(254, 95, 0, 0.40);
+  transform: translateY(-2px);
 }
 
 /* Widget Header */
 .widget-header {
-  background: #111111;
-  border-bottom: 1px solid #292929;
+  background: var(--bg0);
+  border-bottom: 1px solid var(--border);
   padding: 8px 12px;
   display: flex;
   justify-content: space-between;
@@ -31,7 +38,7 @@
 .widget-title {
   font-weight: 600;
   font-size: 13px;
-  color: #FFFFFF;
+  color: var(--fg0);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -56,25 +63,25 @@
 }
 
 .widget-body::-webkit-scrollbar-track {
-  background: #111111;
+  background: var(--bg0);
 }
 
 .widget-body::-webkit-scrollbar-thumb {
-  background: #292929;
+  background: var(--border);
   border-radius: 2px;
 }
 
 .widget-body::-webkit-scrollbar-thumb:hover {
-  background: #9CA3AF;
+  background: var(--fg3);
 }
 
 /* Widget Footer */
 .widget-footer {
-  background: #111111;
-  border-top: 1px solid #292929;
+  background: var(--bg0);
+  border-top: 1px solid var(--border);
   padding: 4px 12px;
   font-size: 10px;
-  color: #9CA3AF;
+  color: var(--fg3);
   text-align: right;
   min-height: 20px;
   display: flex;
@@ -89,14 +96,14 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #9CA3AF;
+  color: var(--fg3);
 }
 
 .widget-loading-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid #292929;
-  border-top: 2px solid #FE5F00;
+  border: 2px solid var(--border);
+  border-top: 2px solid var(--c-primary);
   border-radius: 50%;
   animation: widget-spin 1s linear infinite;
   margin-bottom: 8px;
@@ -128,30 +135,32 @@
 }
 
 .widget-error-message {
-  color: #FF2E88;
+  color: var(--c-secondary);
   font-size: 11px;
   margin-bottom: 12px;
   line-height: 1.4;
 }
 
 .widget-error-retry {
-  background: #FE5F00;
+  background: var(--c-primary);
   border: none;
   border-radius: 4px;
-  color: #111111;
+  color: var(--bg0);
   cursor: pointer;
   font-size: 10px;
   padding: 6px 12px;
+  font-weight: 600;
   transition: all 0.2s ease;
 }
 
 .widget-error-retry:hover {
-  background: #FF2E88;
-  box-shadow: 0 0 12px 2px rgba(255, 46, 136, 0.5);
+  background: var(--c-secondary);
+  box-shadow: var(--glow-secondary);
 }
 
 .widget-error-retry:active {
-  background: #9B2EFF;
+  background: var(--c-accent);
+  transform: scale(0.98);
 }
 
 /* Responsive adjustments for small widgets */
@@ -184,45 +193,45 @@
   font-size: 9px;
 }
 
-/* Theme variations — dark-only rhythm theme */
+/* Dark-only rhythm theme — theme-light is forced dark (no light theme) */
 .base-widget.theme-light {
-  background: #1A1A1A;
-  border-color: #292929;
-  color: #FFFFFF;
+  background: var(--bg1);
+  border-color: var(--border);
+  color: var(--fg0);
 }
 
 .base-widget.theme-light .widget-header {
-  background: #111111;
-  border-bottom-color: #292929;
+  background: var(--bg0);
+  border-bottom-color: var(--border);
 }
 
 .base-widget.theme-light .widget-title {
-  color: #FFFFFF;
+  color: var(--fg0);
 }
 
 .base-widget.theme-light .widget-footer {
-  background: #111111;
-  border-top-color: #292929;
-  color: #9CA3AF;
+  background: var(--bg0);
+  border-top-color: var(--border);
+  color: var(--fg3);
 }
 
 .base-widget.theme-light .widget-loading {
-  color: #9CA3AF;
+  color: var(--fg3);
 }
 
 .base-widget.theme-light .widget-loading-spinner {
-  border-color: #292929;
-  border-top-color: #FE5F00;
+  border-color: var(--border);
+  border-top-color: var(--c-primary);
 }
 
 .base-widget.theme-light .widget-error-message {
-  color: #FF2E88;
+  color: var(--c-secondary);
 }
 
 .base-widget.theme-light .widget-error-retry {
-  background: #FE5F00;
+  background: var(--c-primary);
 }
 
 .base-widget.theme-light .widget-error-retry:hover {
-  background: #FF2E88;
+  background: var(--c-secondary);
 }
