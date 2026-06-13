@@ -1,5 +1,4 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
-const { processWithGroq } = require('../utils/groq-handler');
 // Using built-in fetch (Node.js 18+)
 
 function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
@@ -610,33 +609,111 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
           messageText = `${conversationContext}${mcpPrompt}${errorContext}${userMessage}`;
         }
       }
-      // Process server-side using Groq instead of forwarding to device
-      try {
-        clearTimeout(timeout);
-        pendingRequests.delete(requestId);
-        requestDeviceMap.delete(requestId);
-
-        const groqResult = await processWithGroq(messages, {
+      const command = {
+        type: 'chat_completion',
+        data: {
+          message: processedMessage,
+          originalMessage: userMessage,
           model,
           temperature,
           max_tokens,
           response_format,
-        });
+          requestId,
+          timestamp: new Date().toISOString(),
+          ...(imageBase64 && { imageBase64 }),
+          ...(pluginId && { pluginId })
+        }
+      };
 
-        // Inject conversation context into the response if MCP was used
-        const finalContent = groqResult.content;
+      console.log('Sending command to R1 devices:', JSON.stringify(command, null, 2));
 
-        sendOpenAIResponse(res, finalContent, userMessage, model, stream);
-        console.log('[groq] Chat completion processed server-side successfully');
-      } catch (groqError) {
-        clearTimeout(timeout);
+      let responsesSent = 0;
+
+      if (targetDeviceId) {
+        // Debug device state (without exposing device IDs)
+        console.log(`🔍 Looking for target device`);
+        console.log(`🔍 hasDevice: ${deviceIdManager.hasDevice(targetDeviceId)}`);
+        console.log(`🔍 connectedR1s has: ${connectedR1s.has(targetDeviceId)}`);
+        console.log(`🔍 Total connected devices: ${connectedR1s.size}`);
+
+        // Send to specific device
+        if (deviceIdManager.hasDevice(targetDeviceId)) {
+          const socket = connectedR1s.get(targetDeviceId);
+          if (socket) {
+            console.log(`📤 Sending to device:`, JSON.stringify(command, null, 2));
+            console.log(`📤 Socket object:`, { id: socket.id, connected: socket.connected });
+
+            // Send chat completion to device
+            socket.emit('chat_completion', command);
+
+            requestDeviceMap.set(requestId, targetDeviceId);
+            responsesSent++;
+            console.log(`📊 Sent request ${requestId} to specific device`);
+          } else {
+            console.log(`❌ Device has no socket in connectedR1s`);
+          }
+        } else {
+          console.log(`❌ Device not found in deviceIdManager`);
+          console.log(`🔍 DeviceIdManager device info available: ${!!deviceIdManager.getDeviceInfo(targetDeviceId)}`);
+
+          // Try fallback - check if device exists in connectedR1s directly
+          if (connectedR1s.has(targetDeviceId)) {
+            console.log(`🔄 Fallback: Found device in connectedR1s, sending anyway`);
+            const socket = connectedR1s.get(targetDeviceId);
+            if (socket) {
+              console.log(`📤 Fallback sending to device:`, JSON.stringify(command, null, 2));
+              console.log(`📤 Fallback socket object:`, { id: socket.id, connected: socket.connected });
+              socket.emit('chat_completion', command);
+              requestDeviceMap.set(requestId, targetDeviceId);
+              responsesSent++;
+              console.log(`📊 Fallback sent request ${requestId} to device`);
+            }
+          } else {
+            // No devices connected or target device not found
+            pendingRequests.delete(requestId);
+            clearTimeout(timeout);
+            res.status(503).json({
+              error: {
+                message: `Device not connected`,
+                type: 'service_unavailable'
+              }
+            });
+            return;
+          }
+        }
+      } else {
+        // Send to the first available R1 device
+        const devices = Array.from(connectedR1s.keys());
+        if (devices.length === 0) {
+          // No R1 devices connected
+          pendingRequests.delete(requestId);
+          clearTimeout(timeout);
+          res.status(503).json({
+            error: {
+              message: 'No R1 devices connected',
+              type: 'service_unavailable'
+            }
+          });
+          return;
+        }
+
+        const deviceId = devices[0]; // Use the first device
+        const socket = connectedR1s.get(deviceId);
+        console.log(`📤 Sending to first available device:`, JSON.stringify(command, null, 2));
+        socket.emit('chat_completion', command);
+        requestDeviceMap.set(requestId, deviceId); // Track which device gets this request
+        responsesSent++;
+        console.log(`📊 Sent request ${requestId} to first available device`);
+      }
+
+      if (responsesSent === 0) {
+        // This shouldn't happen with the checks above, but just in case
         pendingRequests.delete(requestId);
-        requestDeviceMap.delete(requestId);
-        console.error('[groq] Error:', groqError.message);
-        res.status(502).json({
+        clearTimeout(timeout);
+        res.status(503).json({
           error: {
-            message: 'AI processing failed: ' + groqError.message,
-            type: 'server_error'
+            message: 'No R1 devices available',
+            type: 'service_unavailable'
           }
         });
       }
