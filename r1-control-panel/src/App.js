@@ -6,7 +6,6 @@ import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
 import ApiDocs from './components/ApiDocs';
 import PhoneLink from './components/PhoneLink';
-import MCPManager from './components/MCPManager';
 import './App.css';
 
 function App() {
@@ -66,16 +65,12 @@ function App() {
           localStorage.removeItem('r1-pin-code');
         }
 
-        // Initialize socket connection for MCP events (NOT as a device)
+        // Initialize socket connection for real-time updates (NOT as a device)
         const newSocket = io();
         setSocket(newSocket);
 
         newSocket.on('connect', () => {
           console.log('Connected to R-API server');
-        });
-
-        newSocket.on('mcp_event', (data) => {
-          console.log('MCP Event:', data);
         });
 
       } else {
@@ -109,8 +104,6 @@ function App() {
         return <PhoneLink deviceId={deviceId} />;
       case 'api-docs':
         return <ApiDocs deviceId={deviceId} />;
-      case 'mcp':
-        return <MCPManager socket={socket} deviceId={deviceId} pinCode={pinCode} />;
       default:
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
     }

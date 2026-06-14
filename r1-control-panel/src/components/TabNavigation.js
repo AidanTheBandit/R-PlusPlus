@@ -1,11 +1,10 @@
 import React from 'react';
-import { ChatIcon, ApiDocsIcon, McpIcon } from './Icons';
+import { ChatIcon, ApiDocsIcon } from './Icons';
 
 const TabNavigation = ({ activeTab, onTabChange }) => {
   const tabs = [
     { id: 'chat', label: 'Chat', description: 'Chat with your R1 device', Icon: ChatIcon },
-    { id: 'api-docs', label: 'API Docs', description: 'View API documentation and endpoints', Icon: ApiDocsIcon },
-    { id: 'mcp', label: 'MCP Servers', description: 'Manage MCP servers for your device', Icon: McpIcon }
+    { id: 'api-docs', label: 'API Docs', description: 'View API documentation and endpoints', Icon: ApiDocsIcon }
   ];
 
   return (

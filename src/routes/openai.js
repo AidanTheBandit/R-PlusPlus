@@ -1,7 +1,7 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 // Using built-in fetch (Node.js 18+)
 
-function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
+function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager = null) {
   // Device-specific endpoints: /device-{deviceId}/v1/chat/completions (legacy format)
   app.post('/device-:deviceId/v1/chat/completions', async (req, res) => {
     const { deviceId } = req.params;
@@ -440,9 +440,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       // Store the request for response handling
       pendingRequests.set(requestId, { res, timeout, stream, response_format });
 
-      // MCP tools are injected into the prompt and handled device-side
-      // The R1 device detects tool calls in LAM responses and emits mcp_tool_call via socket
-      // The socket handler executes the tool and returns results
+      // Tools are handled device-side
 
       // Build conversation context from messages array
       let conversationContext = '';
@@ -460,16 +458,10 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         conversationContext += '## CURRENT MESSAGE\n\n';
       }
 
-      // Get MCP system prompt for injection
-      let mcpPrompt = '';
-      if (mcpManager) {
-        mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
-      }
-
-      // Combine context, MCP prompt, and current message
+      // Combine context and current message
       let messageText = userMessage;
-      if (conversationContext || mcpPrompt) {
-        messageText = `${conversationContext}${mcpPrompt}User: ${userMessage}`;
+      if (conversationContext) {
+        messageText = `${conversationContext}User: ${userMessage}`;
       }
 
       // For json_object format, add instruction to return only JSON

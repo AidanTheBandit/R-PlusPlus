@@ -19,6 +19,7 @@ export function useSocket(addConsoleLog, sendErrorToServer) {
     }
 
     // Socket.IO configuration with automatic cookie sending
+    const storedSecret = localStorage.getItem('r1_device_secret') || null
     socketRef.current = io('/', {
       path: '/socket.io',
       transports: ['polling'],
@@ -29,7 +30,8 @@ export function useSocket(addConsoleLog, sendErrorToServer) {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       randomizationFactor: 0.5,
-      withCredentials: true // This ensures cookies are sent automatically
+      withCredentials: true,
+      auth: storedSecret ? { deviceSecret: storedSecret } : {}
     })
 
     // Connection events
@@ -111,13 +113,15 @@ export function useSocket(addConsoleLog, sendErrorToServer) {
         pinEnabled: data.pinEnabled !== false && data.pinCode !== null
       })
 
-      // Handle device secret cookie for persistence
+      // Handle device secret for persistence
       if (data.deviceSecret && !data.isReconnection) {
-        // Set cookie for new devices (expires in 30 days)
+        // Store in localStorage (reliable in Android WebView)
+        localStorage.setItem('r1_device_secret', data.deviceSecret)
+        // Also set cookie as secondary (server-side preferred)
         const expiryDate = new Date()
-        expiryDate.setDate(expiryDate.getDate() + 30)
-        document.cookie = `r1_device_secret=${encodeURIComponent(data.deviceSecret)}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict`
-        addConsoleLog(`[COOKIE] Device secret cookie set for persistence`, 'info')
+        expiryDate.setDate(expiryDate.getDate() + 365)
+        document.cookie = `r1_device_secret=${encodeURIComponent(data.deviceSecret)}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`
+        addConsoleLog(`[AUTH] Device secret stored for persistence`, 'info')
       }
 
       setConnectionStatus(`${data.isReconnection ? 'Reconnected' : 'Connected'} - Device: [HIDDEN]`)
@@ -191,26 +195,6 @@ export function useSocket(addConsoleLog, sendErrorToServer) {
         window.handleChatCompletion(data, socketRef.current, addConsoleLog, sendErrorToServer)
       } else {
         addConsoleLog('[ERR] No chat completion handler available', 'error')
-      }
-    })
-
-    // Handle MCP tool results from server
-    // After we emit mcp_tool_call, the server executes the tool and sends
-    // the result back here. We forward it to the R1 LAM as a follow-up so
-    // the LAM can generate a natural-language response.
-    socketRef.current.on('mcp_tool_result', (data) => {
-      addConsoleLog(`[MCP] Received mcp_tool_result event`, 'info')
-      addConsoleLog(`[MCP] Tool result data: ${JSON.stringify(data, null, 2)}`)
-
-      if (window.handleMcpToolResult) {
-        try {
-          window.handleMcpToolResult(data, socketRef.current, addConsoleLog, sendErrorToServer)
-        } catch (error) {
-          addConsoleLog(`[MCP] Error handling tool result: ${error.message}`, 'error')
-          addConsoleLog(`[MCP] Error stack: ${error.stack}`, 'error')
-        }
-      } else {
-        addConsoleLog('[MCP] No MCP tool result handler available', 'error')
       }
     })
 

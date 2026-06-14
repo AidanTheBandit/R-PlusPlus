@@ -88,12 +88,12 @@ class DeviceIdManager {
     // If device secret is provided, try to find existing device
     if (this.database && deviceSecret) {
       try {
-        // Look for device with matching secret within last 30 days
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        // Look for device with matching secret within last 365 days
+        const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
 
         const existingDevice = await this.database.get(
           `SELECT * FROM devices WHERE device_secret = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 1`,
-          [deviceSecret, thirtyDaysAgo]
+          [deviceSecret, cutoff]
         );
 
         if (existingDevice) {
@@ -292,10 +292,10 @@ class DeviceIdManager {
     if (!deviceSecret) return { canReconnect: false, reason: 'No device secret provided' };
 
     try {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
       const existingDevice = await this.database.get(
         `SELECT * FROM devices WHERE device_secret = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 1`,
-        [deviceSecret, thirtyDaysAgo]
+        [deviceSecret, cutoff]
       );
 
       if (existingDevice) {

@@ -110,7 +110,7 @@ const ApiDocs = ({ deviceId }) => {
           <li><strong>Device-Specific Camera Control:</strong> Secure camera control limited to your own R1 device</li>
           <li><strong>Real-time Communication:</strong> WebSocket support for live updates</li>
           <li><strong>Health Monitoring:</strong> Check server and device connectivity</li>
-          <li><strong>MCP Integration:</strong> Model Context Protocol support for enhanced AI capabilities</li>
+
         </ul>
       </div>
 
@@ -121,7 +121,7 @@ const ApiDocs = ({ deviceId }) => {
           <li><strong>Device-Specific:</strong> All endpoints are scoped to your specific R1 device - you can only control your own device</li>
           <li><strong>Security:</strong> Camera commands and other device controls are isolated per device for privacy</li>
           <li><strong>Chat Completions:</strong> Support both streaming and non-streaming responses, plus image analysis</li>
-          <li><strong>MCP Integration:</strong> Enhanced AI capabilities through Model Context Protocol</li>
+
           <li>All endpoints return JSON responses</li>
         </ul>
       </div>

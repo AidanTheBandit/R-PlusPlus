@@ -49,7 +49,7 @@ Return ONLY the JSON object, no additional text or explanation.`;
 }
 const axios = require('axios');
 
-function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager = null, mcpManager = null) {
+function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager = null) {
   // Initialize device ID manager if not provided
   if (!deviceIdManager) {
     deviceIdManager = new DeviceIdManager();
@@ -58,8 +58,8 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
   // Get PIN configuration from environment
   const enablePin = process.env.DISABLE_PIN !== 'true'; // Default to enabled, disable if DISABLE_PIN=true
 
-  // Track requests that have had MCP tools executed (for follow-up responses)
-  const mcpToolExecutedRequests = new Set();
+  // Track requests that have had tools executed (for follow-up responses)
+  const toolExecutedRequests = new Set();
 
   // Socket.IO connection handling
   io.on('connection', async (socket) => {
@@ -67,13 +67,22 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
     const userAgent = socket.handshake.headers['user-agent'];
     const ipAddress = socket.handshake.address || socket.request.connection.remoteAddress;
     
-    // Extract device secret from cookie
-    const cookies = socket.handshake.headers.cookie;
+    // Extract device secret from socket auth payload (primary) or cookie (fallback)
     let deviceSecret = null;
-    if (cookies) {
-      const cookieMatch = cookies.match(/r1_device_secret=([^;]+)/);
-      if (cookieMatch) {
-        deviceSecret = decodeURIComponent(cookieMatch[1]);
+
+    // Check auth payload first (sent from localStorage, most reliable)
+    if (socket.handshake.auth && socket.handshake.auth.deviceSecret) {
+      deviceSecret = socket.handshake.auth.deviceSecret;
+    }
+
+    // Fallback: check cookie
+    if (!deviceSecret) {
+      const cookies = socket.handshake.headers.cookie;
+      if (cookies) {
+        const cookieMatch = cookies.match(/r1_device_secret=([^;]+)/);
+        if (cookieMatch) {
+          deviceSecret = decodeURIComponent(cookieMatch[1]);
+        }
       }
     }
 
@@ -87,33 +96,6 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
 
     console.log(`R1 device ${isReconnection ? 'reconnected' : 'connected'}`);
     console.log(`Total connected devices: ${connectedR1s.size}`);
-
-    // Auto-connect enabled MCP servers for this device
-    if (mcpManager && !isReconnection) {
-      try {
-        console.log(`[OK] Auto-connecting MCP servers for device ${deviceId}`);
-        const servers = await mcpManager.getDeviceServers(deviceId);
-        console.log(`[OK] Found ${servers.length} servers for device ${deviceId}:`, servers.map(s => ({ name: s.name, enabled: s.enabled, connected: s.connected })));
-        
-        for (const server of servers) {
-          if (server.enabled && !server.connected) {
-            console.log(`[OK] Auto-connecting server: ${server.name} (${server.config?.url})`);
-            try {
-              await mcpManager.initializeServer(deviceId, server.name);
-              console.log(`[OK] Auto-connected MCP server: ${server.name}`);
-            } catch (error) {
-              console.error(`[OK] Failed to auto-connect MCP server ${server.name}:`, error.message);
-            }
-          } else if (server.enabled && server.connected) {
-            console.log(`ℹ️ Server ${server.name} already connected`);
-          } else {
-            console.log(`[OK] Server ${server.name} not enabled or already connected`);
-          }
-        }
-      } catch (error) {
-        console.error(`[OK] Error auto-connecting MCP servers for ${deviceId}:`, error.message);
-      }
-    }
 
     // Don't broadcast device connections to prevent device ID leakage
 
@@ -167,13 +149,6 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
       connectedR1s.delete(deviceId);
       deviceIdManager.unregisterDevice(socket.id);
 
-      // Shutdown MCP servers for this device
-      if (mcpManager) {
-        mcpManager.shutdownDeviceServers(deviceId).catch(error => {
-          console.error(`Error shutting down MCP servers:`, error);
-        });
-      }
-
       console.log(`Total connected devices after disconnect: ${connectedR1s.size}`);
       console.log(`Cleaned up ${requestsToClean.length} pending requests`);
     });
@@ -209,54 +184,6 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
 
     socket.on('client_log', (data) => {
       // Store locally but don't log device IDs
-    });
-
-    // MCP-specific event handlers
-    socket.on('mcp_tool_call', async (data) => {
-      console.log(`MCP tool call received`);
-      
-      if (mcpManager) {
-        try {
-          const { serverName, toolName, arguments: toolArgs, requestId } = data;
-          
-          // Handle the tool call using the new prompt injection system
-          const result = await mcpManager.handleToolCall(deviceId, serverName, toolName, toolArgs || {});
-          
-          // Send result back to the R1 device
-          socket.emit('mcp_tool_result', {
-            requestId: requestId || mcpManager.generateId(),
-            serverName,
-            toolName,
-            result,
-            success: true,
-            timestamp: new Date().toISOString()
-          });
-          
-          // Don't broadcast MCP events to prevent device ID leakage
-        } catch (error) {
-          console.error(`Error handling MCP tool call:`, error);
-          
-          // Send error back to the R1 device
-          socket.emit('mcp_tool_result', {
-            requestId: data.requestId || mcpManager.generateId(),
-            serverName: data.serverName,
-            toolName: data.toolName,
-            error: error.message,
-            success: false,
-            timestamp: new Date().toISOString()
-          });
-          
-          socket.emit('mcp_error', {
-            error: error.message,
-            serverName: data.serverName,
-            toolName: data.toolName
-          });
-        }
-      }
-    });
-
-    socket.on('mcp_server_status', (data) => {
-      console.log(`MCP server status received`);
     });
 
     socket.on('system_info', (data) => {
