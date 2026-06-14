@@ -42,24 +42,14 @@
   min-width: 0;
 }
 
-/* Gradient app title (album-art palette) */
+/* App title — flat solid */
 .app-title {
   display: flex;
   align-items: center;
-  gap: 4px;
   font-weight: 700;
-  font-size: 16px;
-  background: var(--gradient-focus);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 15px;
+  color: var(--fg1);
   letter-spacing: -0.01em;
-}
-
-.app-title .icon {
-  display: inline-flex;
-  align-items: center;
-  -webkit-text-fill-color: initial;
 }
 
 /* Connection indicator pill */

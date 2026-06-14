@@ -14,7 +14,6 @@ const { setupHealthRoutes } = require('./routes/health');
 const { setupDebugRoutes } = require('./routes/debug');
 const { setupMCPRoutes } = require('./routes/mcp');
 const { setupTwilioRoutes } = require('./routes/twilio');
-const { setupAudioRoutes } = require('./routes/audio');
 const { setupSocketHandler } = require('./socket/socket-handler');
 const { DeviceIdManager } = require('./utils/device-id-manager');
 const { DatabaseManager } = require('./utils/database');
@@ -77,7 +76,6 @@ let performanceMiddleware = (req, res, next) => next();
 
 // Setup routes FIRST (before static file serving)
 setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager);
-setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager);
 setupMagicCamRoutes(app, connectedR1s);
 setupHealthRoutes(app, connectedR1s);
 setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugDataStore, performanceMetrics);

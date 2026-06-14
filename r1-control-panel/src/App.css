@@ -909,19 +909,6 @@
   box-shadow: var(--glow);
 }
 
-/* QR section (login page) */
-.qr-section {
-  text-align: center;
-  margin: 1.25rem 0;
-}
-
-.qr-section h4 {
-  margin-bottom: 0.625rem;
-  color: var(--fg1);
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
 /* =============================================================
    API Docs
    ============================================================= */

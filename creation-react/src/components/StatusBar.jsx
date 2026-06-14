@@ -1,6 +1,5 @@
 import React from 'react'
 import {
-  BoltIcon,
   CloseIcon,
   LockIcon,
   RefreshIcon,
@@ -20,10 +19,7 @@ function StatusBar({
   return (
     <div className="status-bar">
       <div className="status-left">
-        <div className="app-title">
-          <span className="icon"><BoltIcon size={14} /></span>
-          <span>R1 Anywhere</span>
-        </div>
+        <span className="app-title">R1 Anywhere</span>
         <div className={`connection-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
           <div className="pulse"></div>
           <span>{isConnected ? 'Online' : 'Offline'}</span>

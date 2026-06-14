@@ -4,11 +4,8 @@ import { HeartIcon } from './components/Icons';
 import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
-import SpeechTest from './components/SpeechTest';
-import ImageTest from './components/ImageTest';
 import ApiDocs from './components/ApiDocs';
 import PhoneLink from './components/PhoneLink';
-import Apps from './components/Apps';
 import MCPManager from './components/MCPManager';
 import './App.css';
 
@@ -108,11 +105,6 @@ function App() {
     switch (activeTab) {
       case 'chat':
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
-
-      case 'speech':
-        return <SpeechTest deviceId={deviceId} pinCode={pinCode} />;
-      case 'image':
-        return <ImageTest deviceId={deviceId} pinCode={pinCode} />;
       case 'phone':
         return <PhoneLink deviceId={deviceId} />;
       case 'api-docs':
@@ -156,10 +148,7 @@ function App() {
         </div>
         
         <footer className="app-footer">
-          <a href="https://barkle.chat/@Aidan" target="_blank" rel="noopener noreferrer">
-            Barkle 
-          </a>
-          <span>Made with <HeartIcon size={12} /> by Aidan and <a href="https://boondit.site/r1-generator" target="_blank" rel="noopener noreferrer">R1 QR code gen</a></span>
+          <span>Made with <HeartIcon size={12} /> by Aidan</span>
         </footer>
       </div>
     </div>

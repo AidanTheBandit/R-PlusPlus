@@ -90,11 +90,6 @@ function App() {
         onDisablePin={handleDisablePin}
         onEnablePin={handleEnablePin}
       />
-      <div className="brand-stripe">
-        <div className="seg-1"></div>
-        <div className="seg-2"></div>
-        <div className="seg-3"></div>
-      </div>
 
       <div className="main-content">
         <ConsolePanel consoleLogs={consoleLogs} ref={consoleRef} />

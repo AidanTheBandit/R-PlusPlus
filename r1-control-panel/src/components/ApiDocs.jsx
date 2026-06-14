@@ -20,20 +20,6 @@ const ApiDocs = ({ deviceId }) => {
   }'`
     },
     {
-      method: 'POST',
-      path: '/v1/audio/speech',
-      description: 'Generate speech audio from text using your R1 device',
-      example: `curl -X POST "${apiBaseUrl}/v1/audio/speech" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "input": "Hello, this is a test message",
-    "model": "tts-1",
-    "voice": "alloy",
-    "response_format": "mp3",
-    "speed": 1.0
-  }'`
-    },
-    {
       method: 'GET',
       path: '/v1/models',
       description: 'List available models',
@@ -119,9 +105,8 @@ const ApiDocs = ({ deviceId }) => {
       <div className="api-features">
         <h3>API Features</h3>
         <ul>
-          <li><strong>OpenAI-Compatible:</strong> Use standard OpenAI chat completion and TTS formats</li>
+          <li><strong>OpenAI-Compatible:</strong> Use standard OpenAI chat completion formats</li>
           <li><strong>Image Support:</strong> Send images in chat messages for visual analysis</li>
-          <li><strong>Text-to-Speech:</strong> Generate audio from text using your R1 device</li>
           <li><strong>Device-Specific Camera Control:</strong> Secure camera control limited to your own R1 device</li>
           <li><strong>Real-time Communication:</strong> WebSocket support for live updates</li>
           <li><strong>Health Monitoring:</strong> Check server and device connectivity</li>
@@ -136,9 +121,8 @@ const ApiDocs = ({ deviceId }) => {
           <li><strong>Device-Specific:</strong> All endpoints are scoped to your specific R1 device - you can only control your own device</li>
           <li><strong>Security:</strong> Camera commands and other device controls are isolated per device for privacy</li>
           <li><strong>Chat Completions:</strong> Support both streaming and non-streaming responses, plus image analysis</li>
-          <li><strong>Text-to-Speech:</strong> Generate high-quality audio from text using your R1 device</li>
           <li><strong>MCP Integration:</strong> Enhanced AI capabilities through Model Context Protocol</li>
-          <li>All endpoints return JSON responses (except TTS which returns audio data)</li>
+          <li>All endpoints return JSON responses</li>
         </ul>
       </div>
     </div>
