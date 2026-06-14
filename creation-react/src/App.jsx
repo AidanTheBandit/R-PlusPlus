@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import './App.css'
 import StatusBar from './components/StatusBar'
 import ConsolePanel from './components/ConsolePanel'
-import PerformanceMonitor from './components/PerformanceMonitor'
+
 import { useConsole } from './hooks/useConsole'
 import { useSocket } from './hooks/useSocket'
 import { useR1SDK } from './hooks/useR1SDK'
@@ -100,7 +100,6 @@ function App() {
         <ConsolePanel consoleLogs={consoleLogs} ref={consoleRef} />
       </div>
 
-      <PerformanceMonitor />
     </div>
   )
 }
