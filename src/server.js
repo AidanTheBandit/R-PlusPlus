@@ -16,7 +16,6 @@ const { setupMCPRoutes } = require('./routes/mcp');
 const { setupTwilioRoutes } = require('./routes/twilio');
 const { setupAudioRoutes } = require('./routes/audio');
 const { setupSocketHandler } = require('./socket/socket-handler');
-const WidgetSocketHandler = require('./widgets/widget-socket-handler');
 const { DeviceIdManager } = require('./utils/device-id-manager');
 const { DatabaseManager } = require('./utils/database');
 const { MCPManager } = require('./utils/mcp-manager');
@@ -785,9 +784,7 @@ app.post('/:deviceId/change-pin', async (req, res) => {
 // Setup socket handler
 setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager, mcpManager);
 
-// Setup widget socket handler
-const widgetSocketHandler = new WidgetSocketHandler(io);
-widgetSocketHandler.initialize();
+
 
 // Plugin system
 const pluginManager = new PluginManager();

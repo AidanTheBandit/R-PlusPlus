@@ -440,122 +440,9 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       // Store the request for response handling
       pendingRequests.set(requestId, { res, timeout, stream, response_format });
 
-      // Initialize MCP request detection variables
-      let isMCPRequest = false;
-      let mcpToolCall = null;
-
-      // Check if this is an MCP tool request that should be handled server-side
-      if (mcpManager) {
-        // Get available tools for this device
-        const tools = await mcpManager.getDeviceTools(targetDeviceId);
-
-        // Analyze user message to detect MCP tool requests
-        const lowerMessage = userMessage.toLowerCase();
-
-        // Check for explicit MCP requests
-        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool') || lowerMessage.includes('using mcp')) {
-          // Try to match the request to available tools
-          for (const tool of tools) {
-            if (tool.serverName === 'deepwiki') {
-              // Handle deepwiki requests - look for repository references
-              const repoPatterns = [
-                /([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/, // owner/repo format
-                /(?:see|check|browse|explore)\s+(?:the\s+)?(?:repo|repository|github)?\s*([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/i,
-                /([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)\s+(?:using|with)\s+mcp/i
-              ];
-
-              for (const pattern of repoPatterns) {
-                const repoMatch = userMessage.match(pattern);
-                if (repoMatch) {
-                  let repoName = repoMatch[1];
-
-                  // Handle common repository shortcuts
-                  if (repoName.toLowerCase() === 'vscode') {
-                    repoName = 'microsoft/vscode';
-                  } else if (repoName.toLowerCase() === 'react') {
-                    repoName = 'facebook/react';
-                  }
-
-                  isMCPRequest = true;
-                  mcpToolCall = {
-                    server: tool.serverName,
-                    tool: tool.name,
-                    arguments: { repoName }
-                  };
-                  console.log(`🔧 Detected MCP request for repository ${repoName}, will execute ${tool.name} tool`);
-                  break;
-                }
-              }
-
-              if (isMCPRequest) break;
-            }
-          }
-
-          // Special handling for deepwiki mentions
-          if (!isMCPRequest && lowerMessage.includes('deepwiki')) {
-            const deepwikiTool = tools.find(t => t.serverName === 'deepwiki' && t.name === 'read_wiki_structure');
-            if (deepwikiTool) {
-              let repoName = 'microsoft/vscode'; // default fallback
-
-              // Try to extract repo name from the message
-              const repoMatch = userMessage.match(/for\s+(\w+)/i);
-              if (repoMatch) {
-                const repoPart = repoMatch[1].toLowerCase();
-                if (repoPart === 'vscode') {
-                  repoName = 'microsoft/vscode';
-                } else if (repoPart === 'react') {
-                  repoName = 'facebook/react';
-                } else {
-                  repoName = `microsoft/${repoPart}`; // assume microsoft org
-                }
-              }
-
-              isMCPRequest = true;
-              mcpToolCall = {
-                server: deepwikiTool.serverName,
-                tool: deepwikiTool.name,
-                arguments: { repoName }
-              };
-              console.log(`🔧 Detected deepwiki mention, will execute ${deepwikiTool.name} tool for ${repoName}`);
-            }
-          }
-        }
-
-        // Also check for implicit tool requests (e.g., "what's the weather in NYC")
-        if (!isMCPRequest) {
-          // Example: weather tool matching
-          const weatherMatch = lowerMessage.match(/(?:weather|temperature|forecast).*(?:in|for|at)\s+([a-zA-Z\s,]+)/i);
-          if (weatherMatch) {
-            const location = weatherMatch[1].trim();
-            const weatherTool = tools.find(t => t.name.includes('weather') || t.name.includes('get_weather'));
-            if (weatherTool) {
-              isMCPRequest = true;
-              mcpToolCall = {
-                server: weatherTool.serverName,
-                tool: weatherTool.name,
-                arguments: { location, units: 'celsius' }
-              };
-              console.log(`🔧 Detected weather request for ${location}, will execute ${weatherTool.name} tool`);
-            }
-          }
-
-          // Example: calculator tool matching
-          const calcMatch = lowerMessage.match(/(?:calculate|compute|what is|what's)\s+(.+)/i);
-          if (calcMatch) {
-            const expression = calcMatch[1].trim();
-            const calcTool = tools.find(t => t.name.includes('calculate') || t.name.includes('calculator'));
-            if (calcTool) {
-              isMCPRequest = true;
-              mcpToolCall = {
-                server: calcTool.serverName,
-                tool: calcTool.name,
-                arguments: { expression }
-              };
-              console.log(`🔧 Detected calculation request: ${expression}, will execute ${calcTool.name} tool`);
-            }
-          }
-        }
-      }
+      // MCP tools are injected into the prompt and handled device-side
+      // The R1 device detects tool calls in LAM responses and emits mcp_tool_call via socket
+      // The socket handler executes the tool and returns results
 
       // Build conversation context from messages array
       let conversationContext = '';
@@ -585,29 +472,10 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         messageText = `${conversationContext}${mcpPrompt}User: ${userMessage}`;
       }
 
-      // For json_object format, add instruction to return only JSON (but not for MCP requests)
+      // For json_object format, add instruction to return only JSON
       let processedMessage = messageText;
-      if (response_format && response_format.type === 'json_object' && !isMCPRequest) {
-        // Add explicit instruction to return only JSON
+      if (response_format && response_format.type === 'json_object') {
         processedMessage = `${messageText}\n\nIMPORTANT: Respond with ONLY a valid JSON object. Do not include any other text, markdown, or explanation.`;
-      }
-
-      // For MCP requests, execute the tool server-side first
-      if (isMCPRequest && mcpToolCall) {
-        try {
-          console.log(`🔧 Executing MCP tool server-side: ${mcpToolCall.server}.${mcpToolCall.tool}`);
-          const toolResult = await mcpManager.handleToolCall(targetDeviceId, mcpToolCall.server, mcpToolCall.tool, mcpToolCall.arguments);
-
-          // For MCP requests, inject tool results into the message
-          const toolContext = `## TOOL RESULTS\n\n${JSON.stringify(toolResult, null, 2)}\n\nUse this data to answer: `;
-          messageText = `${conversationContext}${mcpPrompt}${toolContext}${userMessage}`;
-
-          console.log(`✅ MCP tool executed successfully, result injected into message`);
-        } catch (toolError) {
-          console.error(`❌ MCP tool execution failed:`, toolError);
-          const errorContext = `## ERROR\n\n${toolError.message}\n\nPlease respond appropriately to: `;
-          messageText = `${conversationContext}${mcpPrompt}${errorContext}${userMessage}`;
-        }
       }
       const command = {
         type: 'chat_completion',

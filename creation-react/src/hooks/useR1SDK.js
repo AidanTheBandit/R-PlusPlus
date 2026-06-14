@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { r1 } from 'r1-create'
 import { handleTextToSpeech } from './useR1TTS.js'
-import { handleChatCompletion } from './useR1Chat.js'
+import { handleChatCompletion, handleMcpToolResult, detectMcpToolCall } from './useR1Chat.js'
 import { testR1APIs } from './r1SDKUtils.js'
 
 export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
@@ -32,6 +32,39 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
             addConsoleLog(`[OUT] Extracted response text: "${responseText}"`)
             addConsoleLog(`[OUT] Current pending request ID: ${socketRef.current?._pendingRequestId}`)
 
+            // Check for MCP tool call anywhere in the response text
+            const mcpToolCall = detectMcpToolCall(String(responseText))
+
+            if (mcpToolCall) {
+              addConsoleLog(`[MCP] Detected MCP tool call: ${mcpToolCall.server}.${mcpToolCall.tool}`, 'info')
+              addConsoleLog(`[MCP] Tool call arguments: ${JSON.stringify(mcpToolCall.arguments)}`, 'info')
+
+              if (socketRef.current && socketRef.current.connected) {
+                const requestId = socketRef.current._pendingRequestId
+                const currentDeviceId = socketRef.current._deviceId
+
+                socketRef.current.emit('mcp_tool_call', {
+                  requestId: requestId,
+                  serverName: mcpToolCall.server,
+                  toolName: mcpToolCall.tool,
+                  args: mcpToolCall.arguments || {},
+                  deviceId: currentDeviceId
+                })
+
+                addConsoleLog(`[MCP] Emitted mcp_tool_call for ${mcpToolCall.server}.${mcpToolCall.tool} (requestId: ${requestId})`, 'info')
+                addConsoleLog(`[MCP] Waiting for mcp_tool_result from server before forwarding response`, 'info')
+
+                // Do NOT clear the pending request ID - we need it when the
+                // tool result comes back and the LAM sends its final response.
+                // Do NOT emit 'response' yet - the final response comes after
+                // the tool result is fed back to the LAM.
+              } else {
+                addConsoleLog('[MCP] Socket not connected, cannot emit mcp_tool_call', 'error')
+              }
+              return // Stop processing - wait for tool result
+            }
+
+            // Normal response flow (no MCP tool call detected)
             // Send response via socket (server will handle requestId matching)
             if (socketRef.current && socketRef.current.connected) {
               const currentDeviceId = socketRef.current._deviceId
@@ -81,6 +114,8 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
       handleChatCompletion(data, socket, addLog, sendError, r1CreateRef)
     window.handleTextToSpeech = (data, socket, addLog, sendError) =>
       handleTextToSpeech(data, socket, addLog, sendError, r1CreateRef)
+    window.handleMcpToolResult = (data, socket, addLog, sendError) =>
+      handleMcpToolResult(data, socket, addLog, sendError, r1CreateRef)
 
     // Cleanup
     return () => {
@@ -89,6 +124,9 @@ export function useR1SDK(addConsoleLog, sendErrorToServer, socketRef) {
       }
       if (window.handleTextToSpeech) {
         delete window.handleTextToSpeech
+      }
+      if (window.handleMcpToolResult) {
+        delete window.handleMcpToolResult
       }
     }
   }, [addConsoleLog, sendErrorToServer, socketRef])
