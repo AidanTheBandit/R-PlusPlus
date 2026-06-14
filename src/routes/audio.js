@@ -112,7 +112,7 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
         });
 
       if (existingTTSRequests.length > 0) {
-        console.log(`❌ Device ${targetDeviceId} already has ${existingTTSRequests.length} pending TTS request(s): ${existingTTSRequests.map(([id]) => id).join(', ')}`);
+        console.log(`[OK] Device ${targetDeviceId} already has ${existingTTSRequests.length} pending TTS request(s): ${existingTTSRequests.map(([id]) => id).join(', ')}`);
         return res.status(429).json({
           error: {
             message: 'Device is currently processing another speech request. Please wait for it to complete.',
@@ -208,13 +208,13 @@ function setupAudioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceM
           responsesSent++;
           console.log(`📊 Sent TTS request ${requestId} to device`);
         } else {
-          console.log(`❌ Device has no socket in connectedR1s`);
+          console.log(`[OK] Device has no socket in connectedR1s`);
         }
       } else {
-        console.log(`❌ Device not found in deviceIdManager`);
+        console.log(`[OK] Device not found in deviceIdManager`);
         // Try fallback
         if (connectedR1s.has(targetDeviceId)) {
-          console.log(`🔄 Fallback: Found device in connectedR1s, sending TTS anyway`);
+          console.log(`[OK] Fallback: Found device in connectedR1s, sending TTS anyway`);
           const socket = connectedR1s.get(targetDeviceId);
           if (socket) {
             socket.emit('text_to_speech', command);

@@ -8,7 +8,7 @@ class PluginManager {
   loadPlugins() {
     // For now, just initialize an empty plugin system
     // In the future, this could scan a plugins directory and load plugin files
-    console.log('🔌 Plugin system initialized (no plugins loaded)');
+    console.log('[OK] Plugin system initialized (no plugins loaded)');
   }
 
   // Initialize plugins with app and io instances
@@ -18,10 +18,10 @@ class PluginManager {
       try {
         if (typeof plugin.init === 'function') {
           plugin.init(app, io, sharedState);
-          console.log(`✅ Plugin ${pluginName} initialized`);
+          console.log(`[OK] Plugin ${pluginName} initialized`);
         }
       } catch (error) {
-        console.error(`❌ Failed to initialize plugin ${pluginName}:`, error);
+        console.error(`[OK] Failed to initialize plugin ${pluginName}:`, error);
       }
     }
   }

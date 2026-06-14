@@ -593,7 +593,7 @@
 
 .template-card.selected {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(254, 95, 0, 0.45), var(--glow);
+  box-shadow: 0 0 0 2px var(--bg0), 0 0 0 4px rgba(254, 95, 0, 0.45);
 }
 
 .template-card h4,
@@ -907,19 +907,6 @@
 .app-actions .btn:hover:not(:disabled) {
   filter: brightness(1.1);
   box-shadow: var(--glow);
-}
-
-/* QR section (login page) */
-.qr-section {
-  text-align: center;
-  margin: 1.25rem 0;
-}
-
-.qr-section h4 {
-  margin-bottom: 0.625rem;
-  color: var(--fg1);
-  font-size: 0.95rem;
-  font-weight: 600;
 }
 
 /* =============================================================
