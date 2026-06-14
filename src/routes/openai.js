@@ -62,9 +62,9 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = newPin;
-        console.log(`🔄 Updated in-memory PIN for device`);
+        console.log(`[OK] Updated in-memory PIN for device`);
       } else {
-        console.log(`⚠️ Device not found in memory cache during PIN enable`);
+        console.log(`[OK] Device not found in memory cache during PIN enable`);
       }
 
       console.log(`🔐 PIN ${deviceInfo.pin_code ? 'changed' : 'enabled'} for device`);
@@ -100,9 +100,9 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = null;
-        console.log(`🔄 Cleared in-memory PIN for device`);
+        console.log(`[OK] Cleared in-memory PIN for device`);
       } else {
-        console.log(`⚠️ Device not found in memory cache during PIN disable`);
+        console.log(`[OK] Device not found in memory cache during PIN disable`);
       }
 
       console.log(`🔓 PIN disabled for device`);
@@ -140,12 +140,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = newPin;
-        console.log(`🔄 Updated in-memory PIN for device`);
+        console.log(`[OK] Updated in-memory PIN for device`);
       } else {
-        console.log(`⚠️ Device not found in memory cache during PIN change`);
+        console.log(`[OK] Device not found in memory cache during PIN change`);
       }
 
-      console.log(`🔄 PIN changed for device`);
+      console.log(`[OK] PIN changed for device`);
       res.json({ success: true, message: 'PIN changed successfully' });
     } catch (error) {
       console.error('Error changing PIN:', error);
@@ -217,7 +217,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
     try {
       socket.emit('chat_completion', testCommand);
-      console.log(`✅ Test command sent successfully`);
+      console.log(`[OK] Test command sent successfully`);
       res.json({
         success: true,
         message: 'Test chat completion sent',
@@ -226,7 +226,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         command: testCommand
       });
     } catch (error) {
-      console.error(`❌ Error sending test command:`, error);
+      console.error(`[OK] Error sending test command:`, error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -243,7 +243,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
           const deviceData = deviceIdManager.deviceIds.get(deviceId);
           if (deviceData) {
             deviceData.pinCode = device.pin_code;
-            console.log(`🔄 Synced device PIN from database: ${device.pin_code ? 'set' : 'none'}`);
+            console.log(`[OK] Synced device PIN from database: ${device.pin_code ? 'set' : 'none'}`);
           }
 
           res.json({
@@ -359,7 +359,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         });
 
       if (existingTextRequests.length > 0) {
-        console.log(`❌ Device ${targetDeviceId} already has ${existingTextRequests.length} pending text request(s)`);
+        console.log(`[OK] Device ${targetDeviceId} already has ${existingTextRequests.length} pending text request(s)`);
         return res.status(429).json({
           error: {
             message: 'Device is currently processing another text request. Please wait for it to complete.',
@@ -384,7 +384,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       // Check if the message contains an image URL that needs to be converted to base64
       if (!imageBase64 && messages[messages.length - 1]?.imageUrl) {
         const imageUrl = messages[messages.length - 1].imageUrl;
-        console.log(`🌐 Image URL detected, converting to base64: ${imageUrl}`);
+        console.log(`[OK] Image URL detected, converting to base64: ${imageUrl}`);
 
         try {
           // Fetch the image from the URL
@@ -401,18 +401,18 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
           const imageBuffer = await response.buffer();
           imageBase64 = imageBuffer.toString('base64');
-          console.log(`✅ Successfully converted image URL to base64 (${imageBase64.length} chars)`);
+          console.log(`[OK] Successfully converted image URL to base64 (${imageBase64.length} chars)`);
         } catch (error) {
-          console.error(`❌ Failed to convert image URL to base64:`, error.message);
+          console.error(`[OK] Failed to convert image URL to base64:`, error.message);
           // Continue without image data rather than failing the request
-          console.log(`⚠️ Continuing request without image data`);
+          console.log(`[OK] Continuing request without image data`);
         }
       }
 
       // Check for plugin ID
       if (messages[messages.length - 1]?.pluginId) {
         pluginId = messages[messages.length - 1].pluginId;
-        console.log(`🔌 Plugin ID detected: ${pluginId}`);
+        console.log(`[OK] Plugin ID detected: ${pluginId}`);
       }
 
       // Generate unique request ID
@@ -499,10 +499,10 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
       if (targetDeviceId) {
         // Debug device state (without exposing device IDs)
-        console.log(`🔍 Looking for target device`);
-        console.log(`🔍 hasDevice: ${deviceIdManager.hasDevice(targetDeviceId)}`);
-        console.log(`🔍 connectedR1s has: ${connectedR1s.has(targetDeviceId)}`);
-        console.log(`🔍 Total connected devices: ${connectedR1s.size}`);
+        console.log(`[OK] Looking for target device`);
+        console.log(`[OK] hasDevice: ${deviceIdManager.hasDevice(targetDeviceId)}`);
+        console.log(`[OK] connectedR1s has: ${connectedR1s.has(targetDeviceId)}`);
+        console.log(`[OK] Total connected devices: ${connectedR1s.size}`);
 
         // Send to specific device
         if (deviceIdManager.hasDevice(targetDeviceId)) {
@@ -518,15 +518,15 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
             responsesSent++;
             console.log(`📊 Sent request ${requestId} to specific device`);
           } else {
-            console.log(`❌ Device has no socket in connectedR1s`);
+            console.log(`[OK] Device has no socket in connectedR1s`);
           }
         } else {
-          console.log(`❌ Device not found in deviceIdManager`);
-          console.log(`🔍 DeviceIdManager device info available: ${!!deviceIdManager.getDeviceInfo(targetDeviceId)}`);
+          console.log(`[OK] Device not found in deviceIdManager`);
+          console.log(`[OK] DeviceIdManager device info available: ${!!deviceIdManager.getDeviceInfo(targetDeviceId)}`);
 
           // Try fallback - check if device exists in connectedR1s directly
           if (connectedR1s.has(targetDeviceId)) {
-            console.log(`🔄 Fallback: Found device in connectedR1s, sending anyway`);
+            console.log(`[OK] Fallback: Found device in connectedR1s, sending anyway`);
             const socket = connectedR1s.get(targetDeviceId);
             if (socket) {
               console.log(`📤 Fallback sending to device:`, JSON.stringify(command, null, 2));

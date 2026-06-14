@@ -40,10 +40,10 @@ Return ONLY the JSON object, no additional text or explanation.`;
     
     // Validate that it's valid JSON
     const parsed = JSON.parse(jsonText);
-    console.log('✅ Successfully converted response to JSON using Groq');
+    console.log('[OK] Successfully converted response to JSON using Groq');
     return parsed;
   } catch (error) {
-    console.error('❌ Failed to convert response to JSON with Groq:', error.message);
+    console.error('[OK] Failed to convert response to JSON with Groq:', error.message);
     return null;
   }
 }
@@ -78,7 +78,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
     }
 
     // Get or create persistent device ID
-    console.log(`🔌 New socket connection: ${socket.id}`);
+    console.log(`[OK] New socket connection: ${socket.id}`);
     console.log(`🍪 Device secret from cookie: ${deviceSecret ? 'present' : 'none'}`);
     
     const result = await deviceIdManager.registerDevice(socket.id, null, deviceSecret, userAgent, ipAddress, enablePin);
@@ -91,27 +91,27 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
     // Auto-connect enabled MCP servers for this device
     if (mcpManager && !isReconnection) {
       try {
-        console.log(`🔌 Auto-connecting MCP servers for device ${deviceId}`);
+        console.log(`[OK] Auto-connecting MCP servers for device ${deviceId}`);
         const servers = await mcpManager.getDeviceServers(deviceId);
-        console.log(`📋 Found ${servers.length} servers for device ${deviceId}:`, servers.map(s => ({ name: s.name, enabled: s.enabled, connected: s.connected })));
+        console.log(`[OK] Found ${servers.length} servers for device ${deviceId}:`, servers.map(s => ({ name: s.name, enabled: s.enabled, connected: s.connected })));
         
         for (const server of servers) {
           if (server.enabled && !server.connected) {
-            console.log(`🔌 Auto-connecting server: ${server.name} (${server.config?.url})`);
+            console.log(`[OK] Auto-connecting server: ${server.name} (${server.config?.url})`);
             try {
               await mcpManager.initializeServer(deviceId, server.name);
-              console.log(`✅ Auto-connected MCP server: ${server.name}`);
+              console.log(`[OK] Auto-connected MCP server: ${server.name}`);
             } catch (error) {
-              console.error(`❌ Failed to auto-connect MCP server ${server.name}:`, error.message);
+              console.error(`[OK] Failed to auto-connect MCP server ${server.name}:`, error.message);
             }
           } else if (server.enabled && server.connected) {
             console.log(`ℹ️ Server ${server.name} already connected`);
           } else {
-            console.log(`⚠️ Server ${server.name} not enabled or already connected`);
+            console.log(`[OK] Server ${server.name} not enabled or already connected`);
           }
         }
       } catch (error) {
-        console.error(`❌ Error auto-connecting MCP servers for ${deviceId}:`, error.message);
+        console.error(`[OK] Error auto-connecting MCP servers for ${deviceId}:`, error.message);
       }
     }
 
@@ -322,7 +322,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
 
     // Handle response events from R1 devices
     socket.on('response', async (data) => {
-      console.log(`🔄 Socket Response received`);
+      console.log(`[OK] Socket Response received`);
 
       const { requestId, response, originalMessage, model, timestamp } = data;
 
@@ -330,13 +330,13 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
 
       // Only process responses with valid request IDs to prevent cross-contamination
       if (requestId && pendingRequests.has(requestId)) {
-        console.log(`✅ Found matching request, sending response to client`);
+        console.log(`[OK] Found matching request, sending response to client`);
         const { res, timeout, stream, response_format } = pendingRequests.get(requestId);
 
         // Verify this request was actually sent to this device
         const expectedDeviceId = requestDeviceMap.get(requestId);
         if (expectedDeviceId !== deviceId) {
-          console.log(`❌ Security violation: Response from wrong device`);
+          console.log(`[OK] Security violation: Response from wrong device`);
           return;
         }
 
@@ -361,17 +361,17 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
             try {
               JSON.parse(cleanResponse);
               finalResponse = cleanResponse; // Use the clean response
-              console.log(`✅ Valid JSON response for json_object format`);
+              console.log(`[OK] Valid JSON response for json_object format`);
             } catch (jsonError) {
-              console.log(`⚠️ Invalid JSON response for json_object format, attempting conversion with Groq`);
+              console.log(`[OK] Invalid JSON response for json_object format, attempting conversion with Groq`);
               
               // Try to convert using Groq
               const convertedJson = await convertToJsonWithGroq(cleanResponse, { requestId, model, originalMessage });
               if (convertedJson) {
                 finalResponse = JSON.stringify(convertedJson);
-                console.log(`✅ Successfully converted response to JSON`);
+                console.log(`[OK] Successfully converted response to JSON`);
               } else {
-                console.error(`❌ Failed to convert response to JSON, sending error`);
+                console.error(`[OK] Failed to convert response to JSON, sending error`);
                 clearTimeout(timeout);
                 pendingRequests.delete(requestId);
                 requestDeviceMap.delete(requestId);
@@ -389,7 +389,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
             // Try to parse the response as JSON to check for mcp_tool_call
             const parsedResponse = JSON.parse(cleanResponse);
             if (parsedResponse && parsedResponse.mcp_tool_call) {
-              console.log(`🔧 MCP tool call detected in response`);
+              console.log(`[OK] MCP tool call detected in response`);
               isMCPToolCall = true;
 
               const { server: serverName, tool: toolName, arguments: toolArgs } = parsedResponse.mcp_tool_call;
@@ -413,11 +413,11 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
                   });
 
                   // Don't send the response yet - wait for the R1 to generate the final response
-                  console.log(`🔄 MCP tool executed, waiting for R1 final response`);
+                  console.log(`[OK] MCP tool executed, waiting for R1 final response`);
                   return;
 
                 } catch (toolError) {
-                  console.error(`❌ MCP tool execution failed:`, toolError);
+                  console.error(`[OK] MCP tool execution failed:`, toolError);
 
                   // Send error back to R1 device
                   socket.emit('mcp_tool_result', {
@@ -444,7 +444,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
                   return;
                 }
               } else {
-                console.error(`❌ MCP manager not available`);
+                console.error(`[OK] MCP manager not available`);
                 finalResponse = "Sorry, MCP functionality is not available at this time.";
               }
             }
@@ -459,7 +459,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
           // If this is a follow-up response after MCP tool execution, clean up the tracking
           if (isMCPFollowUp) {
             mcpToolExecutedRequests.delete(requestId);
-            console.log(`✅ Received final response after MCP tool execution`);
+            console.log(`[OK] Received final response after MCP tool execution`);
           }
 
           // Clear timeout and remove from pending requests
@@ -472,7 +472,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
         }
       }
       else {
-        console.log(`❌ No matching requests found for response`);
+        console.log(`[OK] No matching requests found for response`);
       }
     });
 
@@ -486,13 +486,13 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
 
       // Only process responses with valid request IDs to prevent cross-contamination
       if (requestId && pendingRequests.has(requestId)) {
-        console.log(`✅ Found matching TTS request, sending audio response to client`);
+        console.log(`[OK] Found matching TTS request, sending audio response to client`);
         const { res, timeout, isTTS, response_format } = pendingRequests.get(requestId);
 
         // Verify this request was actually sent to this device
         const expectedDeviceId = requestDeviceMap.get(requestId);
         if (expectedDeviceId !== deviceId) {
-          console.log(`❌ Security violation: TTS response from wrong device`);
+          console.log(`[OK] Security violation: TTS response from wrong device`);
           return;
         }
 
@@ -575,7 +575,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
             });
           }
         } else {
-          console.log(`❌ No audio data received from device`);
+          console.log(`[OK] No audio data received from device`);
           res.status(500).json({
             error: {
               message: 'No audio data received from device',
@@ -584,7 +584,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
           });
         }
       } else {
-        console.log(`❌ No matching TTS requests found for response`);
+        console.log(`[OK] No matching TTS requests found for response`);
       }
     });
 
@@ -599,7 +599,7 @@ function setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap,
         // Verify this request was actually sent to this device
         const expectedDeviceId = requestDeviceMap.get(requestId);
         if (expectedDeviceId !== deviceId) {
-          console.log(`❌ Security violation: Error from wrong device`);
+          console.log(`[OK] Security violation: Error from wrong device`);
           return;
         }
 

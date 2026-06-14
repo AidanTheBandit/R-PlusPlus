@@ -4,7 +4,12 @@ const AddServerModal = ({ onAdd, onClose }) => {
   const [formData, setFormData] = useState({
     serverName: '',
     description: '',
+    transportType: 'remote', // 'remote' or 'stdio'
     url: '',
+    command: '',
+    args: '',
+    env: '',
+    cwd: '',
     protocolVersion: '2025-06-18',
     capabilities: {
       tools: { enabled: true, autoApprove: [] },
@@ -44,47 +49,100 @@ const AddServerModal = ({ onAdd, onClose }) => {
       description: 'Access GitHub repository documentation and ask questions about codebases',
       url: 'https://mcp.deepwiki.com/sse',
       tools: ['read_wiki_structure', 'read_wiki_contents', 'ask_question'],
-      category: 'documentation'
+      category: 'documentation',
+      transportType: 'remote'
+    },
+    {
+      id: 'filesystem',
+      name: 'Filesystem MCP Server',
+      description: 'Read, write, and search local files',
+      command: 'npx',
+      args: '-y @modelcontextprotocol/server-filesystem /home/aidan',
+      tools: ['read_file', 'write_file', 'list_directory', 'search_files'],
+      category: 'local',
+      transportType: 'stdio'
+    },
+    {
+      id: 'fetch',
+      name: 'Fetch MCP Server',
+      description: 'Fetch and process web content for the LLM',
+      command: 'npx',
+      args: '-y @modelcontextprotocol/server-fetch',
+      tools: ['fetch'],
+      category: 'web',
+      transportType: 'stdio'
+    },
+    {
+      id: 'sqlite',
+      name: 'SQLite MCP Server',
+      description: 'Query and manage SQLite databases',
+      command: 'npx',
+      args: '-y @modelcontextprotocol/server-sqlite --db-path /data.db',
+      tools: ['read_query', 'write_query', 'list_tables'],
+      category: 'database',
+      transportType: 'stdio'
     }
   ];
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!formData.serverName || !formData.url) {
-      alert('Server name and URL are required');
+    if (!formData.serverName) {
+      alert('Server name is required');
+      return;
+    }
+
+    if (formData.transportType === 'remote' && !formData.url) {
+      alert('Server URL is required for remote servers');
+      return;
+    }
+
+    if (formData.transportType === 'stdio' && !formData.command) {
+      alert('Command is required for stdio servers');
       return;
     }
 
     try {
-      // Parse headers if provided
-      let parsedHeaders = {};
-      if (headersText.trim()) {
-        parsedHeaders = JSON.parse(headersText);
-      }
-
-      // Build authentication headers
-      const authHeaders = buildAuthHeaders();
-      const finalHeaders = { ...parsedHeaders, ...authHeaders };
-
       const config = {
-        url: formData.url,
         protocolVersion: formData.protocolVersion,
         capabilities: formData.capabilities,
-        headers: finalHeaders,
         timeout: formData.timeout,
         enabled: formData.enabled,
-        description: formData.description,
-        authType: formData.authType,
-        authConfig: formData.authConfig
+        description: formData.description
       };
+
+      if (formData.transportType === 'remote') {
+        // Parse headers if provided
+        let parsedHeaders = {};
+        if (headersText.trim()) {
+          parsedHeaders = JSON.parse(headersText);
+        }
+        config.url = formData.url;
+        config.headers = { ...parsedHeaders, ...buildAuthHeaders() };
+        config.authType = formData.authType;
+        config.authConfig = formData.authConfig;
+      } else {
+        // stdio
+        config.command = formData.command;
+        config.args = formData.args.trim() ? formData.args.split(/\s+/) : [];
+        if (formData.env.trim()) {
+          try {
+            config.env = JSON.parse(formData.env);
+          } catch {
+            config.env = {};
+          }
+        }
+        if (formData.cwd.trim()) {
+          config.cwd = formData.cwd;
+        }
+      }
 
       onAdd({
         serverName: formData.serverName,
         config
       });
     } catch (error) {
-      alert(`Invalid JSON in configuration: ${error.message}`);
+      alert(`Invalid configuration: ${error.message}`);
     }
   };
 
@@ -285,7 +343,10 @@ const AddServerModal = ({ onAdd, onClose }) => {
                         ...prev,
                         serverName: template.id,
                         description: template.description,
-                        url: template.url,
+                        transportType: template.transportType || 'remote',
+                        url: template.url || '',
+                        command: template.command || '',
+                        args: template.args || '',
                         capabilities: {
                           tools: { enabled: true, autoApprove: template.tools || [] },
                           resources: { enabled: false, autoApprove: [] },
@@ -366,6 +427,32 @@ const AddServerModal = ({ onAdd, onClose }) => {
             </div>
 
             <div className="form-group">
+              <label className="form-label">Transport Type:</label>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${formData.transportType === 'remote' ? '' : 'btn-secondary'}`}
+                  onClick={() => handleInputChange('transportType', 'remote')}
+                >
+                  Remote (HTTP/SSE)
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${formData.transportType === 'stdio' ? '' : 'btn-secondary'}`}
+                  onClick={() => handleInputChange('transportType', 'stdio')}
+                >
+                  Local (stdio)
+                </button>
+              </div>
+              <small className="form-help">
+                {formData.transportType === 'remote'
+                  ? 'Connect to a remote MCP server over HTTP or SSE'
+                  : 'Spawn a local MCP server process and communicate via stdio'}
+              </small>
+            </div>
+
+            {formData.transportType === 'remote' ? (
+            <div className="form-group">
               <label className="form-label">Server URL:</label>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
@@ -380,7 +467,7 @@ const AddServerModal = ({ onAdd, onClose }) => {
                   <small className="form-help">
                     Full URL to the MCP server endpoint supporting HTTP transport
                     {formData.url && !validateUrl(formData.url) && (
-                      <span style={{ color: 'var(--secondary)' }}> • Invalid URL format</span>
+                      <span style={{ color: 'var(--secondary)' }}> - Invalid URL format</span>
                     )}
                   </small>
                 </div>
@@ -406,6 +493,58 @@ const AddServerModal = ({ onAdd, onClose }) => {
                 </div>
               )}
             </div>
+            ) : (
+            <>
+              <div className="form-group">
+                <label className="form-label">Command:</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.command}
+                  onChange={(e) => handleInputChange('command', e.target.value)}
+                  placeholder="e.g., npx, node, python3"
+                  required
+                />
+                <small className="form-help">Executable to run as the MCP server process</small>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Arguments:</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.args}
+                  onChange={(e) => handleInputChange('args', e.target.value)}
+                  placeholder="e.g., -y @modelcontextprotocol/server-filesystem /path"
+                />
+                <small className="form-help">Command-line arguments (space-separated)</small>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Environment Variables (JSON):</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.env}
+                  onChange={(e) => handleInputChange('env', e.target.value)}
+                  placeholder='{"API_KEY": "xxx"}'
+                />
+                <small className="form-help">Optional environment variables for the process</small>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Working Directory:</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.cwd}
+                  onChange={(e) => handleInputChange('cwd', e.target.value)}
+                  placeholder="/optional/working/directory"
+                />
+                <small className="form-help">Optional working directory for the process</small>
+              </div>
+            </>
+            )}
 
             <div className="form-group">
               <label className="form-label">Protocol Version:</label>
@@ -553,7 +692,8 @@ const AddServerModal = ({ onAdd, onClose }) => {
             )}
           </div>
 
-          {/* Authentication Configuration */}
+          {/* Authentication Configuration - only for remote */}
+          {formData.transportType === 'remote' && (
           <div className="form-section">
             <h3>Authentication</h3>
             <p className="form-help">Configure authentication for this MCP server</p>
@@ -687,6 +827,7 @@ const AddServerModal = ({ onAdd, onClose }) => {
               </>
             )}
           </div>
+          )}
 
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>

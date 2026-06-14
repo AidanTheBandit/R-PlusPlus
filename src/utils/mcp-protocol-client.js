@@ -158,7 +158,7 @@ class MCPProtocolClient {
         capabilities: this.client.getServerCapabilities()
       };
     } catch (error) {
-      console.error('❌ MCP initialization failed:', error);
+      console.error('[MCP] MCP initialization failed:', error);
       throw error;
     }
   }
@@ -173,7 +173,7 @@ class MCPProtocolClient {
       const response = await this.client.listTools();
       return response;
     } catch (error) {
-      console.error('❌ Failed to list tools:', error);
+      console.error('[MCP] Failed to list tools:', error);
       throw error;
     }
   }
@@ -191,7 +191,7 @@ class MCPProtocolClient {
       });
       return response;
     } catch (error) {
-      console.error(`❌ Failed to call tool ${toolName}:`, error);
+      console.error(`[MCP] Failed to call tool ${toolName}:`, error);
       throw error;
     }
   }
@@ -206,7 +206,7 @@ class MCPProtocolClient {
       const response = await this.client.listResources();
       return response;
     } catch (error) {
-      console.error('❌ Failed to list resources:', error);
+      console.error('[MCP] Failed to list resources:', error);
       throw error;
     }
   }
@@ -221,7 +221,7 @@ class MCPProtocolClient {
       const response = await this.client.readResource({ uri });
       return response;
     } catch (error) {
-      console.error(`❌ Failed to read resource ${uri}:`, error);
+      console.error(`[MCP] Failed to read resource ${uri}:`, error);
       throw error;
     }
   }
@@ -236,7 +236,7 @@ class MCPProtocolClient {
       const response = await this.client.listPrompts();
       return response;
     } catch (error) {
-      console.error('❌ Failed to list prompts:', error);
+      console.error('[MCP] Failed to list prompts:', error);
       throw error;
     }
   }
@@ -254,7 +254,7 @@ class MCPProtocolClient {
       });
       return response;
     } catch (error) {
-      console.error(`❌ Failed to get prompt ${name}:`, error);
+      console.error(`[MCP] Failed to get prompt ${name}:`, error);
       throw error;
     }
   }
@@ -269,7 +269,7 @@ class MCPProtocolClient {
       await this.client.ping();
       return { success: true };
     } catch (error) {
-      console.error('❌ Ping failed:', error);
+      console.error('[MCP] Ping failed:', error);
       throw error;
     }
   }

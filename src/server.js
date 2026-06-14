@@ -773,7 +773,7 @@ app.post('/:deviceId/change-pin', async (req, res) => {
     // Update the PIN
     await database.updateDevicePin(deviceId, newPin);
 
-    console.log(`🔄 PIN changed for device: ${deviceId}`);
+    console.log(`[OK] PIN changed for device: ${deviceId}`);
     res.json({ success: true, message: 'PIN changed successfully', pinCode: newPin });
   } catch (error) {
     console.error('Error changing PIN:', error);
@@ -815,15 +815,15 @@ const checkBuilds = () => {
   const fs = require('fs');
   
   if (!fs.existsSync(controlPanelBuild)) {
-    console.warn('⚠️  R1 Control Panel build not found. Run: npm run build-control-panel');
+    console.warn('[OK]  R1 Control Panel build not found. Run: npm run build-control-panel');
   }
   
   if (!fs.existsSync(creationBuild)) {
-    console.warn('⚠️  Creation React build not found. Run: npm run build-creation');
+    console.warn('[OK]  Creation React build not found. Run: npm run build-creation');
   }
   
   if (!fs.existsSync(controlPanelBuild) && !fs.existsSync(creationBuild)) {
-    console.warn('💡 Build all React UIs with: npm run build-all');
+    console.warn('[OK] Build all React UIs with: npm run build-all');
   }
 };
 
@@ -846,9 +846,9 @@ database.init().then(async () => {
       const socketMiddleware = performanceIntegration.createSocketMiddleware();
       io.use(socketMiddleware);
       
-      console.log('✅ Performance monitoring initialized');
+      console.log('[OK] Performance monitoring initialized');
     } catch (error) {
-      console.warn('⚠️ Performance monitoring initialization failed:', error.message);
+      console.warn('[OK] Performance monitoring initialization failed:', error.message);
     }
   }
   
@@ -858,11 +858,11 @@ database.init().then(async () => {
     console.log(`🚀 R-API server running on http://localhost:${PORT}`);
     console.log(`📡 Socket.IO server available at /socket.io (WebSocket+polling compatible)`);
     console.log(`🎛️  React Control Panel available at http://localhost:${PORT}`);
-    console.log(`🔌 MCP Management available at http://localhost:${PORT} (MCP Servers tab)`);
-    console.log(`🎨 Creation React UI available at http://localhost:${PORT}/creation`);
-    console.log(`🔗 Device-specific API at http://localhost:${PORT}/[device-id]/v1/chat/completions`);
-    console.log(`🔧 Loaded plugins: ${pluginManager.getAllPlugins().join(', ') || 'none'}`);
-    console.log(`\n💡 Quick start: npm run all`);
+    console.log(`[OK] MCP Management available at http://localhost:${PORT} (MCP Servers tab)`);
+    console.log(`[OK] Creation React UI available at http://localhost:${PORT}/creation`);
+    console.log(`[OK] Device-specific API at http://localhost:${PORT}/[device-id]/v1/chat/completions`);
+    console.log(`[OK] Loaded plugins: ${pluginManager.getAllPlugins().join(', ') || 'none'}`);
+    console.log(`\n[OK] Quick start: npm run all`);
   });
 }).catch((error) => {
   console.error('Failed to initialize database:', error);
@@ -883,18 +883,18 @@ async function gracefulShutdown(signal) {
   }
   
   if (isShuttingDown) {
-    console.log('⚠️ Shutdown already in progress... Press Ctrl+C again to force exit');
+    console.log('[OK] Shutdown already in progress... Press Ctrl+C again to force exit');
     return;
   }
   
   isShuttingDown = true;
   console.log(`\n🛑 Received ${signal}, shutting down R-API server...`);
-  console.log('💡 Press Ctrl+C again to force immediate shutdown');
+  console.log('[OK] Press Ctrl+C again to force immediate shutdown');
   
   try {
     // Shutdown MCP manager first with timeout
     if (mcpManager) {
-      console.log('🔄 Shutting down MCP manager...');
+      console.log('[OK] Shutting down MCP manager...');
       const mcpShutdownPromise = mcpManager.shutdown();
       const mcpTimeout = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('MCP shutdown timeout')), 5000)
@@ -902,9 +902,9 @@ async function gracefulShutdown(signal) {
       
       try {
         await Promise.race([mcpShutdownPromise, mcpTimeout]);
-        console.log('✅ MCP servers shut down');
+        console.log('[OK] MCP servers shut down');
       } catch (error) {
-        console.log('⚠️ MCP shutdown timed out, continuing...');
+        console.log('[OK] MCP shutdown timed out, continuing...');
       }
     }
     
@@ -912,9 +912,9 @@ async function gracefulShutdown(signal) {
     if (performanceIntegration && performanceIntegration.cleanup) {
       try {
         performanceIntegration.cleanup();
-        console.log('✅ Performance monitoring cleaned up');
+        console.log('[OK] Performance monitoring cleaned up');
       } catch (error) {
-        console.log('⚠️ Performance monitoring cleanup error, continuing...');
+        console.log('[OK] Performance monitoring cleanup error, continuing...');
       }
     }
 
@@ -928,26 +928,26 @@ async function gracefulShutdown(signal) {
           setTimeout(resolve, 100);
         });
         await dbClosePromise;
-        console.log('✅ Database connection closed');
+        console.log('[OK] Database connection closed');
       } catch (error) {
-        console.log('⚠️ Database close error, continuing...');
+        console.log('[OK] Database close error, continuing...');
       }
     }
     
     // Close HTTP server
     server.close(() => {
-      console.log('✅ HTTP server closed');
+      console.log('[OK] HTTP server closed');
       process.exit(0);
     });
     
     // Force exit after 3 seconds if graceful shutdown fails
     setTimeout(() => {
-      console.log('⚠️ Forcing shutdown after timeout');
+      console.log('[OK] Forcing shutdown after timeout');
       process.exit(1);
     }, 3000);
     
   } catch (error) {
-    console.error('❌ Error during shutdown:', error);
+    console.error('[OK] Error during shutdown:', error);
     process.exit(1);
   }
 }
@@ -957,11 +957,11 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
+  console.error('[OK] Uncaught Exception:', error);
   gracefulShutdown('uncaughtException');
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('[OK] Unhandled Rejection at:', promise, 'reason:', reason);
   gracefulShutdown('unhandledRejection');
 });

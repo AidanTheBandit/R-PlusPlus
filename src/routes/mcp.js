@@ -517,7 +517,7 @@ function setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager) {
   //     timestamp: new Date().toISOString()
   //   };
     
-  //   console.log(`🔍 Debug info for device ${deviceId}:`, JSON.stringify(debugInfo, null, 2));
+  //   console.log(`[OK] Debug info for device ${deviceId}:`, JSON.stringify(debugInfo, null, 2));
   //   res.json(debugInfo);
   // });
 

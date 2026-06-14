@@ -92,8 +92,12 @@ const MCPServerCard = ({ server, deviceId, pinCode, onToggle, onDelete }) => {
 
       <div className="mcp-server-details">
         <div className="mcp-server-detail">
-          <span className="mcp-server-detail-label">URL:</span>
-          <span>{server.config?.url || 'N/A'}</span>
+          <span className="mcp-server-detail-label">Type:</span>
+          <span>{server.config?.command ? 'Local (stdio)' : 'Remote'}</span>
+        </div>
+        <div className="mcp-server-detail">
+          <span className="mcp-server-detail-label">{server.config?.command ? 'Command:' : 'URL:'}</span>
+          <span>{server.config?.command ? `${server.config.command} ${(server.config.args || []).join(' ')}` : (server.config?.url || 'N/A')}</span>
         </div>
         <div className="mcp-server-detail">
           <span className="mcp-server-detail-label">Tools:</span>

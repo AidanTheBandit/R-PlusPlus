@@ -61,7 +61,7 @@ class MCPManager extends EventEmitter {
         // Try to ping the server to check if it's still responsive
         await client.ping();
       } catch (error) {
-        console.warn(`⚠️ Health check failed for ${serverKey}: ${error.message}`);
+        console.warn(`[MCP] Health check failed for ${serverKey}: ${error.message}`);
         // Mark as disconnected and attempt reconnection
         this.handleServerDisconnection(serverKey);
       }
@@ -140,7 +140,7 @@ class MCPManager extends EventEmitter {
         this.emit('serverReconnected', { deviceId, serverName });
         
       } catch (error) {
-        console.warn(`❌ Reconnection attempt ${attemptCount + 1} failed for ${serverKey}: ${error.message}`);
+        console.warn(`[MCP] Reconnection attempt ${attemptCount + 1} failed for ${serverKey}: ${error.message}`);
         
         // Increment attempt count and schedule next attempt
         this.reconnectionAttempts.set(serverKey, attemptCount + 1);
@@ -396,7 +396,7 @@ class MCPManager extends EventEmitter {
       this.emit('serverStarted', { deviceId, serverName });
 
     } catch (error) {
-      console.error(`❌ Failed to connect to remote MCP server ${serverKey}:`, error.message);
+      console.error(`[MCP] Failed to connect to remote MCP server ${serverKey}:`, error.message);
 
       // Provide more helpful error messages
       let errorMessage = error.message;
@@ -774,7 +774,7 @@ class MCPManager extends EventEmitter {
       await Promise.all(shutdownPromises);
       console.log('[MCP] Manager shutdown complete');
     } catch (error) {
-      console.error('❌ Error during MCP manager shutdown:', error);
+      console.error('[MCP] Error during MCP manager shutdown:', error);
     }
   }
 }
