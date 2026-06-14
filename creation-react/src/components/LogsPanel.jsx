@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react'
 
+// Capture original console before any monkey-patching happens
+// Prevents recursive log storms when addLog's fetch fails
+const _origWarn = console.warn.bind(console)
+
 const LogsPanel = ({ r1Sdk, socket, deviceId, isConnected }) => {
   const [logs, setLogs] = useState([])
   const [logFilter, setLogFilter] = useState('all')
@@ -27,7 +31,7 @@ const LogsPanel = ({ r1Sdk, socket, deviceId, isConnected }) => {
           data: logEntry,
           timestamp: new Date().toISOString()
         })
-      }).catch(err => console.warn('Failed to stream log:', err))
+      }).catch(err => _origWarn('Failed to stream log:', err))
     }
   }
 
