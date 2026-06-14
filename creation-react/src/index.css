@@ -1,5 +1,5 @@
 /* ==========================================================================
-   R1 Anywhere — Boondit Rhythm Design System
+   R1 Anywhere Console — Boondit Rhythm Design System
    Global base: PowerGrotesk font, design tokens, signature animations,
    and the 240×282 creation-device canvas. Dark-only (no light theme).
    ========================================================================== */
@@ -54,25 +54,25 @@
   --stripe-purple: #A864FF;
   --stripe-teal: #1F4A3F;
 
-  /* Signature gradient — focused/selected items */
-  --gradient-focus: linear-gradient(90deg, #FF1F8F 0%, #A864FF 100%);
+  /* Dynamic album-art palette fallback (brand identity) */
+  --palette-primary: #FF1F8F;
+  --palette-secondary: #A864FF;
+  --palette-glow: rgba(255, 31, 143, 0.55);
+
+  /* Solid accent colors (no gradients) */
+  --accent-focus: #FF1F8F;
+  --accent-hero-overlay: rgba(0, 0, 0, 0.6);
 
   /* Colored glow shadows */
-  --glow-primary: 0 0 12px 2px rgba(254, 95, 0, 0.60);
-  --glow-secondary: 0 0 12px 2px rgba(255, 46, 136, 0.60);
-  --glow-accent: 0 0 12px 2px rgba(155, 46, 255, 0.60);
-  --glow-brand: 0 0 12px 2px rgba(255, 31, 143, 0.55);
+  --glow-primary: none;
+  --glow-secondary: none;
+  --glow-accent: none;
+  --glow-brand: none;
 
   /* Standard shadows (subtle, Boondit avoids heavy drop shadows) */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.5);
-
-  /* Signature expo-out easing constant */
-  --ease-boondit: cubic-bezier(0.22, 1, 0.36, 1);
-
-  /* PowerGrotesk font token */
-  --font-power-grotesk: 'PowerGrotesk';
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────── */
@@ -90,15 +90,16 @@ body {
 }
 
 body {
-  font-family: var(--font-power-grotesk), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "rlig" 1, "calt" 1;
   background: var(--bg0);
   color: var(--fg0);
   overflow: hidden;
 }
 
-/* Mono stack — device IDs, PINs, codes, timestamps */
+/* Mono stack — scores, ranks, device IDs, timestamps */
 code,
 .font-mono {
   font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
@@ -111,7 +112,10 @@ code,
 
 /* Prevent text selection on UI chrome (R1 has no text selection) */
 button,
-.brand-stripe {
+.nav-tab,
+.status-bar,
+.brand-stripe,
+.swipe-indicator {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -120,34 +124,40 @@ button,
 
 /* Orange focus ring (Boondit never uses blue/neutral rings) */
 button:focus-visible,
+.nav-tab:focus-visible,
 :focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 
-/* ── Brand Stripe (3-segment ribbon) ───────────────────────────────────── */
-.brand-stripe {
-  display: flex;
-  width: 100%;
-  height: 3px;
-  flex-shrink: 0;
+/* Signature expo-out easing constant */
+:root {
+  --ease-boondit: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.brand-stripe .seg-1 { background: var(--stripe-pink); flex: 1; }
-.brand-stripe .seg-2 { background: var(--stripe-purple); flex: 1; }
-.brand-stripe .seg-3 { background: var(--stripe-teal); flex: 1; }
-
 /* ==========================================================================
-   SIGNATURE MOTION (the "Unbeatable-inspired" system, pared down)
+   SIGNATURE ANIMATIONS (the "Unbeatable-inspired" motion system)
    ========================================================================== */
 
 /* Glow + lift on hover */
 .glow-hover {
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
-.glow-hover:hover {
-  box-shadow: 0 0 12px 2px hsl(var(--primary) / 0.6);
-  transform: scale(1.02);
+.glow-hover:hover { opacity: 0.9; }
+
+/* Chromatic aberration text-shadow on press */
+.chromatic-press:active {
+  text-shadow: none;
+  transition: text-shadow 0.08s ease;
+}
+
+/* Brightness bloom flash */
+.bloom-flash {
+  animation: boondit-bloom 0.3s ease-out;
+}
+@keyframes boondit-bloom {
+  0% { filter: brightness(2); }
+  100% { filter: brightness(1); }
 }
 
 /* Hide scrollbar utility for scroll regions */
@@ -157,6 +167,108 @@ button:focus-visible,
 }
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Indeterminate progress bar (boot/loading sweep) */
+.boondit-progress {
+  background: var(--accent-focus);
+  box-shadow: none;
+  animation: boondit-progress-sweep 1.4s ease-in-out infinite;
+}
+@keyframes boondit-progress-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+/* Slow Ken Burns pan/zoom for album-art backdrop */
+.boondit-art-pan {
+  animation: boondit-art-pan 22s ease-in-out infinite alternate;
+  transform-origin: center center;
+  will-change: transform;
+}
+@keyframes boondit-art-pan {
+  0% { transform: scale(1.2) translate(-2%, -2%); }
+  100% { transform: scale(1.35) translate(2%, 2%); }
+}
+
+/* Fade-in when backdrop swaps to a new song */
+@keyframes boondit-backdrop-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.boondit-backdrop-fade {
+  animation: boondit-backdrop-fade 600ms ease-out;
+}
+
+/* Hit/miss flash arc (gameplay feedback) */
+@keyframes boondit-flash-arc {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) rotate(var(--flash-tilt, 0deg)) scale(0.7);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -6px) rotate(var(--flash-tilt, 0deg)) scale(1.1);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, var(--flash-peak, -30px)) rotate(var(--flash-tilt, 0deg)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 14px) rotate(var(--flash-tilt, 0deg)) scale(0.9);
+  }
+}
+.boondit-flash-arc {
+  animation: boondit-flash-arc 850ms cubic-bezier(0.22, 0.6, 0.4, 1) forwards;
+}
+
+/* Screen-shake on note hits */
+@keyframes boondit-canvas-bump {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  40% { transform: translate(var(--bump-x, 0px), var(--bump-y, 0px)) rotate(var(--bump-rot, 0deg)); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.boondit-canvas-bump {
+  animation-name: boondit-canvas-bump;
+  animation-duration: 140ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+
+/* Countdown digit pop */
+@keyframes boondit-countdown {
+  0% { opacity: 0; scale: 0.6; }
+  25% { opacity: 1; scale: 1.1; }
+  60% { scale: 1; }
+  100% { opacity: 0; scale: 0.95; }
+}
+.boondit-countdown {
+  animation: boondit-countdown 800ms ease-out forwards;
+  display: inline-block;
+}
+
+/* Results — staggered fade-up */
+@keyframes boondit-result-fade-up {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.boondit-result-fade-up {
+  opacity: 0;
+  animation: boondit-result-fade-up 480ms var(--ease-boondit) forwards;
+}
+
+/* Grade letter overshoot pop */
+@keyframes boondit-grade-pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  55% { opacity: 1; transform: scale(1.18); }
+  80% { transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.boondit-grade-pop {
+  animation: boondit-grade-pop 720ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: center center;
 }
 
 /* Generic connection/reconnect pulse (status chrome) */
@@ -169,7 +281,7 @@ button:focus-visible,
    CREATION-DEVICE CANVAS (240×282 portrait, R1 native)
    The device canvas is a fixed 240×282 box scaled to fill the viewport while
    keeping the aspect ratio — so layouts authored in device-pixels look
-   identical everywhere.
+   identical everywhere. Mirrors the rhythm /creation layout.
    ========================================================================== */
 .creation-viewport {
   position: fixed;

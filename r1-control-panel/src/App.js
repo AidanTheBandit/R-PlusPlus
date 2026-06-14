@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
+import { HeartIcon } from './components/Icons';
 import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
-import WidgetManager from './components/WidgetManager';
-import SpeechTest from './components/SpeechTest';
-import ImageTest from './components/ImageTest';
 import ApiDocs from './components/ApiDocs';
 import PhoneLink from './components/PhoneLink';
-import Apps from './components/Apps';
-import MCPManager from './components/MCPManager';
 import './App.css';
 
 function App() {
@@ -69,16 +65,12 @@ function App() {
           localStorage.removeItem('r1-pin-code');
         }
 
-        // Initialize socket connection
+        // Initialize socket connection for real-time updates (NOT as a device)
         const newSocket = io();
         setSocket(newSocket);
 
         newSocket.on('connect', () => {
           console.log('Connected to R-API server');
-        });
-
-        newSocket.on('mcp_event', (data) => {
-          console.log('MCP Event:', data);
         });
 
       } else {
@@ -108,18 +100,10 @@ function App() {
     switch (activeTab) {
       case 'chat':
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
-      case 'widgets':
-        return <WidgetManager socket={socket} deviceId={deviceId} pinCode={pinCode} />;
-      case 'speech':
-        return <SpeechTest deviceId={deviceId} pinCode={pinCode} />;
-      case 'image':
-        return <ImageTest deviceId={deviceId} pinCode={pinCode} />;
       case 'phone':
         return <PhoneLink deviceId={deviceId} />;
       case 'api-docs':
         return <ApiDocs deviceId={deviceId} />;
-      case 'mcp':
-        return <MCPManager socket={socket} deviceId={deviceId} pinCode={pinCode} />;
       default:
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
     }
@@ -157,10 +141,7 @@ function App() {
         </div>
         
         <footer className="app-footer">
-          <a href="https://barkle.chat/@Aidan" target="_blank" rel="noopener noreferrer">
-            Barkle 
-          </a>
-          <span>Made with ❤️ by Aidan and <a href="https://boondit.site/r1-generator" target="_blank" rel="noopener noreferrer">R1 QR code gen</a></span>
+          <span>Made with <HeartIcon size={12} /> by Aidan</span>
         </footer>
       </div>
     </div>

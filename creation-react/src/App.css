@@ -1,239 +1,570 @@
 /* ==========================================================================
-   App.css — Device Pairing / Login screen
-   Boondit Rhythm design language: dark canvas, PowerGrotesk, orange primary,
-   3-segment brand stripe, colored glow shadows. Authored at the R1's native
-   240×282 device canvas (scaled to the viewport by .creation-canvas).
+   App.css — R1 Anywhere Console application shell
+   Status bar, connection chrome, console panel, brand stripe.
+   Boondit Rhythm design language: dark-only, orange primary ring,
+   album-art gradient accents. Flat (no glow shadows).
    ========================================================================== */
 
-.pair-screen {
+.app {
+  width: 100vw;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-/* ── Body ──────────────────────────────────────────────────────────────── */
-.pair-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 14px 18px;
-  text-align: center;
-}
-
-/* ── Logo mark (orange-glow disc) ──────────────────────────────────────── */
-.pair-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at 35% 30%, #FF8A33 0%, var(--c-primary) 55%, #B34200 100%);
-  box-shadow: var(--glow-primary), inset 0 0 8px rgba(0, 0, 0, 0.25);
-  margin-bottom: 4px;
-}
-
-.pair-logo-mark {
+  background: var(--bg0);
+  color: var(--fg1);
   font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 900;
-  font-size: 26px;
-  color: var(--bg0);
-  line-height: 1;
-  letter-spacing: -0.04em;
-}
-
-/* ── Headings ──────────────────────────────────────────────────────────── */
-.pair-title {
-  margin: 0;
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  background: var(--gradient-focus);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.pair-subtitle {
-  margin: 0 0 6px;
-  font-size: 11px;
-  color: var(--fg3);
-  font-weight: 500;
-}
-
-/* ── Form ──────────────────────────────────────────────────────────────── */
-.pair-form {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pair-field {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  text-align: left;
-}
-
-.pair-label {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--fg3);
-  padding-left: 2px;
-}
-
-.pair-input {
-  width: 100%;
-  height: 30px;
-  padding: 0 10px;
-  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--fg0);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+/* ── Status Bar (sticky header chrome) ─────────────────────────────────── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(17, 17, 17, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 48px;
+  gap: 8px;
+  position: relative;
+  z-index: 40;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* App title — flat solid */
+.app-title {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--fg1);
+  letter-spacing: -0.01em;
+}
+
+/* Connection indicator pill */
+.connection-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
   border-radius: var(--radius);
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.pair-input::placeholder {
-  color: var(--fg4);
-  font-weight: 500;
-}
-
-.pair-input:focus {
-  border-color: var(--c-primary);
-  background: rgba(254, 95, 0, 0.06);
-  box-shadow: 0 0 0 2px rgba(254, 95, 0, 0.18), var(--glow-primary);
-}
-
-/* ── Error message ─────────────────────────────────────────────────────── */
-.pair-error {
-  margin: 0;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.connection-indicator.connected {
+  background: rgba(254, 95, 0, 0.15);
+  color: var(--c-primary);
+  border: 1px solid var(--c-primary);
+}
+
+.connection-indicator.disconnected {
+  background: rgba(255, 46, 136, 0.15);
   color: var(--c-secondary);
-  text-align: center;
+  border: 1px solid var(--c-secondary);
 }
 
-/* ── Pair button ───────────────────────────────────────────────────────── */
-.pair-btn {
-  margin-top: 4px;
-  height: 34px;
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  
+}
+
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Device / PIN badges (device overlay borders = white/10) */
+.device-badge,
+.pin-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  font-size: 11px;
+}
+
+.device-badge {
+  color: var(--c-accent);
+  border-color: rgba(155, 46, 255, 0.35);
+}
+
+.pin-badge {
+  color: var(--c-secondary);
+  border-color: rgba(255, 46, 136, 0.35);
+}
+
+.device-label,
+.pin-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
+.device-code,
+.pin-code {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+}
+
+.pin-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.pin-action {
+  width: 20px;
+  height: 20px;
   border: none;
-  border-radius: var(--radius);
-  background: linear-gradient(180deg, #FF7A1A 0%, var(--c-primary) 100%);
-  color: var(--bg0);
-  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg2);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  transition: transform 0.2s var(--ease-boondit, ease), box-shadow 0.2s ease, filter 0.2s ease;
-  box-shadow: var(--glow-primary);
+  font-size: 10px;
+  transition: all 0.2s ease;
 }
 
-.pair-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
+.pin-action:hover {
+  background: var(--c-accent);
+  color: var(--bg0);
+  transform: scale(1.1);
 }
 
-.pair-btn:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.pair-btn:disabled {
-  cursor: wait;
-  filter: saturate(0.7);
-}
-
-/* ── Spinner (pairing state) ───────────────────────────────────────────── */
-.pair-spinner {
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  border: 2px solid rgba(17, 17, 17, 0.35);
-  border-top-color: var(--bg0);
-  animation: pair-spin 0.7s linear infinite;
-}
-
-@keyframes pair-spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ── Success state ─────────────────────────────────────────────────────── */
-.pair-success {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  margin-top: 4px;
-}
-
-.pair-success-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  font-weight: 900;
-  color: var(--c-primary);
-  background: rgba(254, 95, 0, 0.12);
-  border: 2px solid var(--c-primary);
-  box-shadow: var(--glow-primary);
-  animation: pair-pop 0.5s var(--ease-boondit, cubic-bezier(0.34, 1.56, 0.64, 1)) forwards;
-}
-
-@keyframes pair-pop {
-  0% { opacity: 0; transform: scale(0.4); }
-  60% { opacity: 1; transform: scale(1.15); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-.pair-success-text {
-  margin: 4px 0 0;
-  font-size: 14px;
-  font-weight: 800;
+.pin-action.danger:hover {
+  background: var(--c-secondary);
   color: var(--fg0);
 }
 
-.pair-success-id {
-  margin: 0;
-  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
-  font-size: 11px;
-  color: var(--fg3);
-  word-break: break-all;
-}
-
-.pair-reset-btn {
-  margin-top: 8px;
-  padding: 5px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius);
+.enable-pin-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
   background: rgba(255, 255, 255, 0.05);
-  color: var(--fg2);
-  font-family: var(--font-power-grotesk, 'PowerGrotesk'), ui-sans-serif, system-ui, sans-serif;
+  color: var(--c-primary);
+  border: 1px solid var(--c-primary);
+  border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.pair-reset-btn:hover {
-  border-color: var(--c-primary);
+.enable-pin-btn:hover {
+  background: rgba(254, 95, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Round chrome buttons (orange ring) */
+.refresh-btn,
+.status-btn,
+.test-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--c-primary);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--c-primary);
-  box-shadow: 0 0 10px 1px rgba(254, 95, 0, 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.refresh-btn:hover,
+.status-btn:hover,
+.test-btn:hover {
+  background: var(--c-primary);
+  color: var(--bg0);
+  transform: scale(1.05);
+  box-shadow: none;
+}
+
+/* Reconnect button */
+.reconnect-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.reconnect-btn.connected {
+  background: var(--c-primary);
+  color: var(--bg0);
+  border-color: var(--c-primary);
+  box-shadow: none;
+}
+
+.reconnect-btn.disconnected {
+  background: var(--c-secondary);
+  color: var(--fg0);
+  border-color: var(--c-secondary);
+  
+}
+
+.reconnect-btn:disabled {
+  background: var(--muted);
+  color: var(--fg4);
+  border-color: var(--border);
+  cursor: not-allowed;
+  animation: none;
+  box-shadow: none;
+}
+
+.reconnect-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-md);
+}
+
+@keyframes reconnect-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Main Content ──────────────────────────────────────────────────────── */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg0);
+}
+
+/* ── Console Panel ─────────────────────────────────────────────────────── */
+.console-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.console-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--c-primary);
+}
+
+.console-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.console-stats {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.log-count {
+  background: var(--c-primary);
+  color: var(--bg0);
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+}
+
+.log-label {
+  color: var(--fg3);
+  font-weight: 500;
+}
+
+.console-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--bg0);
+}
+
+.console-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--fg4);
+  text-align: center;
+  gap: 12px;
+}
+
+.empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  color: var(--c-primary);
+}
+
+.empty-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Console entries (left-border accent per level) */
+.console-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 8px;
+  margin: 2px 0;
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+  transition: background-color 0.2s ease;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.console-entry:hover {
+  background: var(--bg1);
+}
+
+.console-entry.error {
+  border-left-color: var(--c-secondary);
+  background: rgba(255, 46, 136, 0.05);
+}
+
+.console-entry.warn {
+  border-left-color: var(--c-primary);
+  background: rgba(254, 95, 0, 0.05);
+}
+
+.console-entry.info {
+  border-left-color: var(--c-accent);
+  background: rgba(155, 46, 255, 0.05);
+}
+
+.entry-time {
+  color: var(--fg4);
+  font-size: 10px;
+  font-weight: 500;
+  min-width: 60px;
+  flex-shrink: 0;
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, monospace;
+}
+
+.level-badge {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  color: var(--fg3);
+}
+
+/* Per-level tint for inline SVG log icons (dark-only, flat) */
+.level-badge.error {
+  color: var(--c-secondary);
+  background: rgba(255, 46, 136, 0.12);
+}
+
+.level-badge.warn {
+  color: var(--c-primary);
+  background: rgba(254, 95, 0, 0.12);
+}
+
+.level-badge.info {
+  color: var(--c-accent);
+  background: rgba(155, 46, 255, 0.12);
+}
+
+.entry-message {
+  flex: 1;
+  color: var(--fg1);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
+}
+
+/* Scrollbar Styling */
+.console-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.console-content::-webkit-scrollbar-track {
+  background: var(--bg1);
+  border-radius: 3px;
+}
+
+.console-content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.console-content::-webkit-scrollbar-thumb:hover {
+  background: var(--fg4);
+}
+
+/* ── Responsive Design ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .app {
+    font-size: 12px;
+  }
+
+  .status-bar {
+    padding: 4px 8px;
+    min-height: 44px;
+    flex-wrap: wrap;
+  }
+
+  .app-title {
+    font-size: 14px;
+  }
+
+  .app-title .icon {
+    font-size: 16px;
+  }
+
+  .status-right {
+    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .device-badge,
+  .pin-badge {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+
+  .refresh-btn,
+  .status-btn,
+  .test-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+
+  .reconnect-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .console-header {
+    padding: 4px 8px;
+  }
+
+  .console-content {
+    padding: 4px;
+  }
+
+  .console-entry {
+    font-size: 11px;
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .entry-time {
+    min-width: 50px;
+    font-size: 9px;
+  }
+
+  .level-badge {
+    width: 18px;
+    height: 18px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 320px) {
+  .status-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    min-height: auto;
+  }
+
+  .status-left,
+  .status-right {
+    justify-content: center;
+  }
+
+  .app-title {
+    justify-content: center;
+  }
+
+  .device-badge,
+  .pin-badge {
+    font-size: 9px;
+  }
+
+  .device-code,
+  .pin-code {
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .console-entry {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .entry-time {
+    min-width: auto;
+    align-self: flex-start;
+  }
+
+  .level-badge {
+    align-self: flex-start;
+  }
 }

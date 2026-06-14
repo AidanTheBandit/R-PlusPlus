@@ -88,12 +88,12 @@ class DeviceIdManager {
     // If device secret is provided, try to find existing device
     if (this.database && deviceSecret) {
       try {
-        // Look for device with matching secret within last 30 days
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        // Look for device with matching secret within last 365 days
+        const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
 
         const existingDevice = await this.database.get(
           `SELECT * FROM devices WHERE device_secret = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 1`,
-          [deviceSecret, thirtyDaysAgo]
+          [deviceSecret, cutoff]
         );
 
         if (existingDevice) {
@@ -102,10 +102,10 @@ class DeviceIdManager {
 
           if (!isCurrentlyConnected) {
             this.persistentIds.set(socketId, existingDevice.device_id);
-            console.log(`🔄 Device reconnected via secret`);
+            console.log(`[OK] Device reconnected via secret`);
             return { deviceId: existingDevice.device_id, isReconnection: true };
           } else {
-            console.log(`⚠️ Device ${existingDevice.device_id} with secret already connected, creating new ID for security`);
+            console.log(`[OK] Device ${existingDevice.device_id} with secret already connected, creating new ID for security`);
           }
         } else {
           console.log(`� No exicsting device found for secret: ${deviceSecret.substring(0, 8)}...`);
@@ -292,10 +292,10 @@ class DeviceIdManager {
     if (!deviceSecret) return { canReconnect: false, reason: 'No device secret provided' };
 
     try {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
       const existingDevice = await this.database.get(
         `SELECT * FROM devices WHERE device_secret = ? AND last_seen > ? ORDER BY last_seen DESC LIMIT 1`,
-        [deviceSecret, thirtyDaysAgo]
+        [deviceSecret, cutoff]
       );
 
       if (existingDevice) {
@@ -367,7 +367,7 @@ class DeviceIdManager {
         try {
           // Create new device entry
           await this.database.saveDevice(newDeviceId, socketId, userAgent, ipAddress, null);
-          console.log(`🔄 Database: Created new device (regenerated)`);
+          console.log(`[OK] Database: Created new device (regenerated)`);
         } catch (error) {
           console.warn(`Failed to update database for ${newDeviceId}:`, error);
         }
@@ -377,7 +377,7 @@ class DeviceIdManager {
       console.log(`🆕 Regenerated device ID (socket: ${socketId})`);
     }
 
-    console.log(`✅ Emergency regeneration complete: ${regeneratedCount} device IDs regenerated`);
+    console.log(`[OK] Emergency regeneration complete: ${regeneratedCount} device IDs regenerated`);
     return regeneratedCount;
   }
 

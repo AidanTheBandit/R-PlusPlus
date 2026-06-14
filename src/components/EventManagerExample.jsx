@@ -206,12 +206,12 @@ const EventManagerExample = () => {
       <div style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
         <h4>Features Demonstrated:</h4>
         <ul>
-          <li>✅ Basic event subscription and emission</li>
-          <li>✅ Debounced event handlers (search input)</li>
-          <li>✅ Throttled DOM events (scroll)</li>
-          <li>✅ Event delegation for dynamic elements</li>
-          <li>✅ Automatic cleanup on component unmount</li>
-          <li>✅ Component-scoped event management</li>
+          <li>- Basic event subscription and emission</li>
+          <li>- Debounced event handlers (search input)</li>
+          <li>- Throttled DOM events (scroll)</li>
+          <li>- Event delegation for dynamic elements</li>
+          <li>- Automatic cleanup on component unmount</li>
+          <li>- Component-scoped event management</li>
         </ul>
       </div>
     </div>

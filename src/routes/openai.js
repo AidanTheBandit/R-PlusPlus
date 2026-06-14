@@ -1,7 +1,7 @@
 const { sendOpenAIResponse } = require('../utils/response-utils');
 // Using built-in fetch (Node.js 18+)
 
-function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager) {
+function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager = null) {
   // Device-specific endpoints: /device-{deviceId}/v1/chat/completions (legacy format)
   app.post('/device-:deviceId/v1/chat/completions', async (req, res) => {
     const { deviceId } = req.params;
@@ -62,9 +62,9 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = newPin;
-        console.log(`🔄 Updated in-memory PIN for device`);
+        console.log(`[OK] Updated in-memory PIN for device`);
       } else {
-        console.log(`⚠️ Device not found in memory cache during PIN enable`);
+        console.log(`[OK] Device not found in memory cache during PIN enable`);
       }
 
       console.log(`🔐 PIN ${deviceInfo.pin_code ? 'changed' : 'enabled'} for device`);
@@ -100,9 +100,9 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = null;
-        console.log(`🔄 Cleared in-memory PIN for device`);
+        console.log(`[OK] Cleared in-memory PIN for device`);
       } else {
-        console.log(`⚠️ Device not found in memory cache during PIN disable`);
+        console.log(`[OK] Device not found in memory cache during PIN disable`);
       }
 
       console.log(`🔓 PIN disabled for device`);
@@ -140,12 +140,12 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       const deviceData = deviceIdManager.deviceIds.get(deviceId);
       if (deviceData) {
         deviceData.pinCode = newPin;
-        console.log(`🔄 Updated in-memory PIN for device`);
+        console.log(`[OK] Updated in-memory PIN for device`);
       } else {
-        console.log(`⚠️ Device not found in memory cache during PIN change`);
+        console.log(`[OK] Device not found in memory cache during PIN change`);
       }
 
-      console.log(`🔄 PIN changed for device`);
+      console.log(`[OK] PIN changed for device`);
       res.json({ success: true, message: 'PIN changed successfully' });
     } catch (error) {
       console.error('Error changing PIN:', error);
@@ -217,7 +217,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
     try {
       socket.emit('chat_completion', testCommand);
-      console.log(`✅ Test command sent successfully`);
+      console.log(`[OK] Test command sent successfully`);
       res.json({
         success: true,
         message: 'Test chat completion sent',
@@ -226,7 +226,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         command: testCommand
       });
     } catch (error) {
-      console.error(`❌ Error sending test command:`, error);
+      console.error(`[OK] Error sending test command:`, error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -243,7 +243,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
           const deviceData = deviceIdManager.deviceIds.get(deviceId);
           if (deviceData) {
             deviceData.pinCode = device.pin_code;
-            console.log(`🔄 Synced device PIN from database: ${device.pin_code ? 'set' : 'none'}`);
+            console.log(`[OK] Synced device PIN from database: ${device.pin_code ? 'set' : 'none'}`);
           }
 
           res.json({
@@ -359,7 +359,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         });
 
       if (existingTextRequests.length > 0) {
-        console.log(`❌ Device ${targetDeviceId} already has ${existingTextRequests.length} pending text request(s)`);
+        console.log(`[OK] Device ${targetDeviceId} already has ${existingTextRequests.length} pending text request(s)`);
         return res.status(429).json({
           error: {
             message: 'Device is currently processing another text request. Please wait for it to complete.',
@@ -384,7 +384,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       // Check if the message contains an image URL that needs to be converted to base64
       if (!imageBase64 && messages[messages.length - 1]?.imageUrl) {
         const imageUrl = messages[messages.length - 1].imageUrl;
-        console.log(`🌐 Image URL detected, converting to base64: ${imageUrl}`);
+        console.log(`[OK] Image URL detected, converting to base64: ${imageUrl}`);
 
         try {
           // Fetch the image from the URL
@@ -401,18 +401,18 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
           const imageBuffer = await response.buffer();
           imageBase64 = imageBuffer.toString('base64');
-          console.log(`✅ Successfully converted image URL to base64 (${imageBase64.length} chars)`);
+          console.log(`[OK] Successfully converted image URL to base64 (${imageBase64.length} chars)`);
         } catch (error) {
-          console.error(`❌ Failed to convert image URL to base64:`, error.message);
+          console.error(`[OK] Failed to convert image URL to base64:`, error.message);
           // Continue without image data rather than failing the request
-          console.log(`⚠️ Continuing request without image data`);
+          console.log(`[OK] Continuing request without image data`);
         }
       }
 
       // Check for plugin ID
       if (messages[messages.length - 1]?.pluginId) {
         pluginId = messages[messages.length - 1].pluginId;
-        console.log(`🔌 Plugin ID detected: ${pluginId}`);
+        console.log(`[OK] Plugin ID detected: ${pluginId}`);
       }
 
       // Generate unique request ID
@@ -440,122 +440,7 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
       // Store the request for response handling
       pendingRequests.set(requestId, { res, timeout, stream, response_format });
 
-      // Initialize MCP request detection variables
-      let isMCPRequest = false;
-      let mcpToolCall = null;
-
-      // Check if this is an MCP tool request that should be handled server-side
-      if (mcpManager) {
-        // Get available tools for this device
-        const tools = await mcpManager.getDeviceTools(targetDeviceId);
-
-        // Analyze user message to detect MCP tool requests
-        const lowerMessage = userMessage.toLowerCase();
-
-        // Check for explicit MCP requests
-        if (lowerMessage.includes('mcp') || lowerMessage.includes('use tool') || lowerMessage.includes('using mcp')) {
-          // Try to match the request to available tools
-          for (const tool of tools) {
-            if (tool.serverName === 'deepwiki') {
-              // Handle deepwiki requests - look for repository references
-              const repoPatterns = [
-                /([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/, // owner/repo format
-                /(?:see|check|browse|explore)\s+(?:the\s+)?(?:repo|repository|github)?\s*([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)/i,
-                /([a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+)\s+(?:using|with)\s+mcp/i
-              ];
-
-              for (const pattern of repoPatterns) {
-                const repoMatch = userMessage.match(pattern);
-                if (repoMatch) {
-                  let repoName = repoMatch[1];
-
-                  // Handle common repository shortcuts
-                  if (repoName.toLowerCase() === 'vscode') {
-                    repoName = 'microsoft/vscode';
-                  } else if (repoName.toLowerCase() === 'react') {
-                    repoName = 'facebook/react';
-                  }
-
-                  isMCPRequest = true;
-                  mcpToolCall = {
-                    server: tool.serverName,
-                    tool: tool.name,
-                    arguments: { repoName }
-                  };
-                  console.log(`🔧 Detected MCP request for repository ${repoName}, will execute ${tool.name} tool`);
-                  break;
-                }
-              }
-
-              if (isMCPRequest) break;
-            }
-          }
-
-          // Special handling for deepwiki mentions
-          if (!isMCPRequest && lowerMessage.includes('deepwiki')) {
-            const deepwikiTool = tools.find(t => t.serverName === 'deepwiki' && t.name === 'read_wiki_structure');
-            if (deepwikiTool) {
-              let repoName = 'microsoft/vscode'; // default fallback
-
-              // Try to extract repo name from the message
-              const repoMatch = userMessage.match(/for\s+(\w+)/i);
-              if (repoMatch) {
-                const repoPart = repoMatch[1].toLowerCase();
-                if (repoPart === 'vscode') {
-                  repoName = 'microsoft/vscode';
-                } else if (repoPart === 'react') {
-                  repoName = 'facebook/react';
-                } else {
-                  repoName = `microsoft/${repoPart}`; // assume microsoft org
-                }
-              }
-
-              isMCPRequest = true;
-              mcpToolCall = {
-                server: deepwikiTool.serverName,
-                tool: deepwikiTool.name,
-                arguments: { repoName }
-              };
-              console.log(`🔧 Detected deepwiki mention, will execute ${deepwikiTool.name} tool for ${repoName}`);
-            }
-          }
-        }
-
-        // Also check for implicit tool requests (e.g., "what's the weather in NYC")
-        if (!isMCPRequest) {
-          // Example: weather tool matching
-          const weatherMatch = lowerMessage.match(/(?:weather|temperature|forecast).*(?:in|for|at)\s+([a-zA-Z\s,]+)/i);
-          if (weatherMatch) {
-            const location = weatherMatch[1].trim();
-            const weatherTool = tools.find(t => t.name.includes('weather') || t.name.includes('get_weather'));
-            if (weatherTool) {
-              isMCPRequest = true;
-              mcpToolCall = {
-                server: weatherTool.serverName,
-                tool: weatherTool.name,
-                arguments: { location, units: 'celsius' }
-              };
-              console.log(`🔧 Detected weather request for ${location}, will execute ${weatherTool.name} tool`);
-            }
-          }
-
-          // Example: calculator tool matching
-          const calcMatch = lowerMessage.match(/(?:calculate|compute|what is|what's)\s+(.+)/i);
-          if (calcMatch) {
-            const expression = calcMatch[1].trim();
-            const calcTool = tools.find(t => t.name.includes('calculate') || t.name.includes('calculator'));
-            if (calcTool) {
-              isMCPRequest = true;
-              mcpToolCall = {
-                server: calcTool.serverName,
-                tool: calcTool.name,
-                arguments: { expression }
-              };
-              console.log(`🔧 Detected calculation request: ${expression}, will execute ${calcTool.name} tool`);
-            }
-          }
-        }
-      }
+      // Tools are handled device-side
 
       // Build conversation context from messages array
       let conversationContext = '';
@@ -573,41 +458,16 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
         conversationContext += '## CURRENT MESSAGE\n\n';
       }
 
-      // Get MCP system prompt for injection
-      let mcpPrompt = '';
-      if (mcpManager) {
-        mcpPrompt = await mcpManager.generateMCPPromptInjection(targetDeviceId) || '';
-      }
-
-      // Combine context, MCP prompt, and current message
+      // Combine context and current message
       let messageText = userMessage;
-      if (conversationContext || mcpPrompt) {
-        messageText = `${conversationContext}${mcpPrompt}User: ${userMessage}`;
+      if (conversationContext) {
+        messageText = `${conversationContext}User: ${userMessage}`;
       }
 
-      // For json_object format, add instruction to return only JSON (but not for MCP requests)
+      // For json_object format, add instruction to return only JSON
       let processedMessage = messageText;
-      if (response_format && response_format.type === 'json_object' && !isMCPRequest) {
-        // Add explicit instruction to return only JSON
+      if (response_format && response_format.type === 'json_object') {
         processedMessage = `${messageText}\n\nIMPORTANT: Respond with ONLY a valid JSON object. Do not include any other text, markdown, or explanation.`;
-      }
-
-      // For MCP requests, execute the tool server-side first
-      if (isMCPRequest && mcpToolCall) {
-        try {
-          console.log(`🔧 Executing MCP tool server-side: ${mcpToolCall.server}.${mcpToolCall.tool}`);
-          const toolResult = await mcpManager.handleToolCall(targetDeviceId, mcpToolCall.server, mcpToolCall.tool, mcpToolCall.arguments);
-
-          // For MCP requests, inject tool results into the message
-          const toolContext = `## TOOL RESULTS\n\n${JSON.stringify(toolResult, null, 2)}\n\nUse this data to answer: `;
-          messageText = `${conversationContext}${mcpPrompt}${toolContext}${userMessage}`;
-
-          console.log(`✅ MCP tool executed successfully, result injected into message`);
-        } catch (toolError) {
-          console.error(`❌ MCP tool execution failed:`, toolError);
-          const errorContext = `## ERROR\n\n${toolError.message}\n\nPlease respond appropriately to: `;
-          messageText = `${conversationContext}${mcpPrompt}${errorContext}${userMessage}`;
-        }
       }
       const command = {
         type: 'chat_completion',
@@ -631,10 +491,10 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
 
       if (targetDeviceId) {
         // Debug device state (without exposing device IDs)
-        console.log(`🔍 Looking for target device`);
-        console.log(`🔍 hasDevice: ${deviceIdManager.hasDevice(targetDeviceId)}`);
-        console.log(`🔍 connectedR1s has: ${connectedR1s.has(targetDeviceId)}`);
-        console.log(`🔍 Total connected devices: ${connectedR1s.size}`);
+        console.log(`[OK] Looking for target device`);
+        console.log(`[OK] hasDevice: ${deviceIdManager.hasDevice(targetDeviceId)}`);
+        console.log(`[OK] connectedR1s has: ${connectedR1s.has(targetDeviceId)}`);
+        console.log(`[OK] Total connected devices: ${connectedR1s.size}`);
 
         // Send to specific device
         if (deviceIdManager.hasDevice(targetDeviceId)) {
@@ -650,15 +510,15 @@ function setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDevice
             responsesSent++;
             console.log(`📊 Sent request ${requestId} to specific device`);
           } else {
-            console.log(`❌ Device has no socket in connectedR1s`);
+            console.log(`[OK] Device has no socket in connectedR1s`);
           }
         } else {
-          console.log(`❌ Device not found in deviceIdManager`);
-          console.log(`🔍 DeviceIdManager device info available: ${!!deviceIdManager.getDeviceInfo(targetDeviceId)}`);
+          console.log(`[OK] Device not found in deviceIdManager`);
+          console.log(`[OK] DeviceIdManager device info available: ${!!deviceIdManager.getDeviceInfo(targetDeviceId)}`);
 
           // Try fallback - check if device exists in connectedR1s directly
           if (connectedR1s.has(targetDeviceId)) {
-            console.log(`🔄 Fallback: Found device in connectedR1s, sending anyway`);
+            console.log(`[OK] Fallback: Found device in connectedR1s, sending anyway`);
             const socket = connectedR1s.get(targetDeviceId);
             if (socket) {
               console.log(`📤 Fallback sending to device:`, JSON.stringify(command, null, 2));

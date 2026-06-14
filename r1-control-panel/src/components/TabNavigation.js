@@ -1,19 +1,10 @@
 import React from 'react';
+import { ChatIcon, ApiDocsIcon } from './Icons';
 
 const TabNavigation = ({ activeTab, onTabChange }) => {
   const tabs = [
-    { id: 'chat', label: '💬 Chat', description: 'Chat with your R1 device' },
-    { id: 'widgets', label: '📱 Widgets', description: 'Manage widgets on your R1 device' },
-    { id: 'speech', label: '🎵 Speech', description: 'Test text-to-speech functionality' },
-    { id: 'image', label: '🖼️ Image Analysis', description: 'Test image analysis and AI vision' },
-    //{ id: 'phone', label: '📱 SMS', description: 'Link phone numbers for SMS control' },
-    { id: 'api-docs', label: '📚 API Docs', description: 'View API documentation and endpoints' },
-    { id: 'mcp', label: '🔌 MCP Servers', description: 'Manage MCP servers for your device' }
-  ];
-
-  // Coming soon tabs (disabled)
-  const comingSoonTabs = [
-    // { id: 'mcp', label: '🔌 MCP Servers', description: 'Coming Soon - Manage MCP servers for your device' }
+    { id: 'chat', label: 'Chat', description: 'Chat with your R1 device', Icon: ChatIcon },
+    { id: 'api-docs', label: 'API Docs', description: 'View API documentation and endpoints', Icon: ApiDocsIcon }
   ];
 
   return (
@@ -26,17 +17,8 @@ const TabNavigation = ({ activeTab, onTabChange }) => {
             className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
             title={tab.description}
           >
+            <tab.Icon size={16} />
             {tab.label}
-          </button>
-        ))}
-        {comingSoonTabs.map(tab => (
-          <button
-            key={tab.id}
-            className="tab-btn disabled coming-soon"
-            title={tab.description}
-            disabled
-          >
-            {tab.label} <span className="coming-soon-badge">Coming Soon</span>
           </button>
         ))}
       </div>
