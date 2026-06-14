@@ -194,6 +194,26 @@ export function useSocket(addConsoleLog, sendErrorToServer) {
       }
     })
 
+    // Handle MCP tool results from server
+    // After we emit mcp_tool_call, the server executes the tool and sends
+    // the result back here. We forward it to the R1 LAM as a follow-up so
+    // the LAM can generate a natural-language response.
+    socketRef.current.on('mcp_tool_result', (data) => {
+      addConsoleLog(`[MCP] Received mcp_tool_result event`, 'info')
+      addConsoleLog(`[MCP] Tool result data: ${JSON.stringify(data, null, 2)}`)
+
+      if (window.handleMcpToolResult) {
+        try {
+          window.handleMcpToolResult(data, socketRef.current, addConsoleLog, sendErrorToServer)
+        } catch (error) {
+          addConsoleLog(`[MCP] Error handling tool result: ${error.message}`, 'error')
+          addConsoleLog(`[MCP] Error stack: ${error.stack}`, 'error')
+        }
+      } else {
+        addConsoleLog('[MCP] No MCP tool result handler available', 'error')
+      }
+    })
+
     // Handle incoming text-to-speech requests
     socketRef.current.on('text_to_speech', (data) => {
       const requestId = data.requestId || data.data?.requestId

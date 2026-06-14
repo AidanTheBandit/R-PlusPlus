@@ -4,7 +4,6 @@ import { HeartIcon } from './components/Icons';
 import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
 import ChatInterface from './components/ChatInterface';
-import WidgetManager from './components/WidgetManager';
 import SpeechTest from './components/SpeechTest';
 import ImageTest from './components/ImageTest';
 import ApiDocs from './components/ApiDocs';
@@ -109,8 +108,7 @@ function App() {
     switch (activeTab) {
       case 'chat':
         return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
-      case 'widgets':
-        return <WidgetManager socket={socket} deviceId={deviceId} pinCode={pinCode} />;
+
       case 'speech':
         return <SpeechTest deviceId={deviceId} pinCode={pinCode} />;
       case 'image':

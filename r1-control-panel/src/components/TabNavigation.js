@@ -1,10 +1,9 @@
 import React from 'react';
-import { ChatIcon, WidgetsIcon, SpeechIcon, ImageIcon, ApiDocsIcon, McpIcon } from './Icons';
+import { ChatIcon, SpeechIcon, ImageIcon, ApiDocsIcon, McpIcon } from './Icons';
 
 const TabNavigation = ({ activeTab, onTabChange }) => {
   const tabs = [
     { id: 'chat', label: 'Chat', description: 'Chat with your R1 device', Icon: ChatIcon },
-    { id: 'widgets', label: 'Widgets', description: 'Manage widgets on your R1 device', Icon: WidgetsIcon },
     { id: 'speech', label: 'Speech', description: 'Test text-to-speech functionality', Icon: SpeechIcon },
     { id: 'image', label: 'Image Analysis', description: 'Test image analysis and AI vision', Icon: ImageIcon },
     { id: 'api-docs', label: 'API Docs', description: 'View API documentation and endpoints', Icon: ApiDocsIcon },

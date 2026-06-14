@@ -1,6 +1,6 @@
 // MCP (Model Context Protocol) Manager for R1 devices - Remote Support
 const { EventEmitter } = require('events');
-const { MCPProtocolClient } = require('./mcp-protocol-client');
+const { MCPProtocolClient, StdioMCPClient } = require('./mcp-protocol-client');
 const crypto = require('crypto');
 
 class MCPManager extends EventEmitter {
@@ -38,7 +38,7 @@ class MCPManager extends EventEmitter {
       this.performHealthChecks();
     }, this.healthCheckIntervalMs);
     
-    console.log(`🔍 Started MCP server health monitoring (every ${this.healthCheckIntervalMs/1000}s)`);
+    console.log(`[MCP] Started MCP server health monitoring (every ${this.healthCheckIntervalMs/1000}s)`);
   }
 
   // Stop health monitoring
@@ -46,7 +46,7 @@ class MCPManager extends EventEmitter {
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = null;
-      console.log('🔍 Stopped MCP server health monitoring');
+      console.log('[MCP] Stopped MCP server health monitoring');
     }
   }
 
@@ -98,8 +98,8 @@ class MCPManager extends EventEmitter {
     const serverKey = `${deviceId}-${serverName}`;
     const config = this.serverConfigs.get(serverKey);
     
-    if (!config || !config.url) {
-      console.warn(`Cannot reconnect ${serverKey}: no configuration or URL available`);
+    if (!config || (!config.url && !config.command)) {
+      console.warn(`[MCP] Cannot reconnect ${serverKey}: no url or command configured`);
       return;
     }
     
@@ -117,21 +117,25 @@ class MCPManager extends EventEmitter {
     const maxDelay = 480000; // 8 minutes
     const delay = Math.min(baseDelay * Math.pow(2, attemptCount), maxDelay);
     
-    console.log(`🔄 Scheduling reconnection attempt ${attemptCount + 1} for ${serverKey} in ${delay/1000}s`);
+    console.log(`[MCP] Scheduling reconnection attempt ${attemptCount + 1} for ${serverKey} in ${delay/1000}s`);
     
     const timer = setTimeout(async () => {
       try {
-        console.log(`🔄 Attempting to reconnect ${serverKey} (attempt ${attemptCount + 1})`);
+        console.log(`[MCP] Attempting to reconnect ${serverKey} (attempt ${attemptCount + 1})`);
         
-        // Attempt reconnection
-        await this.connectToRemoteServer(deviceId, serverName, config);
+        // Attempt reconnection (stdio or remote)
+        if (config.command) {
+          await this.connectToStdioServer(deviceId, serverName, config);
+        } else {
+          await this.connectToRemoteServer(deviceId, serverName, config);
+        }
         
         // Success - reset attempt count and clear timer
         this.reconnectionAttempts.delete(serverKey);
         this.reconnectionTimers.delete(serverKey);
         
         await this.database.saveMCPLog(deviceId, serverName, 'info', `Successfully reconnected after ${attemptCount + 1} attempts`);
-        console.log(`✅ Successfully reconnected ${serverKey}`);
+        console.log(`[MCP] Successfully reconnected ${serverKey}`);
         
         this.emit('serverReconnected', { deviceId, serverName });
         
@@ -207,31 +211,39 @@ class MCPManager extends EventEmitter {
         }
 
         // If server is enabled, try to connect to it
-        if (config.enabled !== false && config.url) {
-          console.log(`🔄 Auto-connecting to enabled server: ${serverKey}`);
+        if (config.enabled !== false) {
           try {
-            await this.connectToRemoteServer(server.device_id, server.server_name, config);
+            if (config.command) {
+              // stdio server
+              console.log(`[MCP] Auto-connecting to enabled stdio server: ${serverKey}`);
+              await this.connectToStdioServer(server.device_id, server.server_name, config);
+            } else if (config.url) {
+              // remote server
+              console.log(`[MCP] Auto-connecting to enabled remote server: ${serverKey}`);
+              await this.connectToRemoteServer(server.device_id, server.server_name, config);
+            }
           } catch (connectionError) {
-            console.log(`⚠️ Failed to auto-connect to ${serverKey} during initialization: ${connectionError.message}`);
-            // Don't throw - server config is still loaded, just not connected
+            console.log(`[MCP] Failed to auto-connect to ${serverKey} during init: ${connectionError.message}`);
           }
         }
       }
       
-      console.log(`🔧 MCP manager initialized with ${allServers.length} servers from database`);
+      console.log(`[MCP] Manager initialized with ${allServers.length} servers from database`);
     } catch (error) {
       console.error('Failed to initialize MCP manager from database:', error);
     }
   }
 
-  // Initialize MCP server for a device (remote server connection)
+  // Initialize MCP server for a device (remote or stdio)
   async initializeServer(deviceId, serverName, config) {
     const serverKey = `${deviceId}-${serverName}`;
 
     try {
-      // Validate config for remote server
-      if (!config.url) {
-        throw new Error('Server URL is required for remote MCP servers');
+      // Determine transport type
+      const isStdio = !config.url && config.command;
+
+      if (!isStdio && !config.url) {
+        throw new Error('Server config must have either a url (remote) or command (stdio)');
       }
 
       // Save server configuration to database
@@ -241,18 +253,18 @@ class MCPManager extends EventEmitter {
       this.serverConfigs.set(serverKey, config);
 
       if (config.enabled !== false) {
-        // Only try to connect if enabled and has a valid URL
-        if (config.url && config.url.trim()) {
-          try {
+        try {
+          if (isStdio) {
+            await this.connectToStdioServer(deviceId, serverName, config);
+          } else if (config.url && config.url.trim()) {
             await this.connectToRemoteServer(deviceId, serverName, config);
-          } catch (connectionError) {
-            console.log(`⚠️ Failed to connect to ${serverName} during initialization, but server configuration saved: ${connectionError.message}`);
-            await this.database.saveMCPLog(deviceId, serverName, 'warning', `Connection failed during initialization: ${connectionError.message}`);
-            // Don't throw error - server is configured but not connected
+          } else {
+            console.log(`[MCP] Server ${serverName} configured but no url/command provided`);
+            await this.database.saveMCPLog(deviceId, serverName, 'info', 'Server configured but no url/command provided');
           }
-        } else {
-          console.log(`⚠️ Server ${serverName} configured but no URL provided - skipping connection`);
-          await this.database.saveMCPLog(deviceId, serverName, 'info', 'Server configured but no URL provided - connection skipped');
+        } catch (connectionError) {
+          console.log(`[MCP] Failed to connect to ${serverName} during initialization: ${connectionError.message}`);
+          await this.database.saveMCPLog(deviceId, serverName, 'warning', `Connection failed during initialization: ${connectionError.message}`);
         }
       }
 
@@ -264,12 +276,62 @@ class MCPManager extends EventEmitter {
     }
   }
 
+  // Connect to a local stdio MCP server (spawn as child process)
+  async connectToStdioServer(deviceId, serverName, config) {
+    const serverKey = `${deviceId}-${serverName}`;
+
+    try {
+      console.log(`[MCP] Connecting to stdio server: ${config.command} ${(config.args || []).join(' ')}`);
+
+      const client = new StdioMCPClient(config.command, config.args || [], {
+        protocolVersion: config.protocolVersion || '2025-06-18',
+        clientInfo: { name: 'R-API-MCP-Client', version: '1.0.0' },
+        capabilities: {
+          tools: {},
+          ...(config.capabilities?.resources?.enabled ? { resources: {} } : {}),
+          ...(config.capabilities?.prompts?.enabled ? { prompts: {} } : {})
+        },
+        env: config.env || {},
+        cwd: config.cwd || null,
+        timeout: config.timeout || 30000
+      });
+
+      await client.initialize();
+
+      // Store the client
+      this.activeClients.set(serverKey, client);
+
+      // Discover tools
+      const toolsResponse = await client.listTools();
+      const rawTools = toolsResponse.tools || [];
+      const tools = rawTools.map(tool => ({ ...tool, serverName }));
+
+      this.availableTools.set(serverKey, tools);
+
+      // Save tools to database
+      const serverInfo = await this.database.getMCPServer(deviceId, serverName);
+      if (serverInfo) {
+        for (const tool of tools) {
+          await this.database.saveMCPTool(serverInfo.id, tool.name, tool.description, tool.inputSchema);
+        }
+      }
+
+      await this.database.saveMCPLog(deviceId, serverName, 'info', `Connected to stdio MCP server with ${tools.length} tools`);
+      this.emit('serverStarted', { deviceId, serverName });
+
+    } catch (error) {
+      console.error(`[MCP] Failed to connect to stdio server ${serverKey}: ${error.message}`);
+      await this.database.saveMCPLog(deviceId, serverName, 'error', `Stdio connection failed: ${error.message}`);
+      throw error;
+    }
+  }
+
   // Connect to remote MCP server
   async connectToRemoteServer(deviceId, serverName, config) {
     const serverKey = `${deviceId}-${serverName}`;
 
     try {
-      console.log(`🔌 Connecting to remote MCP server: ${config.url}`);
+      console.log(`[MCP] Connecting to remote MCP server: ${config.url}`);
 
       // Create MCP protocol client with capabilities from config
       const clientCapabilities = {};
@@ -397,14 +459,6 @@ class MCPManager extends EventEmitter {
     }
   }
 
-    // Request tool approval (placeholder - would integrate with R1 UI)
-  async requestToolApproval(deviceId, serverName, toolParams) {
-    // For now, return true (auto-approve)
-    // In a real implementation, this would show a prompt on the R1 device
-    await this.database.saveMCPLog(deviceId, serverName, 'info', `Tool approval requested: ${toolParams.name}`);
-    return true;
-  }
-
   // Generate MCP prompt injection for device
   async generateMCPPromptInjection(deviceId) {
     const tools = await this.getDeviceTools(deviceId);
@@ -414,20 +468,38 @@ class MCPManager extends EventEmitter {
     }
 
     let prompt = '## AVAILABLE TOOLS\n\n';
-    prompt += 'You have access to these tools. Use them when appropriate:\n\n';
+    prompt += 'You have access to external tools via MCP (Model Context Protocol). ';
+    prompt += 'When a user asks something that could benefit from a tool, call it.\n\n';
 
     for (const tool of tools) {
-      const serverName = tool.serverName;
-      const toolName = tool.name;
-      const description = tool.description;
-
-      prompt += `### ${toolName} (${serverName})\n`;
-      prompt += `${description}\n\n`;
+      prompt += `### ${tool.name}\n`;
+      prompt += `Server: ${tool.serverName}\n`;
+      if (tool.description) {
+        prompt += `${tool.description}\n`;
+      }
+      if (tool.inputSchema && tool.inputSchema.properties) {
+        prompt += 'Parameters:\n';
+        const props = tool.inputSchema.properties;
+        const required = tool.inputSchema.required || [];
+        for (const [key, schema] of Object.entries(props)) {
+          const req = required.includes(key) ? ' (required)' : ' (optional)';
+          prompt += `  - ${key}: ${schema.type || 'any'}${req}`;
+          if (schema.description) {
+            prompt += ` - ${schema.description}`;
+          }
+          prompt += '\n';
+        }
+      }
+      prompt += '\n';
     }
 
-    prompt += '## TOOL USAGE\n\n';
-    prompt += 'To use a tool, respond with JSON: {"mcp_tool_call": {"server": "serverName", "tool": "toolName", "arguments": {...}}}\n\n';
-    prompt += 'After receiving tool results, provide a natural response using that data.\n\n';
+    prompt += '## TOOL USAGE FORMAT\n\n';
+    prompt += 'To call a tool, respond with ONLY this JSON (no other text):\n';
+    prompt += '```json\n';
+    prompt += '{"mcp_tool_call": {"server": "serverName", "tool": "toolName", "arguments": {"param": "value"}}}\n';
+    prompt += '```\n\n';
+    prompt += 'After the tool executes, you will receive the results and should respond naturally using that data.\n';
+    prompt += 'Only call a tool when it would genuinely help answer the question.\n\n';
 
     return prompt;
   }
@@ -476,20 +548,7 @@ class MCPManager extends EventEmitter {
     }
 
     try {
-      // Check if tool is auto-approved based on capabilities config
-      const autoApprove = config.capabilities?.tools?.autoApprove || [];
-
-      if (!autoApprove.includes(toolName)) {
-        // Request approval from user (this would integrate with the R1 UI)
-        const approved = await this.requestToolApproval(actualDeviceId, serverName, { name: toolName, arguments: toolArgs });
-        if (!approved) {
-          const error = 'Tool call not approved by user';
-          await this.database.saveMCPLog(actualDeviceId, serverName, 'warning', error);
-          throw new Error(error);
-        }
-      }
-
-      console.log(`Executing MCP tool: ${serverName}.${toolName} with args:`, toolArgs);
+      console.log(`[MCP] Executing tool: ${serverName}.${toolName} with args:`, toolArgs);
       
       // Call tool on remote server
       const result = await client.callTool(toolName, toolArgs);
@@ -527,105 +586,6 @@ class MCPManager extends EventEmitter {
       await this.database.saveMCPLog(actualDeviceId, serverName, 'error', `Tool call failed: ${error.message}`);
       throw error;
     }
-  }
-
-  // Execute tool simulation (since we can't run actual processes)
-  async executeToolSimulation(serverName, toolName, toolArgs) {
-    switch (serverName) {
-      case 'web-search':
-        if (toolName === 'search_web') {
-          return {
-            results: [
-              {
-                title: `Search results for: ${toolArgs.query}`,
-                url: 'https://example.com/search',
-                snippet: `This is a simulated search result for "${toolArgs.query}". In a real implementation, this would connect to a search API.`
-              }
-            ],
-            query: toolArgs.query,
-            total_results: toolArgs.max_results || 5
-          };
-        }
-        break;
-        
-      case 'weather':
-        if (toolName === 'get_weather') {
-          return {
-            location: toolArgs.location,
-            temperature: 22,
-            units: toolArgs.units || 'celsius',
-            condition: 'Partly cloudy',
-            humidity: 65,
-            wind_speed: 10,
-            description: `Simulated weather data for ${toolArgs.location}. In a real implementation, this would connect to a weather API.`
-          };
-        }
-        break;
-        
-      case 'calculator':
-        if (toolName === 'calculate') {
-          try {
-            // Simple expression evaluation (be careful with eval in production)
-            const result = Function(`"use strict"; return (${toolArgs.expression})`)();
-            return {
-              expression: toolArgs.expression,
-              result: result,
-              type: typeof result
-            };
-          } catch (error) {
-            throw new Error(`Invalid mathematical expression: ${error.message}`);
-          }
-        }
-        break;
-        
-      case 'time':
-        if (toolName === 'get_current_time') {
-          const now = new Date();
-          return {
-            timestamp: now.toISOString(),
-            timezone: toolArgs.timezone || 'UTC',
-            formatted: now.toLocaleString(),
-            unix: Math.floor(now.getTime() / 1000)
-          };
-        }
-        break;
-        
-      case 'knowledge':
-        if (toolName === 'search_knowledge') {
-          return {
-            query: toolArgs.query,
-            category: toolArgs.category,
-            results: [
-              {
-                title: `Knowledge about: ${toolArgs.query}`,
-                content: `This is simulated knowledge base content for "${toolArgs.query}". In a real implementation, this would search a knowledge database.`,
-                relevance: 0.95,
-                source: 'Knowledge Base'
-              }
-            ]
-          };
-        }
-        break;
-        
-      default:
-        return {
-          server: serverName,
-          tool: toolName,
-          arguments: toolArgs,
-          result: 'Tool executed successfully (simulated)',
-          note: 'This is a simulated response. In a real implementation, this would connect to the actual MCP server.'
-        };
-    }
-    
-    throw new Error(`Unknown tool: ${toolName} in server: ${serverName}`);
-  }
-
-  // Request tool approval (placeholder - would integrate with R1 UI)
-  async requestToolApproval(deviceId, serverName, toolParams) {
-    // For now, return true (auto-approve)
-    // In a real implementation, this would show a prompt on the R1 device
-    await this.database.saveMCPLog(deviceId, serverName, 'info', `Tool approval requested: ${toolParams.name}`);
-    return true;
   }
 
   // Get server status (remote connection)
@@ -812,7 +772,7 @@ class MCPManager extends EventEmitter {
     
     try {
       await Promise.all(shutdownPromises);
-      console.log('✅ MCP manager shutdown complete');
+      console.log('[MCP] Manager shutdown complete');
     } catch (error) {
       console.error('❌ Error during MCP manager shutdown:', error);
     }

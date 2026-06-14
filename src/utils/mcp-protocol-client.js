@@ -2,6 +2,8 @@
 // Implements proper MCP protocol compliance with official SDK
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { SSEClientTransport } = require('@modelcontextprotocol/sdk/client/sse.js');
+const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+const { spawn } = require('child_process');
 
 // Custom HTTP Transport for MCP protocol
 class HTTPClientTransport {
@@ -21,7 +23,7 @@ class HTTPClientTransport {
   // Start the transport (required by MCP SDK)
   async start() {
     // HTTP transport is connectionless, so this is a no-op
-    console.log(`🌐 HTTP transport started for ${this.serverUrl}`);
+    console.log(`[MCP] HTTP transport started for ${this.serverUrl}`);
   }
 
   // Send a message to the server
@@ -57,7 +59,7 @@ class HTTPClientTransport {
   // Close the transport
   async close() {
     // HTTP transport is connectionless, so this is a no-op
-    console.log(`🌐 HTTP transport closed for ${this.serverUrl}`);
+    console.log(`[MCP] HTTP transport closed for ${this.serverUrl}`);
     if (this.onclose) {
       this.onclose();
     }
@@ -118,7 +120,7 @@ class MCPProtocolClient {
   // Initialize connection to MCP server
   async initialize() {
     try {
-      console.log(`🔌 Initializing MCP connection to ${this.serverUrl}`);
+      console.log(`[MCP] Initializing MCP connection to ${this.serverUrl}`);
 
       // Create appropriate transport based on URL
       if (this.serverUrl.includes('/sse')) {
@@ -145,8 +147,8 @@ class MCPProtocolClient {
       // Connect to the server
       await this.client.connect(this.transport);
 
-      console.log(`✅ MCP initialized with protocol version ${this.client.getServerVersion()}`);
-      console.log(`📋 Server capabilities:`, this.client.getServerCapabilities());
+      console.log(`[MCP] Initialized with protocol version ${this.client.getServerVersion()}`);
+      console.log(`[MCP] Server capabilities:`, this.client.getServerCapabilities());
 
       this.initialized = true;
       this.connected = true;
@@ -281,11 +283,122 @@ class MCPProtocolClient {
       if (this.transport) {
         await this.transport.close();
       }
-      console.log('🔌 MCP connection closed');
+      console.log('[MCP] MCP connection closed');
     } catch (error) {
       console.error('Error closing MCP connection:', error);
     }
   }
 }
 
-module.exports = { MCPProtocolClient };
+// Stdio MCP Client - spawns a local MCP server as a child process
+// Uses official SDK StdioClientTransport
+class StdioMCPClient {
+  constructor(command, args = [], options = {}) {
+    this.command = command;
+    this.args = args;
+    this.env = options.env || {};
+    this.cwd = options.cwd || null;
+    this.client = new Client(
+      {
+        name: options.clientInfo?.name || 'R-API-MCP-Client',
+        version: options.clientInfo?.version || '1.0.0'
+      },
+      {
+        capabilities: options.capabilities || {
+          tools: {},
+          resources: {},
+          prompts: {}
+        }
+      }
+    );
+    this.transport = null;
+    this.connected = false;
+    this.initialized = false;
+    this.timeout = options.timeout || 30000;
+  }
+
+  async initialize() {
+    try {
+      console.log(`[MCP] Spawning stdio server: ${this.command} ${this.args.join(' ')}`);
+
+      this.transport = new StdioClientTransport({
+        command: this.command,
+        args: this.args,
+        env: { ...process.env, ...this.env },
+        ...(this.cwd ? { cwd: this.cwd } : {})
+      });
+
+      this.transport.onclose = () => {
+        console.log(`[MCP] Stdio transport closed for ${this.command}`);
+        this.connected = false;
+        this.initialized = false;
+      };
+
+      await this.client.connect(this.transport);
+
+      console.log(`[MCP] Stdio server initialized: ${this.client.getServerVersion()}`);
+
+      this.initialized = true;
+      this.connected = true;
+
+      return {
+        protocolVersion: this.client.getServerVersion(),
+        capabilities: this.client.getServerCapabilities()
+      };
+    } catch (error) {
+      console.error(`[MCP] Stdio initialization failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async listTools() {
+    if (!this.connected) throw new Error('Client not connected');
+    return await this.client.listTools();
+  }
+
+  async callTool(toolName, args = {}) {
+    if (!this.connected) throw new Error('Client not connected');
+    return await this.client.callTool({ name: toolName, arguments: args });
+  }
+
+  async listResources() {
+    if (!this.connected) throw new Error('Client not connected');
+    return await this.client.listResources();
+  }
+
+  async readResource(uri) {
+    if (!this.connected) throw new Error('Client not connected');
+    return await this.client.readResource({ uri });
+  }
+
+  async listPrompts() {
+    if (!this.connected) throw new Error('Client not connected');
+    return await this.client.listPrompts();
+  }
+
+  async getPrompt(name, args = {}) {
+    if (!this.connected) throw new Error('Client not connected');
+    return await this.client.getPrompt({ name, arguments: args });
+  }
+
+  async ping() {
+    if (!this.connected) throw new Error('Client not connected');
+    await this.client.ping();
+    return { success: true };
+  }
+
+  async close() {
+    this.connected = false;
+    this.initialized = false;
+    try {
+      if (this.transport) {
+        await this.transport.close();
+      }
+      console.log(`[MCP] Stdio connection closed for ${this.command}`);
+    } catch (error) {
+      console.error(`[MCP] Error closing stdio connection: ${error.message}`);
+    }
+  }
+}
+
+module.exports = { MCPProtocolClient, StdioMCPClient, HTTPClientTransport };
