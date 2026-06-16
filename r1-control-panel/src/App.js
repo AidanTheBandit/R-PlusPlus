@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import io from 'socket.io-client';
 import { HeartIcon } from './components/Icons';
 import DeviceLogin from './components/DeviceLogin';
 import TabNavigation from './components/TabNavigation';
@@ -7,28 +6,22 @@ import ChatInterface from './components/ChatInterface';
 import SpeechTest from './components/SpeechTest';
 import ImageTest from './components/ImageTest';
 import ApiDocs from './components/ApiDocs';
-import PhoneLink from './components/PhoneLink';
-import Apps from './components/Apps';
-import MCPManager from './components/MCPManager';
 import './App.css';
 
 function App() {
   const [activeTab, setActiveTab] = useState('chat');
-  const [socket, setSocket] = useState(null);
   const [deviceId, setDeviceId] = useState('');
   const [pinCode, setPinCode] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState('');
 
   useEffect(() => {
-    // Check for saved credentials
     const savedDeviceId = localStorage.getItem('r1-device-id');
     const savedPinCode = localStorage.getItem('r1-pin-code');
     
     if (savedDeviceId) {
       setDeviceId(savedDeviceId);
       setPinCode(savedPinCode || '');
-      // Auto-authenticate if we have saved credentials
       handleLogin(savedDeviceId, savedPinCode || '');
     }
   }, []);
@@ -42,7 +35,6 @@ function App() {
     }
 
     try {
-      // Test the device connection
       const headers = {
         'Content-Type': 'application/json'
       };
@@ -56,31 +48,16 @@ function App() {
       });
 
       if (response.ok) {
-        // Authentication successful
         setDeviceId(deviceIdInput);
         setPinCode(pinCodeInput);
         setIsAuthenticated(true);
         
-        // Save credentials
         localStorage.setItem('r1-device-id', deviceIdInput);
         if (pinCodeInput) {
           localStorage.setItem('r1-pin-code', pinCodeInput);
         } else {
           localStorage.removeItem('r1-pin-code');
         }
-
-        // Initialize socket connection for MCP events (NOT as a device)
-        const newSocket = io();
-        setSocket(newSocket);
-
-        newSocket.on('connect', () => {
-          console.log('Connected to R-API server');
-        });
-
-        newSocket.on('mcp_event', (data) => {
-          console.log('MCP Event:', data);
-        });
-
       } else {
         const error = await response.json();
         setAuthError(error.error?.message || 'Authentication failed');
@@ -97,30 +74,20 @@ function App() {
     setAuthError('');
     localStorage.removeItem('r1-device-id');
     localStorage.removeItem('r1-pin-code');
-    
-    if (socket) {
-      socket.close();
-      setSocket(null);
-    }
   };
 
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'chat':
-        return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
-
+        return <ChatInterface deviceId={deviceId} pinCode={pinCode} />;
       case 'speech':
         return <SpeechTest deviceId={deviceId} pinCode={pinCode} />;
       case 'image':
         return <ImageTest deviceId={deviceId} pinCode={pinCode} />;
-      case 'phone':
-        return <PhoneLink deviceId={deviceId} />;
       case 'api-docs':
         return <ApiDocs deviceId={deviceId} />;
-      case 'mcp':
-        return <MCPManager socket={socket} deviceId={deviceId} pinCode={pinCode} />;
       default:
-        return <ChatInterface socket={socket} deviceId={deviceId} pinCode={pinCode} />;
+        return <ChatInterface deviceId={deviceId} pinCode={pinCode} />;
     }
   };
 
@@ -156,10 +123,7 @@ function App() {
         </div>
         
         <footer className="app-footer">
-          <a href="https://barkle.chat/@Aidan" target="_blank" rel="noopener noreferrer">
-            Barkle 
-          </a>
-          <span>Made with <HeartIcon size={12} /> by Aidan and <a href="https://boondit.site/r1-generator" target="_blank" rel="noopener noreferrer">R1 QR code gen</a></span>
+          <span>Made with <HeartIcon size={12} /> by Aidan</span>
         </footer>
       </div>
     </div>
