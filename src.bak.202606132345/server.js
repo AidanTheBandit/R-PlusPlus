@@ -12,10 +12,12 @@ const { setupOpenAIRoutes } = require('./routes/openai');
 const { setupMagicCamRoutes } = require('./routes/magic-cam');
 const { setupHealthRoutes } = require('./routes/health');
 const { setupDebugRoutes } = require('./routes/debug');
+const { setupMCPRoutes } = require('./routes/mcp');
 const { setupTwilioRoutes } = require('./routes/twilio');
 const { setupSocketHandler } = require('./socket/socket-handler');
 const { DeviceIdManager } = require('./utils/device-id-manager');
 const { DatabaseManager } = require('./utils/database');
+const { MCPManager } = require('./utils/mcp-manager');
 const PluginManager = require('./plugins/plugin-manager');
 
 // Import performance monitoring
@@ -59,6 +61,7 @@ const performanceMetrics = new Map(); // deviceId -> metrics array
 // Initialize database and device ID manager
 const database = new DatabaseManager();
 const deviceIdManager = new DeviceIdManager(database);
+const mcpManager = new MCPManager(database, deviceIdManager);
 
 // Middleware
 app.use(cors());
@@ -72,10 +75,11 @@ app.set('trust proxy', 1);
 let performanceMiddleware = (req, res, next) => next();
 
 // Setup routes FIRST (before static file serving)
-setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, null);
+setupOpenAIRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, deviceIdManager, mcpManager);
 setupMagicCamRoutes(app, connectedR1s);
 setupHealthRoutes(app, connectedR1s);
 setupDebugRoutes(app, connectedR1s, debugStreams, deviceLogs, debugDataStore, performanceMetrics);
+setupMCPRoutes(app, io, connectedR1s, mcpManager, deviceIdManager);
 setupTwilioRoutes(app, io, connectedR1s, pendingRequests, requestDeviceMap, database);
 
 // Performance monitoring endpoint
@@ -776,7 +780,7 @@ app.post('/:deviceId/change-pin', async (req, res) => {
 });
 
 // Setup socket handler
-setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager);
+setupSocketHandler(io, connectedR1s, pendingRequests, requestDeviceMap, debugStreams, deviceLogs, debugDataStore, performanceMetrics, deviceIdManager, mcpManager);
 
 
 
@@ -792,7 +796,8 @@ const sharedState = {
   deviceLogs,
   debugDataStore,
   performanceMetrics,
-  deviceIdManager
+  deviceIdManager,
+  mcpManager
 };
 
 pluginManager.initPlugins(app, io, sharedState);
@@ -824,6 +829,10 @@ const checkBuilds = () => {
 database.init().then(async () => {
   console.log('Database initialized successfully');
   
+  // Initialize MCP manager after database is ready
+  await mcpManager.initialize();
+  console.log('MCP manager initialized successfully');
+  
   // Initialize performance monitoring
   if (performanceIntegration && performanceIntegration.initialize) {
     try {
@@ -847,6 +856,7 @@ database.init().then(async () => {
     console.log(`🚀 R-API server running on http://localhost:${PORT}`);
     console.log(`📡 Socket.IO server available at /socket.io (WebSocket+polling compatible)`);
     console.log(`🎛️  React Control Panel available at http://localhost:${PORT}`);
+    console.log(`[OK] MCP Management available at http://localhost:${PORT} (MCP Servers tab)`);
     console.log(`[OK] Creation React UI available at http://localhost:${PORT}/creation`);
     console.log(`[OK] Device-specific API at http://localhost:${PORT}/[device-id]/v1/chat/completions`);
     console.log(`[OK] Loaded plugins: ${pluginManager.getAllPlugins().join(', ') || 'none'}`);
@@ -880,6 +890,22 @@ async function gracefulShutdown(signal) {
   console.log('[OK] Press Ctrl+C again to force immediate shutdown');
   
   try {
+    // Shutdown MCP manager first with timeout
+    if (mcpManager) {
+      console.log('[OK] Shutting down MCP manager...');
+      const mcpShutdownPromise = mcpManager.shutdown();
+      const mcpTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('MCP shutdown timeout')), 5000)
+      );
+      
+      try {
+        await Promise.race([mcpShutdownPromise, mcpTimeout]);
+        console.log('[OK] MCP servers shut down');
+      } catch (error) {
+        console.log('[OK] MCP shutdown timed out, continuing...');
+      }
+    }
+    
     // Cleanup performance monitoring
     if (performanceIntegration && performanceIntegration.cleanup) {
       try {
